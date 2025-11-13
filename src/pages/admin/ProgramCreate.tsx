@@ -5,6 +5,7 @@ import ProgramForm from '@/components/programs/ProgramForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ProgramCreate() {
   const navigate = useNavigate();
@@ -12,8 +13,10 @@ export default function ProgramCreate() {
 
   const handleSubmit = (data: any) => {
     createProgram.mutate(data, {
-      onSuccess: () => {
-        navigate('/dashboard/programs');
+      onSuccess: (newProgram) => {
+        toast.success('Program created! Now assign employees to this program.');
+        // Redirect to assignment page for the newly created program
+        navigate(`/dashboard/programs/${newProgram.id}/assign`);
       },
     });
   };

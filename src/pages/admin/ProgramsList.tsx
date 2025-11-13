@@ -248,7 +248,7 @@ export default function ProgramsList() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => navigate(`/admin/programs/${program.id}`)}
+                            onClick={() => navigate(`/dashboard/programs/${program.id}`)}
                             title="View details"
                           >
                             <Eye className="w-4 h-4" />
@@ -256,7 +256,7 @@ export default function ProgramsList() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => navigate(`/admin/programs/${program.id}/edit`)}
+                            onClick={() => navigate(`/dashboard/programs/${program.id}/edit`)}
                             title="Edit program"
                           >
                             <Edit className="w-4 h-4" />

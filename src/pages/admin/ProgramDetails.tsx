@@ -209,7 +209,7 @@ export default function ProgramDetails() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate(`/admin/programs/${id}/edit`)}
+              onClick={() => navigate(`/dashboard/programs/${id}/edit`)}
             >
               <Edit className="w-4 h-4 mr-2" />
               Edit
