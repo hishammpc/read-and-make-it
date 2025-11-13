@@ -5,6 +5,7 @@ import {
   useEvaluationTemplate,
   useUpdateEvaluationTemplate,
 } from '@/hooks/useEvaluations';
+import AdminLayout from '@/components/layout/AdminLayout';
 import EvaluationTemplateBuilder, {
   Question,
 } from '@/components/evaluations/EvaluationTemplateBuilder';
@@ -120,19 +121,19 @@ export default function EvaluationTemplateEdit() {
 
   if (templateLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (!template) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
+      <AdminLayout>
+        <div>
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
@@ -149,13 +150,13 @@ export default function EvaluationTemplateEdit() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -268,6 +269,6 @@ export default function EvaluationTemplateEdit() {
           </div>
         </form>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

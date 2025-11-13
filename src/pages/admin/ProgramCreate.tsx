@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useCreateProgram } from '@/hooks/usePrograms';
+import AdminLayout from '@/components/layout/AdminLayout';
 import ProgramForm from '@/components/programs/ProgramForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,8 +19,8 @@ export default function ProgramCreate() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -53,6 +54,6 @@ export default function ProgramCreate() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

@@ -1,5 +1,7 @@
 # Quick Migration Reference Card
-## Switch from Lovable Cloud to Your Own Supabase in 10 Minutes
+## Switch from Lovable Cloud to Your Own Supabase in 10-15 Minutes
+
+**✨ Good news:** Since you already have admin access working, this will be smooth!
 
 ### ⚡ Quick Steps:
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useCreateUser } from '@/hooks/useUsers';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { UserForm, UserFormValues } from '@/components/users/UserForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,8 @@ export default function UserCreate() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -56,6 +58,7 @@ export default function UserCreate() {
           />
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

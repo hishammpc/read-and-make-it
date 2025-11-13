@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useUser, useUpdateUser, useUpdateUserRole } from '@/hooks/useUsers';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { UserForm, UserFormValues } from '@/components/users/UserForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,20 +51,21 @@ export default function UserEdit() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <AdminLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Failed to load user: {error.message}
           </AlertDescription>
         </Alert>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" disabled>
             <ArrowLeft className="h-4 w-4" />
@@ -91,25 +93,27 @@ export default function UserEdit() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </AdminLayout>
     );
   }
 
   if (!user) {
     return (
-      <div className="p-6">
+      <AdminLayout>
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>User not found</AlertDescription>
         </Alert>
-      </div>
+      </AdminLayout>
     );
   }
 
   const userRole = user.user_roles?.[0]?.role || 'employee';
 
   return (
-    <div className="p-6 space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -147,6 +151,7 @@ export default function UserEdit() {
           />
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

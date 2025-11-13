@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
 import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignments';
 import { formatDate, formatDateTime } from '@/lib/dateUtils';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,8 +102,8 @@ export default function ProgramDetails() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -126,14 +127,14 @@ export default function ProgramDetails() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon">
@@ -158,14 +159,14 @@ export default function ProgramDetails() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (!program) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -183,13 +184,13 @@ export default function ProgramDetails() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -468,6 +469,6 @@ export default function ProgramDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminLayout>
   );
 }

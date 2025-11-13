@@ -6,6 +6,7 @@ import { useEvaluations } from '@/hooks/useEvaluations';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadCSV, formatDataForCSV } from '@/lib/csvUtils';
 import { formatDate } from '@/lib/dateUtils';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -655,7 +656,8 @@ export default function Reports() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -724,6 +726,7 @@ export default function Reports() {
           );
         })}
       </Tabs>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

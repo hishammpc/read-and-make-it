@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProgram, useUpdateProgram } from '@/hooks/usePrograms';
+import AdminLayout from '@/components/layout/AdminLayout';
 import ProgramForm from '@/components/programs/ProgramForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,8 +28,8 @@ export default function ProgramEdit() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -52,14 +53,14 @@ export default function ProgramEdit() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -87,14 +88,14 @@ export default function ProgramEdit() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (!program) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -112,7 +113,7 @@ export default function ProgramEdit() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
@@ -130,8 +131,8 @@ export default function ProgramEdit() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -166,6 +167,6 @@ export default function ProgramEdit() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

@@ -4,6 +4,7 @@ import { useProgram } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
 import { useProgramAssignments, useAssignUsersToProgram, useRemoveAssignment } from '@/hooks/useAssignments';
 import { formatDateTime } from '@/lib/dateUtils';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -149,8 +150,8 @@ export default function ProgramAssign() {
 
   if (programError) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -174,14 +175,14 @@ export default function ProgramAssign() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (programLoading || usersLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon">
@@ -205,14 +206,14 @@ export default function ProgramAssign() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (!program) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <AdminLayout>
+        <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -230,13 +231,13 @@ export default function ProgramAssign() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -470,6 +471,6 @@ export default function ProgramAssign() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminLayout>
   );
 }

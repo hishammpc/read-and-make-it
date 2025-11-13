@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePrograms } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
 import { useUploadCertificate } from '@/hooks/useCertificates';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -121,23 +122,23 @@ export default function CertificateUpload() {
   const failureCount = uploadResults.filter((r) => !r.success).length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="flex items-center h-16 px-4">
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => navigate('/dashboard/certificates')}
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Certificates
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-semibold ml-4">Upload Certificate</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Upload Certificate</h1>
+            <p className="text-muted-foreground">Upload certificates for completed training programs</p>
+          </div>
         </div>
-      </header>
 
-      <main className="p-6">
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-3xl space-y-6">
           {isComplete && (
             <Alert variant={failureCount === 0 ? 'default' : 'destructive'}>
               <AlertCircle className="h-4 w-4" />
@@ -314,7 +315,7 @@ export default function CertificateUpload() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

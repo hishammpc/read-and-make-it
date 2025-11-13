@@ -86,6 +86,7 @@ All documentation is organized in the [`/docs`](./docs/) directory:
 - **[📖 Project Specification](./docs/mylearning%20promd.txt)** - Original project requirements
 - **[🔄 Supabase Migration Guide](./SUPABASE_MIGRATION_GUIDE.md)** - Migrate from Lovable Cloud to your own Supabase
 - **[📝 Implementation Summary](./IMPLEMENTATION_SUMMARY.md)** - Complete implementation details
+- **[📤 Bulk Import Setup](./BULK_IMPORT_SETUP.md)** - CSV bulk user import guide
 - **[🚀 Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 
 ## ✅ Implementation Status
@@ -95,11 +96,12 @@ All documentation is organized in the [`/docs`](./docs/) directory:
 **Admin Features:**
 - ✅ Super Dashboard with real data and charts
 - ✅ Program Management (CRUD, assignment, details)
-- ✅ User Management (CRUD, role management)
+- ✅ User Management (CRUD, role management, **bulk CSV import**)
 - ✅ Attendance Management (manual marking, bulk actions)
 - ✅ Evaluation Management (templates, responses)
 - ✅ Certificate Management (upload, download, batch processing)
 - ✅ Reports Generation (6 report types with CSV export)
+- ✅ **Separate Admin Login** (email + password authentication)
 
 **Employee Features:**
 - ✅ Employee Dashboard with statistics
@@ -107,6 +109,7 @@ All documentation is organized in the [`/docs`](./docs/) directory:
 - ✅ My Evaluations (submit, view history)
 - ✅ My Certificates (view, download)
 - ✅ My Training Hours (progress tracking, breakdown)
+- ✅ **Email-Only Login** (no password required, internal network)
 
 **Technical:**
 - ✅ 94+ files created/modified
@@ -146,9 +149,10 @@ The project uses Supabase PostgreSQL with the following main tables:
 - `evaluation_templates` - Evaluation templates
 - `evaluations` - Evaluation responses
 - `certificates` - Certificates
+- `bulk_uploads` - Bulk import audit log
 - `reminders_log` - Reminder tracking
 
-See migration file: `supabase/migrations/`
+See migration files: `supabase/migrations/`
 
 ## 🧪 Testing
 

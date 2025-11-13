@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCertificates, useDeleteCertificate } from '@/hooks/useCertificates';
 import { usePrograms } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -91,19 +92,20 @@ export default function Certificates() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <AdminLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Failed to load certificates: {error.message}
           </AlertDescription>
         </Alert>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Certificates Management</h1>
@@ -269,6 +271,7 @@ export default function Certificates() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

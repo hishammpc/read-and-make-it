@@ -1,84 +1,59 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import {
+  loginWithEmailOnly,
+  getCurrentSession,
+  logout,
+  UserSession
+} from '@/lib/emailOnlyAuth';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: UserSession | null;
   loading: boolean;
   role: 'admin' | 'employee' | null;
+  signIn: (email: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<'admin' | 'employee' | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        // Defer role fetching
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setRole(null);
-        }
-
-        setLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(() => {
-          fetchUserRole(session.user.id);
-        }, 0);
-      }
-      
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check for existing session on mount
+    const session = getCurrentSession();
+    if (session) {
+      setUser(session);
+      setRole(session.role);
+    }
+    setLoading(false);
   }, []);
 
-  const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
+  const signIn = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await loginWithEmailOnly(email);
 
-    if (!error && data) {
-      setRole(data.role as 'admin' | 'employee');
+    if (result.success && result.user) {
+      setUser(result.user);
+      setRole(result.user.role);
     }
+
+    return result;
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    logout();
     setUser(null);
-    setSession(null);
     setRole(null);
     navigate('/auth');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, signOut }}>
+    <AuthContext.Provider value={{ user, loading, role, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

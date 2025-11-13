@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEvaluationTemplates, useEvaluations, useDeleteEvaluationTemplate } from '@/hooks/useEvaluations';
 import { formatDate } from '@/lib/dateUtils';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -122,8 +123,8 @@ export default function Evaluations() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -394,9 +395,8 @@ export default function Evaluations() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
 
-      {/* Delete Confirmation Dialog */}
+        {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -417,6 +417,7 @@ export default function Evaluations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

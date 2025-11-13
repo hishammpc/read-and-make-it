@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePrograms, useDeleteProgram } from '@/hooks/usePrograms';
 import { formatDate } from '@/lib/dateUtils';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -99,8 +100,8 @@ export default function ProgramsList() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <Card className="max-w-7xl mx-auto">
+      <AdminLayout>
+        <Card>
           <CardContent className="p-6">
             <div className="text-center">
               <h3 className="text-lg font-semibold text-destructive mb-2">Error Loading Programs</h3>
@@ -108,13 +109,13 @@ export default function ProgramsList() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -284,9 +285,8 @@ export default function ProgramsList() {
             Showing {filteredPrograms.length} of {programs?.length || 0} programs
           </div>
         )}
-      </div>
 
-      {/* Delete Confirmation Dialog */}
+        {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -307,6 +307,7 @@ export default function ProgramsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUsers } from '@/hooks/useUsers';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -21,7 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Edit, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit, AlertCircle, Upload } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function UsersList() {
@@ -82,19 +83,20 @@ export default function UsersList() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <AdminLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Failed to load users: {error.message}
           </AlertDescription>
         </Alert>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
@@ -102,10 +104,19 @@ export default function UsersList() {
             Manage user profiles and permissions
           </p>
         </div>
-        <Button onClick={() => navigate('/admin/users/create')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/admin/users/bulk-import')}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Import
+          </Button>
+          <Button onClick={() => navigate('/admin/users/create')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -263,6 +274,7 @@ export default function UsersList() {
           Showing {filteredUsers.length} of {users?.length || 0} users
         </p>
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

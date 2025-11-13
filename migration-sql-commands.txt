@@ -1,0 +1,247 @@
+═══════════════════════════════════════════════════════════════════════════
+  MYLEARNING PRO - SUPABASE MIGRATION SQL COMMANDS
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: RUN MAIN MIGRATION
+───────────────────────────────────────────────────────────────────────────
+
+Location: supabase/migrations/20251113021553_404470f6-cf71-4af0-b754-ea1832b8e48a.sql
+
+Instructions:
+1. Open the file above
+2. Copy ALL contents (375 lines)
+3. Paste into Supabase SQL Editor
+4. Click "Run"
+
+This creates:
+- All 8 tables (user_roles, profiles, programs, etc.)
+- All RLS policies
+- All triggers
+- Storage bucket for certificates
+- Helper functions
+
+
+STEP 2: VERIFY MIGRATION WORKED
+───────────────────────────────────────────────────────────────────────────
+
+Run this SQL to check all tables exist:
+
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+ORDER BY table_name;
+
+Expected output should include:
+- certificates
+- evaluation_templates
+- evaluations
+- program_assignments
+- programs
+- profiles
+- reminders_log
+- user_roles
+
+
+STEP 3: VERIFY RLS POLICIES
+───────────────────────────────────────────────────────────────────────────
+
+Check that Row Level Security is enabled:
+
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public';
+
+All tables should have rowsecurity = true
+
+
+STEP 4: CREATE ADMIN USER (AFTER CREATING AUTH USER VIA UI)
+───────────────────────────────────────────────────────────────────────────
+
+FIRST: Create the user via Supabase Dashboard:
+- Go to Authentication → Users
+- Click "Add user"
+- Enter email and password
+- Check "Auto Confirm User"
+- Click "Create user"
+
+THEN: Update role to admin with this SQL:
+
+UPDATE user_roles
+SET role = 'admin'
+WHERE user_id = (
+  SELECT id FROM auth.users
+  WHERE email = 'YOUR-ADMIN@EMAIL.COM'
+);
+
+Replace 'YOUR-ADMIN@EMAIL.COM' with your actual email.
+
+
+STEP 5: VERIFY ADMIN USER
+───────────────────────────────────────────────────────────────────────────
+
+Run this to confirm admin user exists:
+
+SELECT
+  u.id,
+  u.email,
+  ur.role,
+  p.name,
+  p.department,
+  p.status
+FROM auth.users u
+JOIN user_roles ur ON u.id = ur.user_id
+JOIN profiles p ON u.id = p.id
+WHERE ur.role = 'admin';
+
+Should return your admin user details.
+
+
+ALTERNATIVE: CREATE ADMIN DIRECTLY WITH SQL (ADVANCED)
+───────────────────────────────────────────────────────────────────────────
+
+If you have a user ID already, update their role:
+
+UPDATE user_roles
+SET role = 'admin'
+WHERE user_id = 'USER-UUID-HERE';
+
+Replace 'USER-UUID-HERE' with the actual UUID.
+
+
+STEP 6: VERIFY STORAGE BUCKET
+───────────────────────────────────────────────────────────────────────────
+
+Check that certificates bucket exists:
+
+SELECT * FROM storage.buckets WHERE name = 'certificates';
+
+Should return one row with:
+- id: certificates
+- name: certificates
+- public: false
+
+
+STEP 7: CHECK TRIGGER IS WORKING
+───────────────────────────────────────────────────────────────────────────
+
+The migration includes a trigger that auto-creates profiles and assigns
+the 'employee' role when new users sign up.
+
+To test: Create a new user via Authentication → Users, then run:
+
+SELECT
+  u.email,
+  ur.role,
+  p.name,
+  p.created_at
+FROM auth.users u
+LEFT JOIN user_roles ur ON u.id = ur.user_id
+LEFT JOIN profiles p ON u.id = p.id
+WHERE u.email = 'test@example.com';
+
+Should show the user with role = 'employee' and a profile entry.
+
+
+OPTIONAL: VIEW ALL USERS AND THEIR ROLES
+───────────────────────────────────────────────────────────────────────────
+
+SELECT
+  u.email,
+  ur.role,
+  p.name,
+  p.department,
+  p.status,
+  u.created_at
+FROM auth.users u
+LEFT JOIN user_roles ur ON u.id = ur.user_id
+LEFT JOIN profiles p ON u.id = p.id
+ORDER BY u.created_at DESC;
+
+
+OPTIONAL: COUNT RECORDS IN EACH TABLE
+───────────────────────────────────────────────────────────────────────────
+
+SELECT
+  'profiles' as table_name, COUNT(*) as count FROM profiles
+UNION ALL
+SELECT 'programs', COUNT(*) FROM programs
+UNION ALL
+SELECT 'program_assignments', COUNT(*) FROM program_assignments
+UNION ALL
+SELECT 'evaluations', COUNT(*) FROM evaluations
+UNION ALL
+SELECT 'certificates', COUNT(*) FROM certificates
+UNION ALL
+SELECT 'user_roles', COUNT(*) FROM user_roles;
+
+
+TROUBLESHOOTING QUERIES
+───────────────────────────────────────────────────────────────────────────
+
+If user has no role assigned:
+
+INSERT INTO user_roles (user_id, role)
+VALUES ('USER-UUID-HERE', 'admin');
+
+
+If user has no profile:
+
+INSERT INTO profiles (id, name, email, status)
+VALUES (
+  'USER-UUID-HERE',
+  'Admin User',
+  'admin@example.com',
+  'active'
+);
+
+
+Reset a user's password (via dashboard or SQL):
+- Dashboard: Authentication → Users → Click user → Reset Password
+- They'll receive email to reset
+
+
+Delete a test user (if needed):
+
+DELETE FROM user_roles WHERE user_id = 'USER-UUID-HERE';
+DELETE FROM profiles WHERE id = 'USER-UUID-HERE';
+-- Then delete from auth.users via dashboard
+
+
+BONUS: SAMPLE DATA FOR TESTING (OPTIONAL)
+───────────────────────────────────────────────────────────────────────────
+
+Create a test program:
+
+INSERT INTO programs (
+  title,
+  description,
+  category,
+  start_date_time,
+  end_date_time,
+  location,
+  hours,
+  status
+) VALUES (
+  'Test Training Program',
+  'This is a test program for migration verification',
+  'Technical',
+  NOW() + INTERVAL '7 days',
+  NOW() + INTERVAL '7 days' + INTERVAL '2 hours',
+  'Online',
+  2,
+  'Planned'
+);
+
+
+═══════════════════════════════════════════════════════════════════════════
+END OF SQL COMMANDS
+═══════════════════════════════════════════════════════════════════════════
+
+QUICK REFERENCE:
+- Main migration file: supabase/migrations/20251113021553_404470f6-cf71-4af0-b754-ea1832b8e48a.sql
+- Run in: Supabase SQL Editor
+- Create users via: Authentication → Users (in dashboard)
+- Update to admin: Use UPDATE user_roles query above
+- Verify everything: Run verification queries above
+
+Good luck with your migration! 🚀

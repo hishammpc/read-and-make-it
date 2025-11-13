@@ -1,47 +1,24 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { useAdminDashboardStats } from '@/hooks/useDashboardStats';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
-  LayoutDashboard,
   BookOpen,
   Users,
   ClipboardCheck,
-  FileCheck,
   Award,
   FileText,
-  LogOut,
-  Menu,
   AlertCircle,
   Calendar,
   Loader2,
 } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function AdminDashboard() {
-  const { signOut } = useAuth();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: stats, isLoading, error } = useAdminDashboardStats();
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: true },
-    { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
-    { icon: ClipboardCheck, label: 'Attendance', path: '/dashboard/attendance' },
-    { icon: Users, label: 'Users', path: '/dashboard/users' },
-    { icon: FileCheck, label: 'Evaluations', path: '/dashboard/evaluations' },
-    { icon: Award, label: 'Certificates', path: '/dashboard/certificates' },
-    { icon: FileText, label: 'Reports', path: '/dashboard/reports' },
-  ];
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    setMobileMenuOpen(false);
-  };
 
   // Transform department data for chart
   const chartData = stats?.hoursByDepartment
@@ -70,69 +47,14 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="flex items-center justify-between h-16 px-4">
-          <div className="flex items-center gap-4">
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <nav className="space-y-1 p-4">
-                  {menuItems.map((item) => (
-                    <Button
-                      key={item.label}
-                      variant={item.active ? 'secondary' : 'ghost'}
-                      className="w-full justify-start"
-                      onClick={() => handleNavigation(item.path)}
-                    >
-                      <item.icon className="w-4 h-4 mr-3" />
-                      {item.label}
-                    </Button>
-                  ))}
-                </nav>
-              </SheetContent>
-            </Sheet>
-            <h1 className="text-xl font-semibold">MyLearning Pro</h1>
-          </div>
-          <Button variant="ghost" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">
+            Welcome to MyLearning Pro Admin Dashboard
+          </p>
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar - Desktop */}
-        <aside className="hidden md:block w-64 border-r bg-card min-h-[calc(100vh-4rem)]">
-          <nav className="space-y-1 p-4">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant={item.active ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-                onClick={() => handleNavigation(item.path)}
-              >
-                <item.icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </Button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-              <p className="text-muted-foreground">
-                Welcome to MyLearning Pro Admin Dashboard
-              </p>
-            </div>
 
             {/* Error State */}
             {error && (
@@ -350,9 +272,7 @@ export default function AdminDashboard() {
                 )}
               </>
             )}
-          </div>
-        </main>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

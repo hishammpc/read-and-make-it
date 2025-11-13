@@ -6,11 +6,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import AdminLogin from "./pages/admin/AdminLogin";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import UsersList from "./pages/admin/UsersList";
 import UserCreate from "./pages/admin/UserCreate";
 import UserEdit from "./pages/admin/UserEdit";
+import BulkUserImport from "./pages/admin/BulkUserImport";
 import ProgramsList from "./pages/admin/ProgramsList";
 import ProgramCreate from "./pages/admin/ProgramCreate";
 import ProgramEdit from "./pages/admin/ProgramEdit";
@@ -41,6 +43,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/dashboard"
               element={
@@ -70,6 +73,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <UserEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users/bulk-import"
+              element={
+                <ProtectedRoute>
+                  <BulkUserImport />
                 </ProtectedRoute>
               }
             />
