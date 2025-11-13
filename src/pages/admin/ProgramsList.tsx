@@ -122,7 +122,7 @@ export default function ProgramsList() {
             <h1 className="text-3xl font-bold tracking-tight">Programs</h1>
             <p className="text-muted-foreground">Manage training programs and workshops</p>
           </div>
-          <Button onClick={() => navigate('/admin/programs/create')}>
+          <Button onClick={() => navigate('/dashboard/programs/new')}>
             <Plus className="w-4 h-4 mr-2" />
             Create Program
           </Button>

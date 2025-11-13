@@ -76,6 +76,20 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 
 Get these from your Supabase project: **Settings → API**
 
+## ⚠️ Required Database Migrations
+
+**IMPORTANT:** Before using bulk import, you must run these migrations in your Supabase SQL Editor:
+
+1. **Bulk Uploads Table**: `supabase/migrations/20251113131903_bulk_uploads.sql`
+2. **Remove Auth Foreign Keys**: `supabase/migrations/20251113133713_remove_auth_fk.sql` ⚠️ **REQUIRED**
+
+See [MIGRATION_INSTRUCTIONS.md](./MIGRATION_INSTRUCTIONS.md) for step-by-step guide.
+
+**Why?** The system uses hybrid authentication:
+- Admins use password authentication (Supabase Auth)
+- Employees use email-only authentication (no passwords)
+- Migration #2 removes the database constraint requiring all profiles to have auth records
+
 ## 📖 Documentation
 
 All documentation is organized in the [`/docs`](./docs/) directory:
@@ -87,6 +101,7 @@ All documentation is organized in the [`/docs`](./docs/) directory:
 - **[🔄 Supabase Migration Guide](./SUPABASE_MIGRATION_GUIDE.md)** - Migrate from Lovable Cloud to your own Supabase
 - **[📝 Implementation Summary](./IMPLEMENTATION_SUMMARY.md)** - Complete implementation details
 - **[📤 Bulk Import Setup](./BULK_IMPORT_SETUP.md)** - CSV bulk user import guide
+- **[🔧 Migration Instructions](./MIGRATION_INSTRUCTIONS.md)** - **Required database migrations**
 - **[🚀 Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 
 ## ✅ Implementation Status

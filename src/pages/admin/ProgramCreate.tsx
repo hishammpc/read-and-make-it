@@ -13,7 +13,7 @@ export default function ProgramCreate() {
   const handleSubmit = (data: any) => {
     createProgram.mutate(data, {
       onSuccess: () => {
-        navigate('/admin/programs');
+        navigate('/dashboard/programs');
       },
     });
   };
@@ -26,7 +26,7 @@ export default function ProgramCreate() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/admin/programs')}
+            onClick={() => navigate('/dashboard/programs')}
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>

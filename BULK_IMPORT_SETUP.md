@@ -60,7 +60,10 @@ Your CSV file should have these columns:
 - **JAWATAN** - Position/Job title (optional)
 
 **Important Notes:**
-- The first 2 rows will be automatically skipped (they are treated as headers)
+- ✅ **No CSV editing needed!** Parser automatically handles:
+  - Empty lines at the start
+  - Column name variations (BIL. or BIL, both work)
+  - Extra whitespace
 - All imported users will be assigned the "employee" role
 - Duplicate emails will **update** existing user records (name and position)
 - Invalid rows (missing name/email, invalid email format) will be reported as errors
@@ -72,6 +75,8 @@ BIL.,NAMA,JAWATAN,EMEL
 2,Mazrina Mohamed,Timbalan Ketua Pengarah,mazrina@mpc.gov.my
 3,Ahmad Abdullah,Pegawai Eksekutif,ahmad@mpc.gov.my
 ```
+
+**Your CSV file works as-is!** Even if it has empty lines at the top, the parser will handle it automatically.
 
 ### 4. Import Process
 
