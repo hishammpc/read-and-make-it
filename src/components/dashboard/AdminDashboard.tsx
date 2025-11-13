@@ -151,7 +151,7 @@ export default function AdminDashboard() {
                       <BookOpen className="w-4 h-4 mr-2" />
                       Create Program
                     </Button>
-                    <Button variant="secondary" onClick={() => navigate('/dashboard/users/new')}>
+                    <Button variant="secondary" onClick={() => navigate('/admin/users/create')}>
                       <Users className="w-4 h-4 mr-2" />
                       Add User
                     </Button>

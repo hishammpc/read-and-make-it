@@ -309,7 +309,7 @@ export default function ProgramAssign() {
             </div>
           </CardHeader>
           <CardContent>
-            <Command className="border rounded-lg">
+            <Command className="border rounded-lg" shouldFilter={false}>
               <CommandInput
                 placeholder="Search employees by name, email, or department..."
                 value={searchQuery}

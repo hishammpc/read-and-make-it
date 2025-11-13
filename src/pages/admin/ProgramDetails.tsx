@@ -56,7 +56,7 @@ export default function ProgramDetails() {
     if (!id) return;
     deleteProgram.mutate(id, {
       onSuccess: () => {
-        navigate('/admin/programs');
+        navigate('/dashboard/programs');
       },
     });
   };
@@ -108,7 +108,7 @@ export default function ProgramDetails() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/admin/programs')}
+              onClick={() => navigate('/dashboard/programs')}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
@@ -171,7 +171,7 @@ export default function ProgramDetails() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/admin/programs')}
+              onClick={() => navigate('/dashboard/programs')}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
@@ -197,7 +197,7 @@ export default function ProgramDetails() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/admin/programs')}
+              onClick={() => navigate('/dashboard/programs')}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
