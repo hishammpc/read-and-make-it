@@ -1,1 +1,4 @@
-project_id = "oabaxkzzlgsbjrtyxjhg"
+# Replace with your own Supabase project ID
+# Get this from: https://supabase.com/dashboard/project/[your-project]/settings/general
+# See SUPABASE_MIGRATION_GUIDE.md for migration instructions
+project_id = "your-project-id-here"
