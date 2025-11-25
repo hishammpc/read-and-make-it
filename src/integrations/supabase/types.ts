@@ -258,7 +258,6 @@ export type Database = {
           status: string | null
           title: string
           trainer: string | null
-          training_type: string
           updated_at: string | null
         }
         Insert: {
@@ -274,7 +273,6 @@ export type Database = {
           status?: string | null
           title: string
           trainer?: string | null
-          training_type?: string
           updated_at?: string | null
         }
         Update: {
@@ -290,7 +288,6 @@ export type Database = {
           status?: string | null
           title?: string
           trainer?: string | null
-          training_type?: string
           updated_at?: string | null
         }
         Relationships: []
