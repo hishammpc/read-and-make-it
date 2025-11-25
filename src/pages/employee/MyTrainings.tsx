@@ -113,16 +113,17 @@ export default function MyTrainings() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Program Title</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Hours</TableHead>
-                  <TableHead>Evaluation</TableHead>
+                  <TableHead className="font-bold">Program Title</TableHead>
+                  <TableHead className="font-bold">Start Date</TableHead>
+                  <TableHead className="font-bold">End Date</TableHead>
+                  <TableHead className="font-bold">Hours</TableHead>
+                  <TableHead className="font-bold">Evaluation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {assignmentsList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       No trainings assigned
                     </TableCell>
                   </TableRow>
@@ -136,7 +137,10 @@ export default function MyTrainings() {
                           {assignment.programs?.title}
                         </TableCell>
                         <TableCell>
-                          {format(new Date(assignment.programs?.start_date_time), 'MMM dd, yyyy')}
+                          {format(new Date(assignment.programs?.start_date_time), 'dd MMM yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(assignment.programs?.end_date_time), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">

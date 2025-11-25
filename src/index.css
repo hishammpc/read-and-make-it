@@ -97,3 +97,15 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Pulse glow animation for pending items */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(251, 146, 60, 0.5), 0 0 10px rgba(251, 146, 60, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(251, 146, 60, 0.8), 0 0 25px rgba(251, 146, 60, 0.5);
+    transform: scale(1.02);
+  }
+}
