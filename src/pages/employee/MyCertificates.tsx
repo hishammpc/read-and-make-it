@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 export default function MyCertificates() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: certificates, isLoading, error } = useUserCertificates(user?.id || '');
+  const { data: certificates, isLoading, error } = useUserCertificates(user?.userId || '');
 
   const handleDownload = (fileUrl: string, programTitle: string) => {
     window.open(fileUrl, '_blank');

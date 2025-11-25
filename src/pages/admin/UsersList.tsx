@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUsers } from '@/hooks/useUsers';
+import { useUsersWithTrainingHours } from '@/hooks/useUsers';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,74 +12,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Edit, AlertCircle, Upload } from 'lucide-react';
+import { Plus, Search, Edit, AlertCircle, Upload, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function UsersList() {
   const navigate = useNavigate();
-  const { data: users, isLoading, error } = useUsers();
+  const currentYear = new Date().getFullYear();
+  const { data: users, isLoading, error } = useUsersWithTrainingHours(currentYear);
   const [searchQuery, setSearchQuery] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Extract unique departments from users
-  const departments = useMemo(() => {
-    if (!users) return [];
-    const deptSet = new Set(
-      users
-        .map((user) => user.department)
-        .filter((dept): dept is string => dept !== null && dept !== '')
-    );
-    return Array.from(deptSet).sort();
-  }, [users]);
-
-  // Filter users based on search and filters
+  // Filter and sort users
   const filteredUsers = useMemo(() => {
     if (!users) return [];
 
-    return users.filter((user) => {
-      // Search filter
+    let filtered = users;
+    if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
+      filtered = users.filter((user) =>
         user.name.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower) ||
-        (user.department && user.department.toLowerCase().includes(searchLower)) ||
-        (user.position && user.position.toLowerCase().includes(searchLower));
+        user.email.toLowerCase().includes(searchLower)
+      );
+    }
 
-      // Department filter
-      const matchesDepartment =
-        departmentFilter === 'all' || user.department === departmentFilter;
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }, [users, searchQuery]);
 
-      // Role filter
-      const userRole = user.user_roles?.[0]?.role || 'employee';
-      const matchesRole = roleFilter === 'all' || userRole === roleFilter;
-
-      // Status filter
-      const matchesStatus =
-        statusFilter === 'all' || user.status === statusFilter;
-
-      return matchesSearch && matchesDepartment && matchesRole && matchesStatus;
-    });
-  }, [users, searchQuery, departmentFilter, roleFilter, statusFilter]);
-
-  const getRoleBadgeVariant = (role: string) => {
-    return role === 'admin' ? 'default' : 'secondary';
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    return status === 'active' ? 'default' : 'destructive';
-  };
+  // Calculate total training hours
+  const totalTrainingHours = useMemo(() => {
+    if (!users) return 0;
+    return users.reduce((sum, user) => sum + (user.training_hours || 0), 0);
+  }, [users]);
 
   if (error) {
     return (
@@ -98,11 +62,22 @@ export default function UsersList() {
     <AdminLayout>
       <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
-          <p className="text-muted-foreground">
-            Manage user profiles and permissions
-          </p>
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
+            <p className="text-muted-foreground">
+              Manage user profiles and permissions
+            </p>
+          </div>
+          <div className="hidden md:flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+            <div className="p-2 bg-blue-500 rounded-lg">
+              <Clock className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalTrainingHours}h</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Hours {currentYear}</div>
+            </div>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -119,60 +94,15 @@ export default function UsersList() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept}>
-                    {dept}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="employee">Employee</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="relative w-64">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -182,11 +112,8 @@ export default function UsersList() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Training Hours ({currentYear})</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -201,19 +128,10 @@ export default function UsersList() {
                         <Skeleton className="h-4 w-[200px]" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-4 w-[100px]" />
-                      </TableCell>
-                      <TableCell>
                         <Skeleton className="h-4 w-[120px]" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-4 w-[80px]" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[80px]" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[80px]" />
+                        <Skeleton className="h-4 w-[60px] mx-auto" />
                       </TableCell>
                       <TableCell>
                         <Skeleton className="h-4 w-[60px]" />
@@ -222,46 +140,30 @@ export default function UsersList() {
                   ))
                 ) : filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <p className="text-muted-foreground">
-                        {searchQuery || departmentFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'all'
-                          ? 'No users found matching your filters'
-                          : 'No users found'}
+                        {searchQuery ? 'No users found matching your search' : 'No users found'}
                       </p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => {
-                    const userRole = user.user_roles?.[0]?.role || 'employee';
-                    return (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.department || '-'}</TableCell>
-                        <TableCell>{user.position || '-'}</TableCell>
-                        <TableCell>{user.grade || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={getRoleBadgeVariant(userRole)}>
-                            {userRole}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(user.status)}>
-                            {user.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/admin/users/${user.id}/edit`)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.position || '-'}</TableCell>
+                      <TableCell className="text-center">{user.training_hours}h</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/admin/users/${user.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>

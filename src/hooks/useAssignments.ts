@@ -39,7 +39,7 @@ export function useProgramAssignments(programId: string) {
         .from('program_assignments')
         .select(`
           *,
-          profiles:user_id(id, name, email, department)
+          profiles:user_id(id, name, email, department, position)
         `)
         .eq('program_id', programId)
         .order('created_at', { ascending: false });

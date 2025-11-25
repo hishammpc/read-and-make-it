@@ -1,8 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { useEmployeeDashboardStats } from '@/hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,16 +9,13 @@ import {
   Award,
   Clock,
   LogOut,
-  Calendar,
-  MapPin,
   TrendingUp,
 } from 'lucide-react';
-import { format } from 'date-fns';
 
 export default function EmployeeDashboard() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.id || '');
+  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '');
 
   if (isLoading) {
     return (
@@ -72,12 +67,39 @@ export default function EmployeeDashboard() {
         <div className="max-w-5xl mx-auto space-y-6">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">
-              Welcome Back!
+              Welcome Back, {user?.name || 'User'}
             </h2>
             <p className="text-muted-foreground">
               Here's your training overview
             </p>
           </div>
+
+          {/* Progress Light Bar */}
+          <Card className="overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium">Annual Training Progress</span>
+                <span className="text-sm font-bold">{progressPercentage}%</span>
+              </div>
+              <div className="relative h-4 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
+                  style={{
+                    width: `${progressPercentage}%`,
+                    background: progressPercentage < 40
+                      ? 'linear-gradient(90deg, #ef4444, #f97316)'
+                      : progressPercentage < 70
+                        ? 'linear-gradient(90deg, #f97316, #eab308)'
+                        : 'linear-gradient(90deg, #eab308, #22c55e)',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>{hoursCompleted} hrs completed</span>
+                <span>Target: {targetHours} hrs</span>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Quick Stats */}
           <div className="grid gap-4 md:grid-cols-3">
@@ -126,83 +148,6 @@ export default function EmployeeDashboard() {
               </CardContent>
             </Card>
           </div>
-
-          {/* My Next Program */}
-          <Card>
-            <CardHeader>
-              <CardTitle>My Next Program</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {stats?.nextProgram ? (
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <h3 className="font-semibold text-lg">{stats.nextProgram.title}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Badge variant="outline">{stats.nextProgram.category}</Badge>
-                        <span>{stats.nextProgram.hours} hours</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {format(new Date(stats.nextProgram.start_date_time), 'MMM dd, yyyy • h:mm a')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  No upcoming programs scheduled
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Annual Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Annual Training Progress</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Progress</span>
-                  <span className="text-sm text-muted-foreground">{progressPercentage}%</span>
-                </div>
-                <Progress value={progressPercentage} className="h-2" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {hoursCompleted} of {targetHours} hours completed
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Hours by Category */}
-          {stats?.hoursByCategory && Object.keys(stats.hoursByCategory).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Hours by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(stats.hoursByCategory)
-                    .filter(([_, hours]) => hours > 0)
-                    .map(([category, hours]) => (
-                      <div key={category} className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{category}</span>
-                        <span className="text-sm text-muted-foreground">{hours} hrs</span>
-                      </div>
-                    ))}
-                  {Object.values(stats.hoursByCategory).every(h => h === 0) && (
-                    <p className="text-sm text-muted-foreground">No training hours recorded yet</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Quick Links */}
           <div className="grid gap-4 md:grid-cols-3">

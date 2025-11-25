@@ -15,10 +15,7 @@ export default function UserCreate() {
       await createUser.mutateAsync({
         name: values.name,
         email: values.email,
-        department: values.department,
-        grade: values.grade,
         position: values.position,
-        role: values.role,
       });
       navigate('/admin/users');
     } catch (error) {

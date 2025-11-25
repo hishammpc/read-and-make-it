@@ -110,7 +110,12 @@ export default function ProgramAssign() {
       );
     }
 
-    return filtered;
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => {
+      const nameA = a.name?.toLowerCase() || '';
+      const nameB = b.name?.toLowerCase() || '';
+      return nameA.localeCompare(nameB);
+    });
   }, [availableUsers, departmentFilter, searchQuery]);
 
   const toggleUserSelection = (userId: string) => {

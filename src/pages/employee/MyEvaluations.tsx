@@ -20,19 +20,19 @@ import { format } from 'date-fns';
 export default function MyEvaluations() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: assignments, isLoading: assignmentsLoading } = useUserAssignments(user?.id || '');
-  const { data: evaluations, isLoading: evaluationsLoading } = useUserEvaluations(user?.id || '');
+  const { data: assignments, isLoading: assignmentsLoading } = useUserAssignments(user?.userId || '');
+  const { data: evaluations, isLoading: evaluationsLoading } = useUserEvaluations(user?.userId || '');
 
   const isLoading = assignmentsLoading || evaluationsLoading;
 
-  // Get pending evaluations (attended programs without submitted evaluation)
+  // Get pending evaluations (all assigned programs without submitted evaluation)
   const getPendingEvaluations = () => {
     if (!assignments || !evaluations) return [];
 
-    const attendedPrograms = assignments.filter((a: any) => a.status === 'Attended');
+    // All assigned programs are eligible for evaluation
     const evaluatedProgramIds = new Set(evaluations.map((e: any) => e.program_id));
 
-    return attendedPrograms.filter((a: any) => !evaluatedProgramIds.has(a.program_id));
+    return assignments.filter((a: any) => !evaluatedProgramIds.has(a.program_id));
   };
 
   const pendingEvaluations = getPendingEvaluations();

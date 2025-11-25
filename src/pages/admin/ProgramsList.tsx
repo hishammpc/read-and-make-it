@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePrograms, useDeleteProgram } from '@/hooks/usePrograms';
+import { useProgramsWithStats, useDeleteProgram } from '@/hooks/usePrograms';
 import { formatDate } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -20,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -32,22 +32,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, Eye, Edit, Trash2, Calendar } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Eye, Edit, Trash2, Search } from 'lucide-react';
 
-const CATEGORIES = ['All', 'Technical', 'Leadership', 'Soft Skill', 'Mandatory', 'Others'];
-const STATUSES = ['All', 'Planned', 'Ongoing', 'Completed', 'Cancelled'];
+const MONTHS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
 
 export default function ProgramsList() {
   const navigate = useNavigate();
-  const { data: programs, isLoading, error } = usePrograms();
+  const { data: programs, isLoading, error } = useProgramsWithStats();
   const deleteProgram = useDeleteProgram();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [fromMonth, setFromMonth] = useState('');
+  const [toMonth, setToMonth] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<string | null>(null);
 
@@ -55,22 +69,40 @@ export default function ProgramsList() {
     if (!programs) return [];
 
     return programs.filter((program) => {
-      const matchesSearch = program.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        program.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = categoryFilter === 'All' || program.category === categoryFilter;
-      const matchesStatus = statusFilter === 'All' || program.status === statusFilter;
+      // Search filter
+      const matchesSearch = !searchQuery ||
+        program.title.toLowerCase().includes(searchQuery.toLowerCase());
 
-      let matchesDateRange = true;
-      if (startDate) {
-        matchesDateRange = matchesDateRange && new Date(program.start_date_time) >= new Date(startDate);
-      }
-      if (endDate) {
-        matchesDateRange = matchesDateRange && new Date(program.start_date_time) <= new Date(endDate);
-      }
+      if (!matchesSearch) return false;
 
-      return matchesSearch && matchesCategory && matchesStatus && matchesDateRange;
+      const programDate = new Date(program.start_date_time);
+      const programYear = programDate.getFullYear().toString();
+      const programMonth = programDate.getMonth() + 1;
+
+      const matchesYear = programYear === selectedYear;
+
+      if (!matchesYear) return false;
+
+      // If no month range selected or "all" selected, show all for the year
+      if ((!fromMonth || fromMonth === 'all') && (!toMonth || toMonth === 'all')) return true;
+
+      const from = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
+      const to = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
+
+      return programMonth >= from && programMonth <= to;
     });
-  }, [programs, searchQuery, categoryFilter, statusFilter, startDate, endDate]);
+  }, [programs, searchQuery, selectedYear, fromMonth, toMonth]);
+
+  const totalHours = useMemo(() => {
+    return filteredPrograms.reduce((sum, program) => sum + (program.hours || 0), 0);
+  }, [filteredPrograms]);
+
+  const totalAssigned = useMemo(() => {
+    return filteredPrograms.reduce((sum, program) => {
+      const count = (program as any).program_assignments?.[0]?.count || 0;
+      return sum + count;
+    }, 0);
+  }, [filteredPrograms]);
 
   const handleDelete = (id: string) => {
     setProgramToDelete(id);
@@ -82,19 +114,6 @@ export default function ProgramsList() {
       deleteProgram.mutate(programToDelete);
       setDeleteDialogOpen(false);
       setProgramToDelete(null);
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'default';
-      case 'Ongoing':
-        return 'secondary';
-      case 'Cancelled':
-        return 'destructive';
-      default:
-        return 'outline';
     }
   };
 
@@ -129,72 +148,60 @@ export default function ProgramsList() {
         </div>
 
         {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search programs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search program name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-64"
+            />
+          </div>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Select value={fromMonth} onValueChange={setFromMonth}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="From Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {MONTHS.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  placeholder="Start date"
-                  className="pl-9"
-                />
-              </div>
+          <span className="text-muted-foreground">to</span>
 
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="End date"
-                  className="pl-9"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <Select value={toMonth} onValueChange={setToMonth}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="To Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {MONTHS.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Programs Table */}
         <Card>
@@ -215,10 +222,10 @@ export default function ProgramsList() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
-                    <TableHead>Category</TableHead>
                     <TableHead>Start Date</TableHead>
-                    <TableHead>Hours</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead className="text-center">Hours</TableHead>
+                    <TableHead className="text-center">Assigned</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -235,14 +242,10 @@ export default function ProgramsList() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{program.category}</TableCell>
                       <TableCell>{formatDate(program.start_date_time)}</TableCell>
-                      <TableCell>{program.hours}h</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(program.status)}>
-                          {program.status}
-                        </Badge>
-                      </TableCell>
+                      <TableCell>{formatDate(program.end_date_time)}</TableCell>
+                      <TableCell className="text-center">{program.hours}h</TableCell>
+                      <TableCell className="text-center">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -274,6 +277,14 @@ export default function ProgramsList() {
                     </TableRow>
                   ))}
                 </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="font-semibold">Total</TableCell>
+                    <TableCell className="text-center font-semibold">{totalHours}h</TableCell>
+                    <TableCell className="text-center font-semibold">{totalAssigned}</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableFooter>
               </Table>
             )}
           </CardContent>

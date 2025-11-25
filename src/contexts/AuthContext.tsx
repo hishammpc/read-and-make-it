@@ -14,6 +14,7 @@ interface AuthContextType {
   role: 'admin' | 'employee' | null;
   signIn: (email: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  setUser: (user: UserSession | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, role, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, role, signIn, signOut, setUser }}>
       {children}
     </AuthContext.Provider>
   );

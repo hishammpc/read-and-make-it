@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Users,
-  ClipboardCheck,
   FileCheck,
   Award,
   FileText,
@@ -28,7 +27,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
-    { icon: ClipboardCheck, label: 'Attendance', path: '/dashboard/attendance' },
     { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: FileCheck, label: 'Evaluations', path: '/dashboard/evaluations' },
     { icon: Award, label: 'Certificates', path: '/dashboard/certificates' },

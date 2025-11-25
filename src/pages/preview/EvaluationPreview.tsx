@@ -1,11 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSubmitEvaluation } from '@/hooks/useEvaluations';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -17,6 +12,8 @@ import {
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, CheckCircle2, Target, Brain, Lightbulb, Users, Presentation, Building, Wrench, ThumbsUp, Star, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // Fixed evaluation questions with icons
@@ -65,7 +62,7 @@ const RATING_OPTIONS = [
   },
 ] as const;
 
-// Form validation schema - all 9 questions required, q10 optional
+// Form validation schema
 const ratingEnum = ['LEMAH', 'SEDERHANA', 'BAGUS'] as const;
 const evaluationSchema = z.object({
   q1: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
@@ -82,28 +79,9 @@ const evaluationSchema = z.object({
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
 
-export default function EvaluationForm() {
-  const { programId } = useParams<{ programId: string }>();
+export default function EvaluationPreview() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  // Fetch program details
-  const { data: program, isLoading: programLoading } = useQuery({
-    queryKey: ['program', programId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('programs')
-        .select('*')
-        .eq('id', programId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!programId,
-  });
-
-  const submitEvaluation = useSubmitEvaluation();
+  const { toast } = useToast();
 
   const form = useForm<EvaluationFormValues>({
     resolver: zodResolver(evaluationSchema),
@@ -118,44 +96,12 @@ export default function EvaluationForm() {
   ).length;
 
   const onSubmit = async (data: EvaluationFormValues) => {
-    if (!user || !programId) return;
-
-    await submitEvaluation.mutateAsync({
-      userId: user.userId,
-      evaluation: {
-        program_id: programId,
-        answers: data,
-      },
+    console.log('Form submitted:', data);
+    toast({
+      title: 'Penilaian Dihantar',
+      description: 'Terima kasih atas maklum balas anda.',
     });
-
-    navigate('/dashboard/my-evaluations');
   };
-
-  if (programLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card">
-          <div className="flex items-center h-16 px-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard/my-evaluations')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Kembali
-            </Button>
-            <h1 className="text-xl font-semibold ml-4">Borang Penilaian</h1>
-          </div>
-        </header>
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Memuatkan borang penilaian...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -166,7 +112,7 @@ export default function EvaluationForm() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/dashboard/my-evaluations')}
+              onClick={() => navigate('/dashboard')}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Kembali
@@ -201,7 +147,7 @@ export default function EvaluationForm() {
                 BORANG PENILAIAN SELEPAS PROGRAM
               </div>
               <CardTitle className="text-2xl font-bold">
-                {program?.title}
+                Leadership Excellence Workshop 2025
               </CardTitle>
               <p className="text-primary-foreground/70 text-sm mt-1">
                 Maklum balas anda membantu kami meningkatkan kualiti program latihan
@@ -340,17 +286,17 @@ export default function EvaluationForm() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => navigate('/dashboard/my-evaluations')}
+                        onClick={() => navigate('/dashboard')}
                         className="bg-transparent border-slate-600 text-white hover:bg-slate-700"
                       >
                         Batal
                       </Button>
                       <Button
                         type="submit"
-                        disabled={submitEvaluation.isPending || answeredCount < 9}
+                        disabled={form.formState.isSubmitting || answeredCount < 9}
                         className="bg-green-500 hover:bg-green-600 text-white"
                       >
-                        {submitEvaluation.isPending ? (
+                        {form.formState.isSubmitting ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           <CheckCircle2 className="mr-2 h-4 w-4" />

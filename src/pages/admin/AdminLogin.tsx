@@ -21,7 +21,7 @@ type AdminLoginFormData = z.infer<typeof adminLoginSchema>;
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { setUser } = useAuth() as any;
+  const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

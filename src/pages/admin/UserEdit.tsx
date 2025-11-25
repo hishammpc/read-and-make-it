@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useUser, useUpdateUser, useUpdateUserRole } from '@/hooks/useUsers';
+import { useUser, useUpdateUser } from '@/hooks/useUsers';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { UserForm, UserFormValues } from '@/components/users/UserForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,34 +13,18 @@ export default function UserEdit() {
   const { id } = useParams<{ id: string }>();
   const { data: user, isLoading, error } = useUser(id || '');
   const updateUser = useUpdateUser();
-  const updateUserRole = useUpdateUserRole();
 
   const handleSubmit = async (values: UserFormValues) => {
     if (!id) return;
 
     try {
-      // Get current role
-      const currentRole = user?.user_roles?.[0]?.role || 'employee';
-
-      // Update profile information
       await updateUser.mutateAsync({
         id,
         updates: {
           name: values.name,
-          department: values.department,
-          grade: values.grade,
           position: values.position,
-          status: values.status,
         },
       });
-
-      // Update role if it changed
-      if (currentRole !== values.role) {
-        await updateUserRole.mutateAsync({
-          userId: id,
-          role: values.role,
-        });
-      }
 
       navigate('/admin/users');
     } catch (error) {
@@ -83,7 +67,7 @@ export default function UserEdit() {
           <CardContent>
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {Array.from({ length: 7 }).map((_, i) => (
+                {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="h-4 w-[100px]" />
                     <Skeleton className="h-10 w-full" />
@@ -109,8 +93,6 @@ export default function UserEdit() {
     );
   }
 
-  const userRole = user.user_roles?.[0]?.role || 'employee';
-
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -125,7 +107,7 @@ export default function UserEdit() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
           <p className="text-muted-foreground">
-            Update user information and permissions
+            Update user information
           </p>
         </div>
       </div>
@@ -139,14 +121,10 @@ export default function UserEdit() {
             defaultValues={{
               name: user.name,
               email: user.email,
-              department: user.department || '',
-              grade: user.grade || '',
               position: user.position || '',
-              role: userRole,
-              status: user.status as 'active' | 'inactive',
             }}
             onSubmit={handleSubmit}
-            isLoading={updateUser.isPending || updateUserRole.isPending}
+            isLoading={updateUser.isPending}
             submitLabel="Update User"
           />
         </CardContent>

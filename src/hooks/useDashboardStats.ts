@@ -159,10 +159,9 @@ export function useEmployeeDashboardStats(userId: string) {
 
       if (assignmentsError) throw assignmentsError;
 
-      // Calculate hours this year
+      // Calculate hours this year (all assigned programs count)
       const hoursThisYear = assignments
         ?.filter((a: any) =>
-          a.status === 'Attended' &&
           a.programs?.end_date_time >= startOfYear &&
           a.programs?.end_date_time <= endOfYear
         )
@@ -180,11 +179,11 @@ export function useEmployeeDashboardStats(userId: string) {
           new Date(b.programs?.start_date_time).getTime()
         )[0];
 
-      // Get pending evaluations
+      // Get pending evaluations (all assigned programs)
       const pendingEvaluations = [];
-      const attendedPrograms = assignments?.filter((a: any) => a.status === 'Attended') || [];
+      const allPrograms = assignments || [];
 
-      for (const assignment of attendedPrograms) {
+      for (const assignment of allPrograms) {
         const { data: evaluation } = await supabase
           .from('evaluations')
           .select('id')
@@ -208,7 +207,6 @@ export function useEmployeeDashboardStats(userId: string) {
 
       assignments
         ?.filter((a: any) =>
-          a.status === 'Attended' &&
           a.programs?.end_date_time >= startOfYear &&
           a.programs?.end_date_time <= endOfYear
         )

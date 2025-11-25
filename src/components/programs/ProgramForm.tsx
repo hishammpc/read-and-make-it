@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Form,
   FormControl,
@@ -22,15 +21,11 @@ import {
 
 const programSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  category: z.enum(['Technical', 'Leadership', 'Soft Skill', 'Mandatory', 'Others']),
+  training_type: z.enum(['Local', 'International']),
+  location: z.string().optional(),
   start_date_time: z.string().min(1, 'Start date is required'),
   end_date_time: z.string().min(1, 'End date is required'),
-  location: z.string().optional(),
-  organizer: z.string().optional(),
-  trainer: z.string().optional(),
   hours: z.coerce.number().min(0, 'Hours must be positive'),
-  status: z.enum(['Planned', 'Ongoing', 'Completed', 'Cancelled']).optional(),
 }).refine(
   (data) => new Date(data.end_date_time) > new Date(data.start_date_time),
   {
@@ -52,17 +47,15 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
     resolver: zodResolver(programSchema),
     defaultValues: {
       title: initialData?.title || '',
-      description: initialData?.description || '',
-      category: initialData?.category || 'Technical',
+      training_type: initialData?.training_type || 'Local',
+      location: initialData?.location || '',
       start_date_time: initialData?.start_date_time || '',
       end_date_time: initialData?.end_date_time || '',
-      location: initialData?.location || '',
-      organizer: initialData?.organizer || '',
-      trainer: initialData?.trainer || '',
       hours: initialData?.hours || 0,
-      status: initialData?.status || 'Planned',
     },
   });
+
+  const trainingType = form.watch('training_type');
 
   return (
     <Form {...form}>
@@ -82,152 +75,89 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="md:col-span-2">
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea placeholder="Program description" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="md:col-span-2 grid gap-4 grid-cols-1 md:grid-cols-4">
+            <FormField
+              control={form.control}
+              name="training_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Training Type *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select training type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Local">Local</SelectItem>
+                      <SelectItem value="International">International</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {trainingType === 'International' && (
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-3">
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter training location" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
+
+          <div className="md:col-span-2 grid gap-4 grid-cols-1 md:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="start_date_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Date & Time *</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Technical">Technical</SelectItem>
-                    <SelectItem value="Leadership">Leadership</SelectItem>
-                    <SelectItem value="Soft Skill">Soft Skill</SelectItem>
-                    <SelectItem value="Mandatory">Mandatory</SelectItem>
-                    <SelectItem value="Others">Others</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <FormField
+              control={form.control}
+              name="end_date_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End Date & Time *</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Planned">Planned</SelectItem>
-                    <SelectItem value="Ongoing">Ongoing</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="start_date_time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Date & Time *</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="end_date_time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date & Time *</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="Online or physical address" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="hours"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hours *</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.5" min="0" placeholder="0" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="organizer"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Organizer</FormLabel>
-                <FormControl>
-                  <Input placeholder="Organizer name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="trainer"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Trainer</FormLabel>
-                <FormControl>
-                  <Input placeholder="Trainer name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="hours"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hours *</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.5" min="0" placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="flex gap-2">

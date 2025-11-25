@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
 import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignments';
-import { formatDate, formatDateTime } from '@/lib/dateUtils';
+import { formatDateTime } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,7 +33,6 @@ import {
   UserPlus,
   Clock,
   MapPin,
-  User,
   Calendar,
   AlertCircle,
   Users,
@@ -71,32 +70,6 @@ export default function ProgramDetails() {
       removeAssignment.mutate(assignmentToRemove);
       setRemoveAssignmentDialogOpen(false);
       setAssignmentToRemove(null);
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'default';
-      case 'Ongoing':
-        return 'secondary';
-      case 'Cancelled':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-
-  const getAssignmentStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Attended':
-        return 'default';
-      case 'Assigned':
-        return 'secondary';
-      case 'No-Show':
-        return 'destructive';
-      default:
-        return 'outline';
     }
   };
 
@@ -225,52 +198,37 @@ export default function ProgramDetails() {
         </div>
 
         {/* Program Information */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground">Category</div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{program.category}</Badge>
-                </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Program Information</CardTitle>
+              <div className="text-right">
+                <div className="text-3xl font-bold">{assignments?.length || 0}</div>
+                <div className="text-sm text-muted-foreground">Assigned Employees</div>
               </div>
-
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-4">
               <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground">Status</div>
+                <div className="text-sm font-medium text-muted-foreground">Training Type</div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={getStatusBadgeVariant(program.status)}>
-                    {program.status}
+                  <Badge variant={program.training_type === 'International' ? 'default' : 'outline'}>
+                    {program.training_type || 'Local'}
                   </Badge>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground">Description</div>
-                <div className="text-sm">
-                  {program.description || <span className="text-muted-foreground italic">No description provided</span>}
+              {program.training_type === 'International' && program.location && (
+                <div className="space-y-2 md:col-span-3">
+                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Location
+                  </div>
+                  <div className="text-sm">{program.location}</div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Duration
-                </div>
-                <div className="text-sm">{program.hours} hours</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule & Location */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Schedule & Location</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
@@ -289,46 +247,14 @@ export default function ProgramDetails() {
 
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Location
+                  <Clock className="w-4 h-4" />
+                  Duration
                 </div>
-                <div className="text-sm">
-                  {program.location || <span className="text-muted-foreground italic">Not specified</span>}
-                </div>
+                <div className="text-sm">{program.hours} hours</div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Personnel */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Personnel</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Organizer
-                  </div>
-                  <div className="text-sm">
-                    {program.organizer || <span className="text-muted-foreground italic">Not specified</span>}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Trainer
-                  </div>
-                  <div className="text-sm">
-                    {program.trainer || <span className="text-muted-foreground italic">Not specified</span>}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Assigned Employees */}
         <Card>
@@ -365,10 +291,8 @@ export default function ProgramDetails() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Position</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -378,14 +302,8 @@ export default function ProgramDetails() {
                       <TableCell className="font-medium">
                         {assignment.profiles?.name || 'Unknown'}
                       </TableCell>
+                      <TableCell>{assignment.profiles?.position || '-'}</TableCell>
                       <TableCell>{assignment.profiles?.email || '-'}</TableCell>
-                      <TableCell>{assignment.profiles?.department || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={getAssignmentStatusBadgeVariant(assignment.status)}>
-                          {assignment.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(assignment.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -404,26 +322,6 @@ export default function ProgramDetails() {
           </CardContent>
         </Card>
 
-        {/* Metadata */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Metadata</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Created:</span>
-              <span>{formatDateTime(program.created_at)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Last Updated:</span>
-              <span>{formatDateTime(program.updated_at)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Program ID:</span>
-              <span className="font-mono text-xs">{program.id}</span>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Delete Program Dialog */}

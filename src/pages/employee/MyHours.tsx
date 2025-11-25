@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 export default function MyHours() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.id || '');
+  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '');
 
   if (isLoading) {
     return (

@@ -50,6 +50,53 @@ export function useUsers() {
   });
 }
 
+export function useUsersWithTrainingHours(year: number = new Date().getFullYear()) {
+  return useQuery({
+    queryKey: ['users-with-training-hours', year],
+    queryFn: async () => {
+      // Fetch all users
+      const { data: users, error: usersError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          user_roles(role)
+        `)
+        .order('name', { ascending: true });
+
+      if (usersError) throw usersError;
+
+      // Fetch all program assignments with program hours for the year
+      const startOfYear = `${year}-01-01T00:00:00`;
+      const endOfYear = `${year}-12-31T23:59:59`;
+
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('program_assignments')
+        .select(`
+          user_id,
+          programs:program_id(hours, start_date_time)
+        `)
+        .gte('programs.start_date_time', startOfYear)
+        .lte('programs.start_date_time', endOfYear);
+
+      if (assignmentsError) throw assignmentsError;
+
+      // Calculate total hours per user
+      const hoursMap: Record<string, number> = {};
+      assignments?.forEach((assignment: any) => {
+        if (assignment.programs?.hours) {
+          hoursMap[assignment.user_id] = (hoursMap[assignment.user_id] || 0) + assignment.programs.hours;
+        }
+      });
+
+      // Merge hours into users
+      return users.map(user => ({
+        ...user,
+        training_hours: hoursMap[user.id] || 0,
+      }));
+    },
+  });
+}
+
 export function useUser(id: string) {
   return useQuery({
     queryKey: ['users', id],
