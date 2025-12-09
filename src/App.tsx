@@ -31,6 +31,7 @@ import MyCertificates from "./pages/employee/MyCertificates";
 import MyEvaluations from "./pages/employee/MyEvaluations";
 import EvaluationForm from "./pages/employee/EvaluationForm";
 import EvaluationPreview from "./pages/preview/EvaluationPreview";
+import CertificateTest from "./pages/admin/CertificateTest";
 
 const queryClient = new QueryClient();
 
@@ -221,8 +222,9 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* Preview route - no auth required */}
+            {/* Preview routes - no auth required */}
             <Route path="/preview/evaluation" element={<EvaluationPreview />} />
+            <Route path="/certificate-test" element={<CertificateTest />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

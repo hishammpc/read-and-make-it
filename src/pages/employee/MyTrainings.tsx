@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserAssignments } from '@/hooks/useAssignments';
 import { useUserEvaluations } from '@/hooks/useEvaluations';
+import { generateCertificate } from '@/lib/certificateGenerator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Search, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Search, Clock, CheckCircle2, AlertCircle, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -42,6 +43,20 @@ export default function MyTrainings() {
     }
 
     return filtered;
+  };
+
+  const handleDownloadCertificate = async (assignment: any) => {
+    const employeeName = user?.name || 'Employee';
+    const programTitle = assignment.programs?.title || 'Training Program';
+    const startDate = assignment.programs?.start_date_time;
+    const endDate = assignment.programs?.end_date_time;
+
+    await generateCertificate({
+      employeeName,
+      programTitle,
+      startDate,
+      endDate,
+    });
   };
 
   if (isLoading) {
@@ -118,12 +133,13 @@ export default function MyTrainings() {
                   <TableHead className="font-bold">End Date</TableHead>
                   <TableHead className="font-bold">Hours</TableHead>
                   <TableHead className="font-bold">Evaluation</TableHead>
+                  <TableHead className="font-bold">Certificate</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {assignmentsList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No trainings assigned
                     </TableCell>
                   </TableRow>
@@ -163,6 +179,29 @@ export default function MyTrainings() {
                             >
                               <AlertCircle className="h-4 w-4 mr-1" />
                               Submit
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEvaluated ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-green-600 border-green-300 hover:bg-green-50"
+                              onClick={() => handleDownloadCertificate(assignment)}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Download
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                              disabled
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Download
                             </Button>
                           )}
                         </TableCell>

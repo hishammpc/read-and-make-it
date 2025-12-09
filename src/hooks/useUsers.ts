@@ -50,9 +50,13 @@ export function useUsers() {
   });
 }
 
-export function useUsersWithTrainingHours(year: number = new Date().getFullYear()) {
+export function useUsersWithTrainingHours(
+  year: number = new Date().getFullYear(),
+  fromMonth?: string,
+  toMonth?: string
+) {
   return useQuery({
-    queryKey: ['users-with-training-hours', year],
+    queryKey: ['users-with-training-hours', year, fromMonth, toMonth],
     queryFn: async () => {
       // Fetch all users
       const { data: users, error: usersError } = await supabase
@@ -65,9 +69,14 @@ export function useUsersWithTrainingHours(year: number = new Date().getFullYear(
 
       if (usersError) throw usersError;
 
-      // Fetch all program assignments with program hours for the year
-      const startOfYear = `${year}-01-01T00:00:00`;
-      const endOfYear = `${year}-12-31T23:59:59`;
+      // Determine date range based on year and month filters
+      const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
+      const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
+
+      const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
+      // Get last day of end month
+      const lastDay = new Date(year, endMonth, 0).getDate();
+      const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
 
       const { data: assignments, error: assignmentsError } = await supabase
         .from('program_assignments')
@@ -75,8 +84,8 @@ export function useUsersWithTrainingHours(year: number = new Date().getFullYear(
           user_id,
           programs:program_id(hours, start_date_time)
         `)
-        .gte('programs.start_date_time', startOfYear)
-        .lte('programs.start_date_time', endOfYear);
+        .gte('programs.start_date_time', startDate)
+        .lte('programs.start_date_time', endDate);
 
       if (assignmentsError) throw assignmentsError;
 

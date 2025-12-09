@@ -260,3 +260,109 @@ export function useSubmitEvaluation() {
     },
   });
 }
+
+// Get evaluations grouped by program with aggregated stats
+export interface ProgramEvaluationSummary {
+  programId: string;
+  programTitle: string;
+  totalAssigned: number;
+  totalResponses: number;
+  averageRating: string;
+  averageScore: number;
+  comments: string[];
+  startDate: string;
+  endDate: string;
+}
+
+export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMonth?: string) {
+  return useQuery({
+    queryKey: ['evaluations-by-program', year, fromMonth, toMonth],
+    queryFn: async () => {
+      const currentYear = year || new Date().getFullYear();
+      const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
+      const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
+
+      const startDate = `${currentYear}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
+      const lastDay = new Date(currentYear, endMonth, 0).getDate();
+      const endDate = `${currentYear}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
+
+      // Fetch programs within date range
+      const { data: programs, error: programsError } = await supabase
+        .from('programs')
+        .select(`
+          id,
+          title,
+          start_date_time,
+          end_date_time,
+          program_assignments(count)
+        `)
+        .gte('start_date_time', startDate)
+        .lte('start_date_time', endDate)
+        .order('start_date_time', { ascending: false });
+
+      if (programsError) throw programsError;
+
+      // Fetch all evaluations for these programs
+      const programIds = programs?.map(p => p.id) || [];
+
+      if (programIds.length === 0) {
+        return [];
+      }
+
+      const { data: evaluations, error: evalError } = await supabase
+        .from('evaluations')
+        .select('*')
+        .in('program_id', programIds);
+
+      if (evalError) throw evalError;
+
+      // Group evaluations by program and calculate stats
+      const result: ProgramEvaluationSummary[] = programs?.map(program => {
+        const programEvals = evaluations?.filter(e => e.program_id === program.id) || [];
+        const totalAssigned = (program.program_assignments as any)?.[0]?.count || 0;
+
+        // Calculate average rating from q9 answers
+        const ratings = programEvals
+          .map(e => (e.answers as any)?.q9)
+          .filter(Boolean);
+
+        // Convert ratings to scores: BAGUS=3, SEDERHANA=2, LEMAH=1
+        const scores = ratings.map(r => {
+          if (r === 'BAGUS') return 3;
+          if (r === 'SEDERHANA') return 2;
+          if (r === 'LEMAH') return 1;
+          return 0;
+        });
+
+        const avgScore = scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : 0;
+
+        // Determine average rating label
+        let avgRating = '-';
+        if (avgScore >= 2.5) avgRating = 'BAGUS';
+        else if (avgScore >= 1.5) avgRating = 'SEDERHANA';
+        else if (avgScore > 0) avgRating = 'LEMAH';
+
+        // Collect all q10 comments
+        const comments = programEvals
+          .map(e => (e.answers as any)?.q10)
+          .filter(c => c && c.trim() !== '');
+
+        return {
+          programId: program.id,
+          programTitle: program.title,
+          totalAssigned,
+          totalResponses: programEvals.length,
+          averageRating: avgRating,
+          averageScore: avgScore,
+          comments,
+          startDate: program.start_date_time,
+          endDate: program.end_date_time,
+        };
+      }) || [];
+
+      return result;
+    },
+  });
+}

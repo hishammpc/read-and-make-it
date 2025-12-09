@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -10,6 +11,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Select,
@@ -26,6 +28,7 @@ const programSchema = z.object({
   start_date_time: z.string().min(1, 'Start date is required'),
   end_date_time: z.string().min(1, 'End date is required'),
   hours: z.coerce.number().min(0, 'Hours must be positive'),
+  notify_for_evaluation: z.boolean().default(false),
 }).refine(
   (data) => new Date(data.end_date_time) > new Date(data.start_date_time),
   {
@@ -52,6 +55,7 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
       start_date_time: initialData?.start_date_time || '',
       end_date_time: initialData?.end_date_time || '',
       hours: initialData?.hours || 0,
+      notify_for_evaluation: initialData?.notify_for_evaluation || false,
     },
   });
 
@@ -159,6 +163,30 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
             />
           </div>
         </div>
+
+        {/* Notification Checkbox */}
+        <FormField
+          control={form.control}
+          name="notify_for_evaluation"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Notify users for evaluation
+                </FormLabel>
+                <FormDescription>
+                  Send notification to participants to complete evaluation form after the program ends
+                </FormDescription>
+              </div>
+            </FormItem>
+          )}
+        />
 
         <div className="flex gap-2">
           <Button type="submit" disabled={isLoading}>

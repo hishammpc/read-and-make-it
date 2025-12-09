@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProgramsWithStats, useDeleteProgram } from '@/hooks/usePrograms';
-import { formatDate } from '@/lib/dateUtils';
+import { formatMalaysianDate } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +51,8 @@ const MONTHS = [
 ];
 
 const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
+// Extended years from 2023 to 2035
+const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 
 export default function ProgramsList() {
   const navigate = useNavigate();
@@ -221,12 +222,12 @@ export default function ProgramsList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead className="text-center">Hours</TableHead>
-                    <TableHead className="text-center">Assigned</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="font-bold">Title</TableHead>
+                    <TableHead className="font-bold">Start Date</TableHead>
+                    <TableHead className="font-bold">End Date</TableHead>
+                    <TableHead className="font-bold text-center">Hours</TableHead>
+                    <TableHead className="font-bold text-center">Assigned</TableHead>
+                    <TableHead className="font-bold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -242,8 +243,8 @@ export default function ProgramsList() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{formatDate(program.start_date_time)}</TableCell>
-                      <TableCell>{formatDate(program.end_date_time)}</TableCell>
+                      <TableCell>{formatMalaysianDate(program.start_date_time)}</TableCell>
+                      <TableCell>{formatMalaysianDate(program.end_date_time)}</TableCell>
                       <TableCell className="text-center">{program.hours}h</TableCell>
                       <TableCell className="text-center">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
                       <TableCell className="text-right">

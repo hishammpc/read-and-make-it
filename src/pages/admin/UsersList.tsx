@@ -12,15 +12,43 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Edit, AlertCircle, Upload, Clock } from 'lucide-react';
+import { Plus, Search, Edit, AlertCircle, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const MONTHS = [
+  { value: '1', label: 'Januari' },
+  { value: '2', label: 'Februari' },
+  { value: '3', label: 'Mac' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'Mei' },
+  { value: '6', label: 'Jun' },
+  { value: '7', label: 'Julai' },
+  { value: '8', label: 'Ogos' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'Oktober' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'Disember' },
+];
+
+// Extended years from 2023 to 2035
+const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 
 export default function UsersList() {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
-  const { data: users, isLoading, error } = useUsersWithTrainingHours(currentYear);
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [fromMonth, setFromMonth] = useState('');
+  const [toMonth, setToMonth] = useState('');
+  const { data: users, isLoading, error } = useUsersWithTrainingHours(parseInt(selectedYear), fromMonth, toMonth);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter and sort users
@@ -75,33 +103,75 @@ export default function UsersList() {
             </div>
             <div>
               <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalTrainingHours}h</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Hours {currentYear}</div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                Total Hours {selectedYear}
+                {(fromMonth && fromMonth !== 'all') || (toMonth && toMonth !== 'all')
+                  ? ` (${fromMonth && fromMonth !== 'all' ? MONTHS.find(m => m.value === fromMonth)?.label : 'Jan'} - ${toMonth && toMonth !== 'all' ? MONTHS.find(m => m.value === toMonth)?.label : 'Dis'})`
+                  : ''}
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/admin/users/bulk-import')}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Bulk Import
-          </Button>
-          <Button onClick={() => navigate('/admin/users/create')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-        </div>
+        <Button onClick={() => navigate('/admin/users/create')}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
       </div>
 
-      <div className="relative w-64">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 w-64"
+          />
+        </div>
+
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            {YEARS.map((year) => (
+              <SelectItem key={year} value={year}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={fromMonth} onValueChange={setFromMonth}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="From Month" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Months</SelectItem>
+            {MONTHS.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <span className="text-muted-foreground">to</span>
+
+        <Select value={toMonth} onValueChange={setToMonth}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="To Month" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Months</SelectItem>
+            {MONTHS.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
@@ -110,11 +180,11 @@ export default function UsersList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead className="text-center">Training Hours ({currentYear})</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-bold">Name</TableHead>
+                  <TableHead className="font-bold">Email</TableHead>
+                  <TableHead className="font-bold">Position</TableHead>
+                  <TableHead className="font-bold text-center">Training Hours ({selectedYear})</TableHead>
+                  <TableHead className="font-bold text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

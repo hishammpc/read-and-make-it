@@ -7,7 +7,6 @@ import {
   BookOpen,
   Users,
   FileCheck,
-  Award,
   FileText,
   LogOut,
   Menu,
@@ -29,7 +28,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
     { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: FileCheck, label: 'Evaluations', path: '/dashboard/evaluations' },
-    { icon: Award, label: 'Certificates', path: '/dashboard/certificates' },
     { icon: FileText, label: 'Reports', path: '/dashboard/reports' },
   ];
 

@@ -16,7 +16,6 @@ import {
   BookOpen,
   Users,
   ClipboardCheck,
-  Award,
   FileText,
   AlertCircle,
   Loader2,
@@ -87,7 +86,8 @@ export default function AdminDashboard() {
               <SelectValue placeholder="Year" />
             </SelectTrigger>
             <SelectContent>
-              {(stats?.availableYears || [new Date().getFullYear()]).map((year) => (
+              {/* Extended years from 2023 to 2035 */}
+              {Array.from({ length: 13 }, (_, i) => 2023 + i).map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
                 </SelectItem>
@@ -119,7 +119,7 @@ export default function AdminDashboard() {
         {!isLoading && stats && (
           <>
             {/* KPI Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Programs</CardTitle>
@@ -150,17 +150,6 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.totalHours}</div>
                   <p className="text-xs text-muted-foreground">Total delivered</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Compliance</CardTitle>
-                  <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.compliancePercentage}%</div>
-                  <p className="text-xs text-muted-foreground">Of 40hr target</p>
                 </CardContent>
               </Card>
             </div>
