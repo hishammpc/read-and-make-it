@@ -68,11 +68,11 @@ export async function generateCertificate(
 
   // Load the certificate template image
   try {
-    const templateUrl = '/certificate-template.png';
+    const templateUrl = '/certificate-template.jpg';
     const img = await loadImage(templateUrl);
 
-    // Add template as background (full page)
-    doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+    // Add template as background (full page) - use JPEG format since file is actually JPEG
+    doc.addImage(img, 'JPEG', 0, 0, pageWidth, pageHeight);
   } catch (error) {
     console.error('Failed to load certificate template:', error);
     // Fallback: Draw a simple background
@@ -127,12 +127,16 @@ function loadImage(url: string): Promise<string> {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
+        // Use JPEG format for better compatibility
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
       } else {
         reject(new Error('Could not get canvas context'));
       }
     };
-    img.onerror = () => reject(new Error('Failed to load image'));
+    img.onerror = (e) => {
+      console.error('Image load error:', e);
+      reject(new Error('Failed to load image: ' + url));
+    };
     img.src = url;
   });
 }

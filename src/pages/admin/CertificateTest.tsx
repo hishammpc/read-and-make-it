@@ -26,7 +26,7 @@ export default function CertificateTest() {
   const [positions, setPositions] = useState<TextPosition>(DEFAULT_POSITIONS);
 
   // Template image
-  const [templateImage, setTemplateImage] = useState<string>('/certificate-template.png');
+  const [templateImage, setTemplateImage] = useState<string>('/certificate-template.jpg');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -41,7 +41,7 @@ export default function CertificateTest() {
       setImageLoaded(false);
       setImageError(true);
     };
-    img.src = '/certificate-template.png';
+    img.src = '/certificate-template.jpg';
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
