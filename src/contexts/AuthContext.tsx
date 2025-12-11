@@ -53,8 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate('/auth');
   };
 
+  // Wrapper for setUser that also updates role
+  const handleSetUser = (newUser: UserSession | null) => {
+    setUser(newUser);
+    setRole(newUser?.role || null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, role, signIn, signOut, setUser }}>
+    <AuthContext.Provider value={{ user, loading, role, signIn, signOut, setUser: handleSetUser }}>
       {children}
     </AuthContext.Provider>
   );

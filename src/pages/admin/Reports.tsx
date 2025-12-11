@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import { addLogoToPDF } from '@/lib/pdfUtils';
 
 const MONTHS = [
   { value: '1', label: 'Januari' },
@@ -311,7 +312,7 @@ export default function Reports() {
     });
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (reportData.length === 0) {
       toast({
         title: 'No Data',
@@ -336,6 +337,10 @@ export default function Reports() {
     const margin = 15;
     let yPosition = margin;
 
+    // Add MPC logo
+    await addLogoToPDF(doc, margin, yPosition, 20, 20);
+    yPosition += 5; // Adjust title position to align with logo
+
     // Header labels for display
     const headerLabels: Record<string, string> = {
       name: 'Name',
@@ -351,11 +356,10 @@ export default function Reports() {
       location: 'Location',
     };
 
-    // Title
+    // Title (positioned next to logo)
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(reportType?.title || 'Report', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 8;
+    doc.text(reportType?.title || 'Report', margin + 25, yPosition + 8);
 
     // Date range info
     doc.setFontSize(10);
@@ -368,8 +372,8 @@ export default function Reports() {
       const toMonthLabel = toMonth && toMonth !== 'all' ? MONTHS.find(m => m.value === toMonth)?.label : 'Disember';
       dateRangeText = `${selectedYear} | ${fromMonthLabel} - ${toMonthLabel}`;
     }
-    doc.text(dateRangeText, pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 10;
+    doc.text(dateRangeText, margin + 25, yPosition + 14);
+    yPosition += 28; // Move past logo and header
 
     // Table headers
     const headers = Object.keys(reportData[0]);
