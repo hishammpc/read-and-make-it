@@ -58,7 +58,14 @@ export default function EmployeeDashboard() {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="flex items-center justify-between h-16 px-4">
-          <h1 className="text-xl font-semibold">MyLearning Pro</h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/mpclogo.jpeg"
+              alt="MPC Logo"
+              className="h-10 object-contain"
+            />
+            <h1 className="text-xl font-semibold">MyLearning Pro</h1>
+          </div>
           <Button variant="ghost" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out

@@ -11,22 +11,18 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, CheckCircle2, Target, Brain, Lightbulb, Users, Presentation, Building, Wrench, ThumbsUp, Star, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, Target, Users, Lightbulb, ThumbsUp, Star, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // Fixed evaluation questions with icons
 const EVALUATION_QUESTIONS = [
-  { id: 'q1', text: 'Adakah program ini mencapai objektif?', icon: Target },
-  { id: 'q2', text: 'Pengetahuan tentang subjek', icon: Brain },
-  { id: 'q3', text: 'Penjelasan fakta-fakta dan contoh', icon: Lightbulb },
-  { id: 'q4', text: 'Kebolehan menimbulkan minat dan penglibatan', icon: Users },
-  { id: 'q5', text: 'Gaya/Persembahan', icon: Presentation },
-  { id: 'q6', text: 'Adakah matlamat program ini memenuhi keperluan MPC?', icon: Building },
-  { id: 'q7', text: 'Adakah program ini membantu membentuk kemahiran anda?', icon: Wrench },
-  { id: 'q8', text: 'Adakah program ini sesuai dicadangkan kepada warga lain?', icon: ThumbsUp },
-  { id: 'q9', text: 'Secara keseluruhannya, program ini adalah:', icon: Star },
+  { id: 'q1', text: 'Program ini mencapai objektif', icon: Target },
+  { id: 'q2', text: 'Tenaga pengajar yang berpengalaman', icon: Users },
+  { id: 'q3', text: 'Bahan (Material) yang digunakan adalah maklumat terkini', icon: Lightbulb },
+  { id: 'q4', text: 'Program ini bermanfaat', icon: Star },
+  { id: 'q5', text: 'Program ini wajar diteruskan di masa akan datang', icon: ThumbsUp },
 ];
 
 const RATING_OPTIONS = [
@@ -62,7 +58,7 @@ const RATING_OPTIONS = [
   },
 ] as const;
 
-// Form validation schema
+// Form validation schema - all 5 questions required, q6 optional (comments)
 const ratingEnum = ['LEMAH', 'SEDERHANA', 'BAGUS'] as const;
 const evaluationSchema = z.object({
   q1: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
@@ -70,11 +66,7 @@ const evaluationSchema = z.object({
   q3: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
   q4: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
   q5: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
-  q6: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
-  q7: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
-  q8: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
-  q9: z.enum(ratingEnum, { required_error: 'Sila pilih penilaian' }),
-  q10: z.string().optional(),
+  q6: z.string().optional(),
 });
 
 type EvaluationFormValues = z.infer<typeof evaluationSchema>;
@@ -86,13 +78,13 @@ export default function EvaluationPreview() {
   const form = useForm<EvaluationFormValues>({
     resolver: zodResolver(evaluationSchema),
     defaultValues: {
-      q10: '',
+      q6: '',
     },
   });
 
   const watchedValues = form.watch();
   const answeredCount = Object.keys(watchedValues).filter(
-    key => key !== 'q10' && watchedValues[key as keyof EvaluationFormValues]
+    key => key !== 'q6' && watchedValues[key as keyof EvaluationFormValues]
   ).length;
 
   const onSubmit = async (data: EvaluationFormValues) => {
@@ -124,12 +116,12 @@ export default function EvaluationPreview() {
           {/* Progress indicator */}
           <div className="flex items-center gap-2">
             <div className="text-sm text-muted-foreground">
-              {answeredCount}/9 soalan
+              {answeredCount}/5 soalan
             </div>
             <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-green-500 transition-all duration-500 ease-out"
-                style={{ width: `${(answeredCount / 9) * 100}%` }}
+                style={{ width: `${(answeredCount / 5) * 100}%` }}
               />
             </div>
           </div>
@@ -158,7 +150,7 @@ export default function EvaluationPreview() {
           {/* Evaluation Form */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {/* Rating Questions 1-9 */}
+              {/* Rating Questions 1-5 */}
               {EVALUATION_QUESTIONS.map((question, index) => {
                 const Icon = question.icon;
                 const currentValue = watchedValues[question.id as keyof EvaluationFormValues];
@@ -190,7 +182,7 @@ export default function EvaluationPreview() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-medium text-muted-foreground">
-                                    {index + 1}/9
+                                    {index + 1}/5
                                   </span>
                                   {isAnswered && (
                                     <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -233,12 +225,12 @@ export default function EvaluationPreview() {
                 );
               })}
 
-              {/* Question 10 - Comments Card */}
+              {/* Question 6 - Comments Card */}
               <Card className="border border-slate-200 dark:border-slate-700">
                 <CardContent className="p-5">
                   <FormField
                     control={form.control}
-                    name="q10"
+                    name="q6"
                     render={({ field }) => (
                       <FormItem className="space-y-4">
                         <div className="flex items-start gap-4">
@@ -277,9 +269,9 @@ export default function EvaluationPreview() {
                     <div>
                       <h3 className="font-semibold">Sedia untuk hantar?</h3>
                       <p className="text-slate-300 text-sm">
-                        {answeredCount === 9
+                        {answeredCount === 5
                           ? "Semua soalan telah dijawab"
-                          : `${9 - answeredCount} soalan lagi perlu dijawab`}
+                          : `${5 - answeredCount} soalan lagi perlu dijawab`}
                       </p>
                     </div>
                     <div className="flex gap-3">
@@ -293,7 +285,7 @@ export default function EvaluationPreview() {
                       </Button>
                       <Button
                         type="submit"
-                        disabled={form.formState.isSubmitting || answeredCount < 9}
+                        disabled={form.formState.isSubmitting || answeredCount < 5}
                         className="bg-green-500 hover:bg-green-600 text-white"
                       >
                         {form.formState.isSubmitting ? (

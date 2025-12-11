@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { loginAdmin } from '@/lib/emailOnlyAuth';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -60,8 +60,12 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-            <Shield className="w-6 h-6 text-primary" />
+          <div className="flex justify-center mb-4">
+            <img
+              src="/mpclogo.jpeg"
+              alt="MPC Logo"
+              className="h-16 object-contain"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
           <CardDescription>

@@ -30,9 +30,11 @@ import {
   BookOpen,
   Plane,
   AlertCircle,
-  ChevronLeft
+  ChevronLeft,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
 
 const MONTHS = [
   { value: '1', label: 'Januari' },
@@ -65,7 +67,9 @@ export default function Reports() {
 
   const [activeReport, setActiveReport] = useState<ReportType>('training-hours-user');
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
+  const [toYear, setToYear] = useState(currentYear.toString());
   const [reportData, setReportData] = useState<ReportData[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -101,9 +105,10 @@ export default function Reports() {
     try {
       let data: ReportData[] = [];
       const year = parseInt(selectedYear);
+      const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
       const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
 
-      const startDate = `${year}-01-01T00:00:00`;
+      const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
       const lastDay = new Date(year, endMonth, 0).getDate();
       const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
 
@@ -115,7 +120,7 @@ export default function Reports() {
           data = await generateProgramList(startDate, endDate);
           break;
         case 'program-overseas':
-          data = await generateProgramOverseas(year);
+          data = await generateProgramOverseas(year, parseInt(toYear));
           break;
       }
 
@@ -138,11 +143,13 @@ export default function Reports() {
   };
 
   const generateTrainingHoursByUser = async (startDate: string, endDate: string): Promise<ReportData[]> => {
+    // Fetch all assignments (no status filter)
     const { data: assignments, error } = await supabase
       .from('program_assignments')
       .select(`
         id,
         status,
+        user_id,
         profiles:user_id (
           id,
           name
@@ -154,10 +161,21 @@ export default function Reports() {
           start_date_time,
           end_date_time
         )
-      `)
-      .eq('status', 'Attended');
+      `);
 
     if (error) throw error;
+
+    // Fetch all evaluations to check completion status
+    const { data: evaluations, error: evalError } = await supabase
+      .from('evaluations')
+      .select('user_id, program_id');
+
+    if (evalError) throw evalError;
+
+    // Create a Set for quick lookup of completed evaluations
+    const completedEvaluations = new Set(
+      evaluations?.map(e => `${e.user_id}-${e.program_id}`) || []
+    );
 
     const result: ReportData[] = [];
 
@@ -171,12 +189,17 @@ export default function Reports() {
       if (new Date(program.start_date_time) < new Date(startDate)) return;
       if (new Date(program.start_date_time) > new Date(endDate)) return;
 
+      // Check if evaluation is completed
+      const evalKey = `${assignment.user_id}-${program.id}`;
+      const evaluationStatus = completedEvaluations.has(evalKey) ? 'Selesai' : 'Belum';
+
       result.push({
         name: profile.name || 'N/A',
         program: program.title || 'N/A',
         hours: program.hours || 0,
         start_date: formatMalaysianDate(program.start_date_time),
         end_date: formatMalaysianDate(program.end_date_time),
+        evaluation: evaluationStatus,
       });
     });
 
@@ -216,9 +239,9 @@ export default function Reports() {
     }) || [];
   };
 
-  const generateProgramOverseas = async (year: number): Promise<ReportData[]> => {
-    const startOfYear = `${year}-01-01T00:00:00`;
-    const endOfYear = `${year}-12-31T23:59:59`;
+  const generateProgramOverseas = async (fromYear: number, toYearParam: number): Promise<ReportData[]> => {
+    const startDate = `${fromYear}-01-01T00:00:00`;
+    const endDate = `${toYearParam}-12-31T23:59:59`;
 
     const { data: assignments, error } = await supabase
       .from('program_assignments')
@@ -250,9 +273,9 @@ export default function Reports() {
       if (!profile || !program) return;
       if (program.training_type !== 'International') return;
 
-      // Filter by year
-      if (new Date(program.start_date_time) < new Date(startOfYear)) return;
-      if (new Date(program.start_date_time) > new Date(endOfYear)) return;
+      // Filter by date range
+      if (new Date(program.start_date_time) < new Date(startDate)) return;
+      if (new Date(program.start_date_time) > new Date(endDate)) return;
 
       result.push({
         name: profile.name || 'N/A',
@@ -288,6 +311,165 @@ export default function Reports() {
     });
   };
 
+  const handleDownloadPDF = () => {
+    if (reportData.length === 0) {
+      toast({
+        title: 'No Data',
+        description: 'Please generate a report first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const reportType = reportTypes.find(r => r.id === activeReport);
+    const filename = `${reportType?.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    // Create PDF in landscape for better table fit
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPosition = margin;
+
+    // Header labels for display
+    const headerLabels: Record<string, string> = {
+      name: 'Name',
+      program: 'Program',
+      hours: 'Hours',
+      start_date: 'Start Date',
+      end_date: 'End Date',
+      evaluation: 'Evaluation',
+      title: 'Title',
+      participants: 'Participants',
+      total_hours: 'Total Hours',
+      position: 'Position',
+      location: 'Location',
+    };
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(reportType?.title || 'Report', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+
+    // Date range info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    let dateRangeText = '';
+    if (activeReport === 'program-overseas') {
+      dateRangeText = `${selectedYear} - ${toYear}`;
+    } else {
+      const fromMonthLabel = fromMonth && fromMonth !== 'all' ? MONTHS.find(m => m.value === fromMonth)?.label : 'Januari';
+      const toMonthLabel = toMonth && toMonth !== 'all' ? MONTHS.find(m => m.value === toMonth)?.label : 'Disember';
+      dateRangeText = `${selectedYear} | ${fromMonthLabel} - ${toMonthLabel}`;
+    }
+    doc.text(dateRangeText, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 10;
+
+    // Table headers
+    const headers = Object.keys(reportData[0]);
+    const tableWidth = pageWidth - (margin * 2);
+
+    // Custom column widths based on report type
+    const getColumnWidths = (): number[] => {
+      if (activeReport === 'program-list') {
+        // title, start_date, end_date, hours, participants, total_hours
+        // Make title wider, reduce hours/participants/total_hours
+        return [100, 35, 35, 25, 35, 37]; // Total = 267 (fits A4 landscape)
+      } else if (activeReport === 'training-hours-user') {
+        // name, program, hours, start_date, end_date, evaluation
+        return [50, 80, 20, 35, 35, 47];
+      } else if (activeReport === 'program-overseas') {
+        // name, position, program, start_date, end_date, location
+        return [45, 40, 70, 35, 35, 42];
+      }
+      // Default: equal widths
+      return headers.map(() => tableWidth / headers.length);
+    };
+
+    const colWidths = getColumnWidths();
+
+    // Helper to get x position for column
+    const getColX = (colIndex: number): number => {
+      let x = margin;
+      for (let i = 0; i < colIndex; i++) {
+        x += colWidths[i];
+      }
+      return x;
+    };
+
+    // Draw header row
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, yPosition, tableWidth, 8, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+
+    headers.forEach((header, index) => {
+      const label = headerLabels[header] || header.replace(/_/g, ' ');
+      doc.text(label, getColX(index) + 2, yPosition + 5.5);
+    });
+    yPosition += 8;
+
+    // Draw data rows
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+
+    reportData.forEach((row, rowIndex) => {
+      // Check if we need a new page
+      if (yPosition > pageHeight - 20) {
+        doc.addPage();
+        yPosition = margin;
+
+        // Redraw header on new page
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPosition, tableWidth, 8, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        headers.forEach((header, index) => {
+          const label = headerLabels[header] || header.replace(/_/g, ' ');
+          doc.text(label, getColX(index) + 2, yPosition + 5.5);
+        });
+        yPosition += 8;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+      }
+
+      // Alternate row background
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(margin, yPosition, tableWidth, 7, 'F');
+      }
+
+      // Draw row data
+      headers.forEach((header, index) => {
+        const value = row[header]?.toString() || 'N/A';
+        // Truncate long text based on column width
+        const maxChars = Math.floor(colWidths[index] / 2);
+        const displayValue = value.length > maxChars ? value.substring(0, maxChars - 2) + '..' : value;
+        doc.text(displayValue, getColX(index) + 2, yPosition + 5);
+      });
+      yPosition += 7;
+    });
+
+    // Footer with total records
+    yPosition += 5;
+    doc.setFontSize(9);
+    doc.text(`Total Records: ${reportData.length}`, margin, yPosition);
+
+    // Save the PDF
+    doc.save(filename);
+
+    toast({
+      title: 'Success',
+      description: 'PDF report downloaded successfully',
+    });
+  };
+
   const renderReportTable = () => {
     if (!hasGenerated) {
       return (
@@ -318,6 +500,7 @@ export default function Reports() {
       hours: 'Hours',
       start_date: 'Start Date',
       end_date: 'End Date',
+      evaluation: 'Evaluation',
       title: 'Title',
       participants: 'Participants',
       total_hours: 'Total Hours',
@@ -331,10 +514,16 @@ export default function Reports() {
           <p className="text-sm text-muted-foreground">
             Total Records: <span className="font-semibold">{reportData.length}</span>
           </p>
-          <Button onClick={handleDownloadCSV} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Download CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleDownloadCSV} variant="outline">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Download CSV
+            </Button>
+            <Button onClick={handleDownloadPDF} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
         </div>
 
         <div className="border rounded-lg overflow-hidden">
@@ -342,23 +531,45 @@ export default function Reports() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {headers.map((header) => (
-                    <TableHead key={header} className="font-bold whitespace-nowrap">
-                      {headerLabels[header] || header.replace(/_/g, ' ').toUpperCase()}
-                    </TableHead>
-                  ))}
+                  {headers.map((header) => {
+                    // Custom widths based on report type and column
+                    let widthClass = '';
+                    if (activeReport === 'program-list') {
+                      if (header === 'title') widthClass = 'w-[40%] min-w-[250px]';
+                      else if (['hours', 'participants', 'total_hours'].includes(header)) widthClass = 'w-[10%] min-w-[80px]';
+                      else widthClass = 'w-[13%] min-w-[100px]';
+                    } else if (activeReport === 'training-hours-user') {
+                      if (header === 'program') widthClass = 'w-[35%] min-w-[200px]';
+                      else if (header === 'hours') widthClass = 'w-[8%] min-w-[60px]';
+                      else if (header === 'name') widthClass = 'w-[20%] min-w-[120px]';
+                      else widthClass = 'w-[12%] min-w-[100px]';
+                    } else if (activeReport === 'program-overseas') {
+                      if (header === 'program') widthClass = 'w-[30%] min-w-[180px]';
+                      else if (header === 'name') widthClass = 'w-[18%] min-w-[100px]';
+                      else widthClass = 'w-[13%] min-w-[90px]';
+                    }
+                    return (
+                      <TableHead key={header} className={`font-bold whitespace-nowrap ${widthClass}`}>
+                        {headerLabels[header] || header.replace(/_/g, ' ').toUpperCase()}
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reportData.map((row, idx) => (
                   <TableRow key={idx}>
-                    {headers.map((header) => (
-                      <TableCell key={header} className="whitespace-nowrap">
-                        {row[header] !== null && row[header] !== undefined
-                          ? row[header].toString()
-                          : 'N/A'}
-                      </TableCell>
-                    ))}
+                    {headers.map((header) => {
+                      // Allow text wrap for title/program columns
+                      const allowWrap = ['title', 'program'].includes(header);
+                      return (
+                        <TableCell key={header} className={allowWrap ? '' : 'whitespace-nowrap'}>
+                          {row[header] !== null && row[header] !== undefined
+                            ? row[header].toString()
+                            : 'N/A'}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableBody>
@@ -375,7 +586,7 @@ export default function Reports() {
     return (
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Year</label>
+          <label className="text-sm font-medium">{isOverseas ? 'Dari tahun' : 'Year'}</label>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Year" />
@@ -390,17 +601,54 @@ export default function Reports() {
           </Select>
         </div>
 
-        {!isOverseas && (
+        {isOverseas ? (
           <>
             <span className="text-muted-foreground pb-2">sehingga</span>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Month</label>
-              <Select value={toMonth} onValueChange={setToMonth}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Month" />
+              <label className="text-sm font-medium">Hingga tahun</label>
+              <Select value={toYear} onValueChange={setToYear}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Months</SelectItem>
+                  {YEARS.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Dari bulan</label>
+              <Select value={fromMonth} onValueChange={setFromMonth}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Dari bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Bulan</SelectItem>
+                  {MONTHS.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <span className="text-muted-foreground pb-2">sehingga</span>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hingga bulan</label>
+              <Select value={toMonth} onValueChange={setToMonth}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Hingga bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Bulan</SelectItem>
                   {MONTHS.map((month) => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}

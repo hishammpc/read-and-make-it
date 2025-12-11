@@ -76,12 +76,13 @@ const getRatingBadgeClass = (rating: string) => {
 export default function Evaluations() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
+  const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
   const [selectedProgram, setSelectedProgram] = useState<ProgramEvaluationSummary | null>(null);
 
   const { data: evaluations, isLoading, error } = useEvaluationsByProgram(
     parseInt(selectedYear),
-    undefined,
+    fromMonth,
     toMonth
   );
 
@@ -111,14 +112,28 @@ export default function Evaluations() {
             </SelectContent>
           </Select>
 
+          <Select value={fromMonth} onValueChange={setFromMonth}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Dari bulan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Bulan</SelectItem>
+              {MONTHS.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <span className="text-muted-foreground">sehingga</span>
 
           <Select value={toMonth} onValueChange={setToMonth}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Month" />
+              <SelectValue placeholder="Hingga bulan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
+              <SelectItem value="all">Semua Bulan</SelectItem>
               {MONTHS.map((month) => (
                 <SelectItem key={month.value} value={month.value}>
                   {month.label}

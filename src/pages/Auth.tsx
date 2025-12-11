@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAuthenticated } from '@/lib/emailOnlyAuth';
 
@@ -53,9 +52,11 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-              <GraduationCap className="w-7 h-7 text-primary-foreground" />
-            </div>
+            <img
+              src="/mpclogo.jpeg"
+              alt="MPC Logo"
+              className="h-16 object-contain"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">
             Welcome Back

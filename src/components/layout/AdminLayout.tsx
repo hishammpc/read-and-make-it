@@ -73,9 +73,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
               </SheetContent>
             </Sheet>
-            <h1 className="text-xl font-semibold cursor-pointer" onClick={() => navigate('/dashboard')}>
-              MyLearning Pro
-            </h1>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
+              <img
+                src="/mpclogo.jpeg"
+                alt="MPC Logo"
+                className="h-10 object-contain"
+              />
+              <h1 className="text-xl font-semibold">
+                MyLearning Pro
+              </h1>
+            </div>
           </div>
           <Button variant="ghost" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" />

@@ -44,10 +44,20 @@ export interface TextPosition {
 
 // Default positions (can be adjusted via test page)
 export const DEFAULT_POSITIONS: TextPosition = {
-  employeeName: { x: 148.5, y: 99, fontSize: 28 },
-  programTitle: { x: 148.5, y: 127.5, fontSize: 20 },
-  dateRange: { x: 148.5, y: 141, fontSize: 19 },
+  employeeName: { x: 148.5, y: 99, fontSize: 30 },
+  programTitle: { x: 148.5, y: 128, fontSize: 20 },
+  dateRange: { x: 148.5, y: 142.5, fontSize: 19 },
 };
+
+// Load font from URL and convert to base64
+async function loadFontAsBase64(url: string): Promise<string> {
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  const base64 = btoa(
+    new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+  );
+  return base64;
+}
 
 export async function generateCertificate(
   data: CertificateData,
@@ -66,6 +76,17 @@ export async function generateCertificate(
   const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
 
+  // Load and register Forte font
+  let forteLoaded = false;
+  try {
+    const fontBase64 = await loadFontAsBase64('/Forte.ttf');
+    doc.addFileToVFS('Forte.ttf', fontBase64);
+    doc.addFont('Forte.ttf', 'Forte', 'normal');
+    forteLoaded = true;
+  } catch (error) {
+    console.warn('Failed to load Forte font, using fallback:', error);
+  }
+
   // Load the certificate template image
   try {
     const templateUrl = '/certificate-template.jpg';
@@ -79,13 +100,17 @@ export async function generateCertificate(
     drawFallbackBackground(doc, pageWidth, pageHeight);
   }
 
-  // Add Employee Name
-  doc.setFont('helvetica', 'bold');
+  // Add Employee Name - use Forte font if loaded
+  if (forteLoaded) {
+    doc.setFont('Forte', 'normal');
+  } else {
+    doc.setFont('helvetica', 'bold');
+  }
   doc.setFontSize(positions.employeeName.fontSize);
   doc.setTextColor(0, 0, 0);
   doc.text(employeeName, positions.employeeName.x, positions.employeeName.y, { align: 'center' });
 
-  // Add Program Title (may need to wrap if too long)
+  // Add Program Title - use normal font
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(positions.programTitle.fontSize);
   doc.setTextColor(0, 0, 0);
@@ -99,7 +124,7 @@ export async function generateCertificate(
     yPosition += positions.programTitle.fontSize * 0.4;
   });
 
-  // Add Date Range
+  // Add Date Range - use regular font for dates
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(positions.dateRange.fontSize);
   doc.setTextColor(80, 80, 80);

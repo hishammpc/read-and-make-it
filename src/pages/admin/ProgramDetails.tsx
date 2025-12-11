@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
 import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignments';
+import { useProgramEvaluationDetails } from '@/hooks/useEvaluations';
 import { formatDateTime } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -37,13 +38,25 @@ import {
   AlertCircle,
   Users,
   X,
+  ClipboardCheck,
+  MessageSquare,
 } from 'lucide-react';
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  ResponsiveContainer,
+  Tooltip,
+} from 'recharts';
 
 export default function ProgramDetails() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: program, isLoading, error } = useProgram(id!);
   const { data: assignments, isLoading: assignmentsLoading } = useProgramAssignments(id!);
+  const { data: evaluationDetails, isLoading: evaluationLoading } = useProgramEvaluationDetails(id!);
   const deleteProgram = useDeleteProgram();
   const removeAssignment = useRemoveAssignment();
 
@@ -253,6 +266,130 @@ export default function ProgramDetails() {
                 <div className="text-sm">{program.hours} hours</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Evaluation Summary with Radar Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5" />
+                  Evaluation Summary
+                </CardTitle>
+                <CardDescription>
+                  {evaluationDetails?.totalResponses || 0} of {evaluationDetails?.totalAssigned || 0} responses received
+                </CardDescription>
+              </div>
+              {evaluationDetails && evaluationDetails.totalResponses > 0 && (
+                <Badge
+                  className={
+                    evaluationDetails.averageRating === 'BAGUS'
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : evaluationDetails.averageRating === 'SEDERHANA'
+                        ? 'bg-yellow-500 hover:bg-yellow-600'
+                        : evaluationDetails.averageRating === 'LEMAH'
+                          ? 'bg-red-500 hover:bg-red-600'
+                          : ''
+                  }
+                >
+                  {evaluationDetails.averageRating} ({evaluationDetails.averageScore.toFixed(2)}/3.00)
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {evaluationLoading ? (
+              <div className="flex justify-center py-8">
+                <Skeleton className="h-64 w-64 rounded-full" />
+              </div>
+            ) : !evaluationDetails || evaluationDetails.totalResponses === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No evaluations submitted yet.
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Radar Chart */}
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart
+                      data={evaluationDetails.questionScores.map(q => ({
+                        subject: q.shortLabel,
+                        score: q.avgScore,
+                        fullMark: 3,
+                      }))}
+                    >
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 3]} tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        formatter={(value: number) => [value.toFixed(2), 'Score']}
+                      />
+                      <Radar
+                        name="Score"
+                        dataKey="score"
+                        stroke="#22c55e"
+                        fill="#22c55e"
+                        fillOpacity={0.5}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Question Breakdown */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Question Breakdown</h4>
+                  {evaluationDetails.questionScores.map((q, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="truncate pr-4">{q.question}</span>
+                        <span className="font-semibold shrink-0">{q.avgScore.toFixed(2)}</span>
+                      </div>
+                      <div className="flex gap-1 h-2">
+                        <div
+                          className="bg-green-500 rounded-l"
+                          style={{ width: `${(q.bagusCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
+                          title={`BAGUS: ${q.bagusCount}`}
+                        />
+                        <div
+                          className="bg-yellow-500"
+                          style={{ width: `${(q.sederhanaCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
+                          title={`SEDERHANA: ${q.sederhanaCount}`}
+                        />
+                        <div
+                          className="bg-red-500 rounded-r"
+                          style={{ width: `${(q.lemahCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
+                          title={`LEMAH: ${q.lemahCount}`}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span className="text-green-600">BAGUS: {q.bagusCount}</span>
+                        <span className="text-yellow-600">SEDERHANA: {q.sederhanaCount}</span>
+                        <span className="text-red-600">LEMAH: {q.lemahCount}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comments Section */}
+                {evaluationDetails.comments.length > 0 && (
+                  <div className="md:col-span-2 border-t pt-4">
+                    <h4 className="font-semibold text-sm text-muted-foreground flex items-center gap-2 mb-3">
+                      <MessageSquare className="w-4 h-4" />
+                      Comments & Suggestions ({evaluationDetails.comments.length})
+                    </h4>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {evaluationDetails.comments.map((comment, idx) => (
+                        <div key={idx} className="p-3 bg-muted/50 rounded-lg text-sm">
+                          {comment}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
