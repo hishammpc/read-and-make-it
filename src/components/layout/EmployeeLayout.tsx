@@ -5,35 +5,54 @@ import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   BookOpen,
-  Users,
+  Clock,
+  Award,
   FileCheck,
-  FileText,
   ClipboardCheck,
-  Send,
+  Users,
   LogOut,
   Menu,
+  Send,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
+import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
+import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
 
-interface AdminLayoutProps {
+interface EmployeeLayoutProps {
   children: ReactNode;
 }
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { signOut } = useAuth();
+export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
+
+  // Check if user has supervisees with pending evaluations
+  const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
+
+  // Check if proposal period is open
+  const proposalPeriodOpen = isProposalPeriodOpen();
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
-    { icon: Users, label: 'Users', path: '/admin/users' },
-    { icon: FileCheck, label: 'Evaluations', path: '/dashboard/evaluations' },
-    { icon: ClipboardCheck, label: 'Annual Evaluation', path: '/dashboard/annual-evaluations' },
-    { icon: Send, label: 'Proposed Trainings', path: '/dashboard/proposed-trainings' },
-    { icon: FileText, label: 'Reports', path: '/dashboard/reports' },
+    { icon: BookOpen, label: 'My Trainings', path: '/dashboard/my-trainings' },
+    { icon: Clock, label: 'My Hours', path: '/dashboard/my-hours' },
+    { icon: Award, label: 'My Certificates', path: '/dashboard/my-certificates' },
+    { icon: FileCheck, label: 'Program Evaluations', path: '/dashboard/my-evaluations' },
+    { icon: ClipboardCheck, label: 'Annual Evaluation', path: '/dashboard/my-annual-evaluation' },
   ];
+
+  // Add supervisor menu item if user has supervisees
+  if (pendingSuperviseeCount !== undefined && pendingSuperviseeCount >= 0) {
+    menuItems.push({
+      icon: Users,
+      label: `Staff Evaluations${pendingSuperviseeCount > 0 ? ` (${pendingSuperviseeCount})` : ''}`,
+      path: '/dashboard/supervisee-evaluations',
+    });
+  }
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -88,10 +107,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </h1>
             </div>
           </div>
-          <Button variant="ghost" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {proposalPeriodOpen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowProposalDialog(true)}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Propose Training
+              </Button>
+            )}
+            <Button variant="ghost" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -120,6 +151,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Proposed Training Dialog */}
+      <ProposedTrainingDialog
+        open={showProposalDialog}
+        onOpenChange={setShowProposalDialog}
+      />
     </div>
   );
 }

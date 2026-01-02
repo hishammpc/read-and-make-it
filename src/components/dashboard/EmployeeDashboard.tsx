@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useEmployeeDashboardStats } from '@/hooks/useDashboardStats';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { useMyPendingAnnualEvaluations, usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
+import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
 import { CircularProgress } from '@/components/ui/circular-progress';
+import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -12,14 +16,24 @@ import {
   LogOut,
   TrendingUp,
   Trophy,
+  ClipboardCheck,
+  Users,
+  ChevronRight,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatMalaysianDate } from '@/lib/dateUtils';
 
 export default function EmployeeDashboard() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '');
   const { data: leaderboard } = useLeaderboard(user?.userId || '');
+  const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '');
+  const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
+
+  const proposalPeriodOpen = isProposalPeriodOpen();
 
   if (isLoading) {
     return (
@@ -85,6 +99,63 @@ export default function EmployeeDashboard() {
             </p>
           </div>
 
+          {/* Pending Annual Evaluation Alert */}
+          {pendingAnnualEvals && pendingAnnualEvals.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-lg text-orange-800">Penilaian Tahunan Menunggu</CardTitle>
+                </div>
+                <CardDescription className="text-orange-700">
+                  Sila lengkapkan penilaian kendiri anda untuk tahun {(pendingAnnualEvals[0].cycle as any)?.year}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-orange-700">
+                    Tempoh: {formatMalaysianDate((pendingAnnualEvals[0].cycle as any)?.start_date)} - {formatMalaysianDate((pendingAnnualEvals[0].cycle as any)?.end_date)}
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/dashboard/my-annual-evaluation/${(pendingAnnualEvals[0].cycle as any)?.id}/submit`)}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    Mula Penilaian
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pending Supervisee Evaluations Alert */}
+          {pendingSuperviseeCount && pendingSuperviseeCount > 0 && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-lg text-blue-800">Penilaian Kakitangan Menunggu</CardTitle>
+                </div>
+                <CardDescription className="text-blue-700">
+                  {pendingSuperviseeCount} kakitangan di bawah penyeliaan anda memerlukan penilaian
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => navigate('/dashboard/supervisee-evaluations')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Lihat Senarai
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Progress Light Bar */}
           <Card className="overflow-hidden">
             <CardContent className="p-4">
@@ -113,7 +184,7 @@ export default function EmployeeDashboard() {
           </Card>
 
           {/* Quick Stats */}
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -186,6 +257,27 @@ export default function EmployeeDashboard() {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Propose Training Card - only visible during Dec 1 - Jan 31 */}
+            {proposalPeriodOpen && (
+              <Card
+                className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/30 bg-primary/5"
+                onClick={() => setShowProposalDialog(true)}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Propose Training
+                  </CardTitle>
+                  <Send className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-primary">Proposed</div>
+                  <p className="text-xs text-muted-foreground">
+                    For {new Date().getMonth() === 11 ? new Date().getFullYear() + 1 : new Date().getFullYear()}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Leaderboard */}
@@ -312,6 +404,12 @@ export default function EmployeeDashboard() {
           </Card>
         </div>
       </main>
+
+      {/* Proposed Training Dialog */}
+      <ProposedTrainingDialog
+        open={showProposalDialog}
+        onOpenChange={setShowProposalDialog}
+      />
     </div>
   );
 }

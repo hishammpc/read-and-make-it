@@ -1,18 +1,48 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useUser, useUpdateUser } from '@/hooks/useUsers';
+import { usePotentialSupervisors, useUpdateSupervisor } from '@/hooks/useSupervisors';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { UserForm, UserFormValues } from '@/components/users/UserForm';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, AlertCircle, Users } from 'lucide-react';
 
 export default function UserEdit() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: user, isLoading, error } = useUser(id || '');
+  const { data: potentialSupervisors } = usePotentialSupervisors(id);
   const updateUser = useUpdateUser();
+  const updateSupervisor = useUpdateSupervisor();
+  const [selectedSupervisor, setSelectedSupervisor] = useState<string>('none');
+
+  // Set initial supervisor when user data loads
+  useEffect(() => {
+    if (user?.supervisor_id) {
+      setSelectedSupervisor(user.supervisor_id);
+    }
+  }, [user?.supervisor_id]);
+
+  const handleSupervisorChange = async (value: string) => {
+    setSelectedSupervisor(value);
+    if (id) {
+      await updateSupervisor.mutateAsync({
+        userId: id,
+        supervisorId: value === 'none' ? null : value,
+      });
+    }
+  };
 
   const handleSubmit = async (values: UserFormValues) => {
     if (!id) return;
@@ -127,6 +157,44 @@ export default function UserEdit() {
             isLoading={updateUser.isPending}
             submitLabel="Update User"
           />
+        </CardContent>
+      </Card>
+
+      {/* Supervisor Assignment Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            <CardTitle>Penyelia (Supervisor)</CardTitle>
+          </div>
+          <CardDescription>
+            Tetapkan penyelia untuk kakitangan ini bagi penilaian tahunan
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="supervisor">Penyelia</Label>
+            <Select
+              value={selectedSupervisor}
+              onValueChange={handleSupervisorChange}
+              disabled={updateSupervisor.isPending}
+            >
+              <SelectTrigger id="supervisor" className="w-full md:w-[300px]">
+                <SelectValue placeholder="Pilih penyelia..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tiada penyelia</SelectItem>
+                {potentialSupervisors?.map((sup) => (
+                  <SelectItem key={sup.id} value={sup.id}>
+                    {sup.name} ({sup.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {updateSupervisor.isPending && (
+              <p className="text-sm text-muted-foreground">Menyimpan...</p>
+            )}
+          </div>
         </CardContent>
       </Card>
       </div>

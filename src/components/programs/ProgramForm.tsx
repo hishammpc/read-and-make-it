@@ -164,7 +164,7 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
           </div>
         </div>
 
-        {/* Notification Checkbox */}
+        {/* Evaluation Requirement Checkbox */}
         <FormField
           control={form.control}
           name="notify_for_evaluation"
@@ -178,10 +178,10 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  Notify users for evaluation
+                  Memerlukan penilaian
                 </FormLabel>
                 <FormDescription>
-                  Send notification to participants to complete evaluation form after the program ends
+                  Peserta perlu mengisi borang penilaian selepas program tamat
                 </FormDescription>
               </div>
             </FormItem>

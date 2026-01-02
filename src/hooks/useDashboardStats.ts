@@ -179,11 +179,13 @@ export function useEmployeeDashboardStats(userId: string) {
           new Date(b.programs?.start_date_time).getTime()
         )[0];
 
-      // Get pending evaluations (all assigned programs)
+      // Get pending evaluations (only programs that require evaluation)
       const pendingEvaluations = [];
-      const allPrograms = assignments || [];
+      const programsRequiringEvaluation = (assignments || []).filter(
+        (a: any) => a.programs?.notify_for_evaluation === true
+      );
 
-      for (const assignment of allPrograms) {
+      for (const assignment of programsRequiringEvaluation) {
         const { data: evaluation } = await supabase
           .from('evaluations')
           .select('id')

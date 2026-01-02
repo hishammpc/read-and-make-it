@@ -32,6 +32,17 @@ import MyEvaluations from "./pages/employee/MyEvaluations";
 import EvaluationForm from "./pages/employee/EvaluationForm";
 import EvaluationPreview from "./pages/preview/EvaluationPreview";
 import CertificateTest from "./pages/admin/CertificateTest";
+import AnnualEvaluationTest from "./pages/admin/AnnualEvaluationTest";
+// Annual Evaluation pages
+import AnnualEvaluations from "./pages/admin/AnnualEvaluations";
+import AnnualEvaluationCycle from "./pages/admin/AnnualEvaluationCycle";
+import AnnualEvaluationResult from "./pages/admin/AnnualEvaluationResult";
+import MyAnnualEvaluation from "./pages/employee/MyAnnualEvaluation";
+import AnnualEvaluationForm from "./pages/employee/AnnualEvaluationForm";
+import SuperviseeEvaluations from "./pages/employee/SuperviseeEvaluations";
+import SupervisorEvaluationForm from "./pages/employee/SupervisorEvaluationForm";
+// Proposed Trainings
+import ProposedTrainings from "./pages/admin/ProposedTrainings";
 
 const queryClient = new QueryClient();
 
@@ -222,9 +233,76 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* Annual Evaluation routes */}
+            <Route
+              path="/dashboard/annual-evaluations"
+              element={
+                <ProtectedRoute>
+                  <AnnualEvaluations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/annual-evaluations/:cycleId"
+              element={
+                <ProtectedRoute>
+                  <AnnualEvaluationCycle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/annual-evaluations/:cycleId/staff/:userId"
+              element={
+                <ProtectedRoute>
+                  <AnnualEvaluationResult />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/my-annual-evaluation"
+              element={
+                <ProtectedRoute>
+                  <MyAnnualEvaluation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/my-annual-evaluation/:cycleId/submit"
+              element={
+                <ProtectedRoute>
+                  <AnnualEvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/supervisee-evaluations"
+              element={
+                <ProtectedRoute>
+                  <SuperviseeEvaluations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/supervisee-evaluations/:cycleId/:userId"
+              element={
+                <ProtectedRoute>
+                  <SupervisorEvaluationForm />
+                </ProtectedRoute>
+              }
+            />
+            {/* Proposed Trainings */}
+            <Route
+              path="/dashboard/proposed-trainings"
+              element={
+                <ProtectedRoute>
+                  <ProposedTrainings />
+                </ProtectedRoute>
+              }
+            />
             {/* Preview routes - no auth required */}
             <Route path="/preview/evaluation" element={<EvaluationPreview />} />
             <Route path="/certificate-test" element={<CertificateTest />} />
+            <Route path="/annual-evaluation-test" element={<AnnualEvaluationTest />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

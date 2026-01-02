@@ -25,14 +25,16 @@ export default function MyEvaluations() {
 
   const isLoading = assignmentsLoading || evaluationsLoading;
 
-  // Get pending evaluations (all assigned programs without submitted evaluation)
+  // Get pending evaluations (only programs that require evaluation and haven't been submitted)
   const getPendingEvaluations = () => {
     if (!assignments || !evaluations) return [];
 
-    // All assigned programs are eligible for evaluation
     const evaluatedProgramIds = new Set(evaluations.map((e: any) => e.program_id));
 
-    return assignments.filter((a: any) => !evaluatedProgramIds.has(a.program_id));
+    // Only include programs that require evaluation (notify_for_evaluation = true)
+    return assignments.filter(
+      (a: any) => a.programs?.notify_for_evaluation === true && !evaluatedProgramIds.has(a.program_id)
+    );
   };
 
   const pendingEvaluations = getPendingEvaluations();

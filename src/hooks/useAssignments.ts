@@ -59,7 +59,7 @@ export function useUserAssignments(userId: string) {
         .from('program_assignments')
         .select(`
           *,
-          programs:program_id(id, title, category, start_date_time, end_date_time, hours, status)
+          programs:program_id(id, title, category, start_date_time, end_date_time, hours, status, notify_for_evaluation)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });

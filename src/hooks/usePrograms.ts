@@ -14,6 +14,8 @@ export interface Program {
   trainer: string | null;
   hours: number;
   status: string;
+  notify_for_evaluation: boolean;
+  training_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +31,8 @@ export interface CreateProgramInput {
   trainer?: string;
   hours: number;
   status?: string;
+  notify_for_evaluation?: boolean;
+  training_type?: string;
 }
 
 export function usePrograms() {

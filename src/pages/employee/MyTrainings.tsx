@@ -138,12 +138,19 @@ export default function MyTrainings() {
       }
 
       const isEvaluated = evaluatedProgramIds.has(assignment.program_id);
+      const requiresEvaluation = assignment.programs?.notify_for_evaluation;
       const rowHeight = 7;
 
       // Alternate row colors
       if (index % 2 === 0) {
         doc.setFillColor(249, 250, 251);
         doc.rect(margin, startY, pageWidth - margin * 2, rowHeight, 'F');
+      }
+
+      // Determine evaluation status text
+      let evaluationStatus = '-';
+      if (requiresEvaluation) {
+        evaluationStatus = isEvaluated ? 'Selesai' : 'Belum';
       }
 
       xPos = margin + 2;
@@ -153,7 +160,7 @@ export default function MyTrainings() {
         formatMalaysianDate(assignment.programs?.start_date_time),
         formatMalaysianDate(assignment.programs?.end_date_time),
         (assignment.programs?.hours || 0).toString(),
-        isEvaluated ? 'Selesai' : 'Belum',
+        evaluationStatus,
       ];
 
       rowData.forEach((cell, i) => {
@@ -305,10 +312,12 @@ export default function MyTrainings() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {isEvaluated ? (
+                          {!assignment.programs?.notify_for_evaluation ? (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          ) : isEvaluated ? (
                             <div className="flex items-center gap-1 text-green-600">
                               <CheckCircle2 className="h-4 w-4" />
-                              <span className="text-sm font-medium">Done</span>
+                              <span className="text-sm font-medium">Selesai</span>
                             </div>
                           ) : (
                             <Button
@@ -318,12 +327,14 @@ export default function MyTrainings() {
                               onClick={() => navigate(`/dashboard/my-evaluations/${assignment.program_id}/submit`)}
                             >
                               <AlertCircle className="h-4 w-4 mr-1" />
-                              Submit
+                              Hantar
                             </Button>
                           )}
                         </TableCell>
                         <TableCell>
-                          {isEvaluated ? (
+                          {!assignment.programs?.notify_for_evaluation ? (
+                            <span className="text-sm text-muted-foreground">N/A</span>
+                          ) : isEvaluated ? (
                             <Button
                               variant="outline"
                               size="sm"
