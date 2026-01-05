@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
@@ -7,6 +8,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   AlertCircle,
   ClipboardCheck,
   Clock,
@@ -14,6 +22,7 @@ import {
   User,
   UserCheck,
   ChevronRight,
+  Calendar,
 } from 'lucide-react';
 import {
   RadarChart,
@@ -25,7 +34,7 @@ import {
   Legend,
   Tooltip,
 } from 'recharts';
-import { useMyPendingAnnualEvaluations, useMyAnnualEvaluation } from '@/hooks/useAnnualEvaluations';
+import { useMyPendingAnnualEvaluations, useMyAllAnnualEvaluations } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
@@ -38,10 +47,23 @@ import {
 export default function MyAnnualEvaluation() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: pendingEvaluations, isLoading: pendingLoading } = useMyPendingAnnualEvaluations(user?.userId || '');
-  const { data: latestEvaluation, isLoading: latestLoading } = useMyAnnualEvaluation(user?.userId || '');
+  const [selectedYear, setSelectedYear] = useState<string>('latest');
 
-  const isLoading = pendingLoading || latestLoading;
+  const { data: pendingEvaluations, isLoading: pendingLoading } = useMyPendingAnnualEvaluations(user?.userId || '');
+  const { data: allEvaluations, isLoading: allLoading } = useMyAllAnnualEvaluations(user?.userId || '');
+
+  const isLoading = pendingLoading || allLoading;
+
+  // Get unique years from evaluations
+  const availableYears = allEvaluations
+    ? [...new Set(allEvaluations.map((e: any) => (e.cycle as any)?.year).filter(Boolean))]
+        .sort((a, b) => b - a)
+    : [];
+
+  // Get the selected evaluation
+  const selectedEvaluation = selectedYear === 'latest'
+    ? allEvaluations?.[0]
+    : allEvaluations?.find((e: any) => (e.cycle as any)?.year?.toString() === selectedYear);
 
   if (isLoading) {
     return (
@@ -59,37 +81,57 @@ export default function MyAnnualEvaluation() {
   const hasPending = pendingEvaluations && pendingEvaluations.length > 0;
   const pendingEval = hasPending ? pendingEvaluations[0] : null;
 
-  // Check if latest evaluation is completed and can show results
-  const isCompleted = latestEvaluation?.status === 'completed';
-  const isWaitingSupervisor = latestEvaluation?.status === 'pending_supervisor';
+  // Check evaluation status
+  const isCompleted = selectedEvaluation?.status === 'completed';
+  const isWaitingSupervisor = selectedEvaluation?.status === 'pending_supervisor';
 
   return (
     <EmployeeLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Penilaian Tahunan</h1>
-          <p className="text-muted-foreground">
-            Penilaian kompetensi tahunan kakitangan
-          </p>
+        {/* Header with Year Filter */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Penilaian Tahunan</h1>
+            <p className="text-muted-foreground">
+              Penilaian kompetensi tahunan kakitangan
+            </p>
+          </div>
+          {availableYears.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Pilih Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">Terkini</SelectItem>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Pending Evaluation Alert */}
         {hasPending && pendingEval && (
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-orange-600" />
-                <CardTitle className="text-orange-800">Penilaian Menunggu</CardTitle>
+                <CardTitle className="text-orange-800 dark:text-orange-200">Penilaian Menunggu</CardTitle>
               </div>
-              <CardDescription className="text-orange-700">
+              <CardDescription className="text-orange-700 dark:text-orange-300">
                 Sila lengkapkan penilaian kendiri anda untuk tahun {(pendingEval.cycle as any)?.year}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-orange-700">
+                  <p className="text-sm text-orange-700 dark:text-orange-300">
                     Tempoh: {formatMalaysianDate((pendingEval.cycle as any)?.start_date)} - {formatMalaysianDate((pendingEval.cycle as any)?.end_date)}
                   </p>
                 </div>
@@ -106,26 +148,26 @@ export default function MyAnnualEvaluation() {
         )}
 
         {/* Waiting for Supervisor */}
-        {isWaitingSupervisor && latestEvaluation && (
-          <Card className="border-blue-200 bg-blue-50">
+        {isWaitingSupervisor && selectedEvaluation && (
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-blue-600" />
-                <CardTitle className="text-blue-800">Menunggu Penilaian Penyelia</CardTitle>
+                <CardTitle className="text-blue-800 dark:text-blue-200">Menunggu Penilaian Penyelia</CardTitle>
               </div>
-              <CardDescription className="text-blue-700">
+              <CardDescription className="text-blue-700 dark:text-blue-300">
                 Penilaian kendiri anda telah dihantar. Menunggu penyelia melengkapkan penilaian mereka.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
-                <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-200">
                   <UserCheck className="h-3 w-3 mr-1" />
-                  Menunggu: {(latestEvaluation.supervisor as any)?.name || 'Penyelia'}
+                  Menunggu: {(selectedEvaluation.supervisor as any)?.name || 'Penyelia'}
                 </Badge>
-                {latestEvaluation.staff_submitted_at && (
-                  <span className="text-sm text-blue-700">
-                    Dihantar: {formatMalaysianDate(latestEvaluation.staff_submitted_at)}
+                {selectedEvaluation.staff_submitted_at && (
+                  <span className="text-sm text-blue-700 dark:text-blue-300">
+                    Dihantar: {formatMalaysianDate(selectedEvaluation.staff_submitted_at)}
                   </span>
                 )}
               </div>
@@ -134,12 +176,12 @@ export default function MyAnnualEvaluation() {
         )}
 
         {/* Completed Evaluation Results */}
-        {isCompleted && latestEvaluation && (
-          <CompletedEvaluationView evaluation={latestEvaluation} />
+        {isCompleted && selectedEvaluation && (
+          <CompletedEvaluationView evaluation={selectedEvaluation} />
         )}
 
         {/* No Evaluation Yet */}
-        {!hasPending && !latestEvaluation && (
+        {!hasPending && !selectedEvaluation && (
           <Card>
             <CardContent className="py-12 text-center">
               <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

@@ -17,13 +17,14 @@ export interface LeaderboardData {
   isCurrentUserInTopTen: boolean;
 }
 
-export function useLeaderboard(currentUserId: string) {
+export function useLeaderboard(currentUserId: string, year?: number) {
+  const selectedYear = year || new Date().getFullYear();
+
   return useQuery({
-    queryKey: ['leaderboard', currentUserId],
+    queryKey: ['leaderboard', currentUserId, selectedYear],
     queryFn: async (): Promise<LeaderboardData> => {
-      const currentYear = new Date().getFullYear();
-      const startOfYear = `${currentYear}-01-01`;
-      const endOfYear = `${currentYear}-12-31`;
+      const startOfYear = `${selectedYear}-01-01`;
+      const endOfYear = `${selectedYear}-12-31`;
 
       // Get all profiles first
       const { data: profiles, error: profilesError } = await supabase

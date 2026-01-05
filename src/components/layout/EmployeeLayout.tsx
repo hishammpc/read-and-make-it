@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
 import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
 import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface EmployeeLayoutProps {
   children: ReactNode;
@@ -118,6 +119,7 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
                 Propose Training
               </Button>
             )}
+            {/* <ThemeToggle /> */}
             <Button variant="ghost" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out

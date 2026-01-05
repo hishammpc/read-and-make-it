@@ -185,6 +185,28 @@ export function useCreateAnnualEvaluationCycle() {
   });
 }
 
+// Get all annual evaluations for a user (all years)
+export function useMyAllAnnualEvaluations(userId: string) {
+  return useQuery({
+    queryKey: ['my-all-annual-evaluations', userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('annual_evaluations')
+        .select(`
+          *,
+          cycle:cycle_id(id, year, start_date, end_date, status),
+          supervisor:supervisor_id(id, name, email)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId,
+  });
+}
+
 // Get user's annual evaluation for a cycle
 export function useMyAnnualEvaluation(userId: string, cycleId?: string) {
   return useQuery({

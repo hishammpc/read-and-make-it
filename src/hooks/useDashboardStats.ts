@@ -140,13 +140,14 @@ export function useAdminDashboardStats() {
   });
 }
 
-export function useEmployeeDashboardStats(userId: string) {
+export function useEmployeeDashboardStats(userId: string, year?: number) {
+  const selectedYear = year || new Date().getFullYear();
+
   return useQuery({
-    queryKey: ['employee-dashboard-stats', userId],
+    queryKey: ['employee-dashboard-stats', userId, selectedYear],
     queryFn: async () => {
-      const currentYear = new Date().getFullYear();
-      const startOfYear = `${currentYear}-01-01`;
-      const endOfYear = `${currentYear}-12-31`;
+      const startOfYear = `${selectedYear}-01-01`;
+      const endOfYear = `${selectedYear}-12-31`;
 
       // Get user's assignments with program details
       const { data: assignments, error: assignmentsError } = await supabase
@@ -222,6 +223,12 @@ export function useEmployeeDashboardStats(userId: string) {
           }
         });
 
+      // Filter training history by selected year
+      const trainingHistoryFiltered = (assignments || []).filter((a: any) =>
+        a.programs?.end_date_time >= startOfYear &&
+        a.programs?.end_date_time <= endOfYear
+      );
+
       return {
         hoursThisYear,
         targetHours: 40,
@@ -230,7 +237,7 @@ export function useEmployeeDashboardStats(userId: string) {
         pendingEvaluationsCount: pendingEvaluations.length,
         pendingEvaluations,
         hoursByCategory,
-        trainingHistory: assignments || [],
+        trainingHistory: trainingHistoryFiltered,
       };
     },
     enabled: !!userId,

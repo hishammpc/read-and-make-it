@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useEmployeeDashboardStats } from '@/hooks/useDashboardStats';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useMyPendingAnnualEvaluations, usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
@@ -9,6 +10,13 @@ import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
 import { useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   BookOpen,
   FileCheck,
@@ -20,18 +28,25 @@ import {
   Users,
   ChevronRight,
   Send,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function EmployeeDashboard() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '');
-  const { data: leaderboard } = useLeaderboard(user?.userId || '');
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '', selectedYear);
+  const { data: leaderboard } = useLeaderboard(user?.userId || '', selectedYear);
   const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '');
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
   const [showProposalDialog, setShowProposalDialog] = useState(false);
+
+  // Generate available years (current year and 4 previous years)
+  const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   const proposalPeriodOpen = isProposalPeriodOpen();
 
@@ -80,23 +95,46 @@ export default function EmployeeDashboard() {
             />
             <h1 className="text-xl font-semibold">MyLearning Pro</h1>
           </div>
-          <Button variant="ghost" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* <ThemeToggle /> */}
+            <Button variant="ghost" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="p-6">
         <div className="max-w-5xl mx-auto space-y-6">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">
-              Welcome Back, {user?.name || 'User'}
-            </h2>
-            <p className="text-muted-foreground">
-              Here's your training overview
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">
+                Welcome Back, {user?.name || 'User'}
+              </h2>
+              <p className="text-muted-foreground">
+                Here's your training overview for <Badge className="ml-1 bg-amber-100 text-amber-800 hover:bg-amber-100">{selectedYear}</Badge>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select
+                value={selectedYear.toString()}
+                onValueChange={(value) => setSelectedYear(parseInt(value))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Pending Annual Evaluation Alert */}
@@ -130,7 +168,7 @@ export default function EmployeeDashboard() {
           )}
 
           {/* Pending Supervisee Evaluations Alert */}
-          {pendingSuperviseeCount && pendingSuperviseeCount > 0 && (
+          {pendingSuperviseeCount !== undefined && pendingSuperviseeCount > 0 && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
@@ -195,7 +233,7 @@ export default function EmployeeDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{hoursCompleted} hrs</div>
                 <p className="text-xs text-muted-foreground">
-                  This year
+                  Year {selectedYear}
                 </p>
               </CardContent>
             </Card>
@@ -235,7 +273,15 @@ export default function EmployeeDashboard() {
                   {stats?.pendingEvaluationsCount || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  To complete
+                  {(stats?.pendingEvaluationsCount || 0) > 0 ? (
+                    <>
+                      From: {[...new Set(stats?.pendingEvaluations?.map((p: any) =>
+                        new Date(p.programs?.end_date_time).getFullYear()
+                      ))].sort((a, b) => b - a).join(', ')}
+                    </>
+                  ) : (
+                    'To complete'
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -253,7 +299,7 @@ export default function EmployeeDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.trainingHistory?.length || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Assigned programs
+                  Programs in {selectedYear}
                 </p>
               </CardContent>
             </Card>
@@ -285,7 +331,7 @@ export default function EmployeeDashboard() {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-amber-500" />
-                <CardTitle>Training Leaderboard</CardTitle>
+                <CardTitle>Training Leaderboard {selectedYear}</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-0">

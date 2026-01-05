@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface AdminLayoutProps {
@@ -88,10 +89,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </h1>
             </div>
           </div>
-          <Button variant="ghost" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* <ThemeToggle /> */}
+            <Button variant="ghost" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
