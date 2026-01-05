@@ -327,7 +327,7 @@ export default function MyTrainings() {
                               onClick={() => navigate(`/dashboard/my-evaluations/${assignment.program_id}/submit`)}
                             >
                               <AlertCircle className="h-4 w-4 mr-1" />
-                              Hantar
+                              Jawab
                             </Button>
                           )}
                         </TableCell>

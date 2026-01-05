@@ -27,7 +27,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import { addLogoToPDF } from '@/lib/pdfUtils';
 
 const MONTHS = [
   { value: '1', label: 'Januari' },
@@ -73,6 +75,11 @@ const getRatingBadgeClass = (rating: string) => {
   }
 };
 
+const getMonthLabel = (value: string) => {
+  const month = MONTHS.find(m => m.value === value);
+  return month?.label || '';
+};
+
 export default function Evaluations() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
@@ -85,6 +92,118 @@ export default function Evaluations() {
     fromMonth,
     toMonth
   );
+
+  const handleDownloadPDF = async () => {
+    if (!evaluations || evaluations.length === 0) return;
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPosition = margin;
+
+    // Add MPC logo
+    await addLogoToPDF(doc, margin, yPosition, 20, 20);
+    yPosition += 5;
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Laporan Penilaian Program', margin + 25, yPosition + 5);
+
+    // Filter info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    let filterText = `Tahun: ${selectedYear}`;
+    if (fromMonth && fromMonth !== 'all') {
+      filterText += ` | Dari: ${getMonthLabel(fromMonth)}`;
+    }
+    if (toMonth && toMonth !== 'all') {
+      filterText += ` | Hingga: ${getMonthLabel(toMonth)}`;
+    }
+    doc.text(filterText, margin + 25, yPosition + 12);
+    yPosition += 30;
+
+    // Table headers
+    const headers = ['#', 'Program', 'Tarikh', 'Responses', 'Rating', 'Score'];
+    const colWidths = [10, 100, 60, 30, 30, 25];
+    const rowHeight = 8;
+
+    // Draw header background
+    doc.setFillColor(59, 130, 246);
+    doc.rect(margin, yPosition, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+
+    // Draw header text
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    let xPos = margin + 2;
+    headers.forEach((header, i) => {
+      doc.text(header, xPos, yPosition + 5.5);
+      xPos += colWidths[i];
+    });
+    yPosition += rowHeight;
+
+    // Draw rows
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+
+    evaluations.forEach((evaluation, index) => {
+      // Check if we need a new page
+      if (yPosition > pageHeight - 25) {
+        doc.addPage();
+        yPosition = margin;
+      }
+
+      // Alternate row background
+      if (index % 2 === 0) {
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition, colWidths.reduce((a, b) => a + b, 0), rowHeight, 'F');
+      }
+
+      // Row data
+      const rowData = [
+        (index + 1).toString(),
+        evaluation.programTitle.length > 50 ? evaluation.programTitle.substring(0, 47) + '...' : evaluation.programTitle,
+        `${formatMalaysianDate(evaluation.startDate)} - ${formatMalaysianDate(evaluation.endDate)}`,
+        `${evaluation.totalResponses}/${evaluation.totalAssigned}`,
+        evaluation.totalResponses > 0 ? evaluation.averageRating : '-',
+        evaluation.totalResponses > 0 ? evaluation.averageScore.toFixed(2) : '-',
+      ];
+
+      xPos = margin + 2;
+      rowData.forEach((cell, i) => {
+        doc.text(cell, xPos, yPosition + 5.5);
+        xPos += colWidths[i];
+      });
+      yPosition += rowHeight;
+    });
+
+    // Summary
+    yPosition += 5;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Jumlah Program: ${evaluations.length}`, margin, yPosition);
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Dijana pada: ${new Date().toLocaleString('ms-MY')}`,
+      margin,
+      pageHeight - 10
+    );
+
+    // Save
+    const filename = `Laporan_Penilaian_${selectedYear}${fromMonth && fromMonth !== 'all' ? '_' + getMonthLabel(fromMonth) : ''}${toMonth && toMonth !== 'all' ? '_' + getMonthLabel(toMonth) : ''}.pdf`;
+    doc.save(filename);
+  };
 
   return (
     <AdminLayout>
@@ -141,6 +260,15 @@ export default function Evaluations() {
               ))}
             </SelectContent>
           </Select>
+
+          <Button
+            variant="outline"
+            onClick={handleDownloadPDF}
+            disabled={!evaluations || evaluations.length === 0 || isLoading}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Muat Turun PDF
+          </Button>
         </div>
 
         {/* Evaluations Table */}

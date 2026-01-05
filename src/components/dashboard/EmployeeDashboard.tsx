@@ -304,26 +304,29 @@ export default function EmployeeDashboard() {
               </CardContent>
             </Card>
 
-            {/* Propose Training Card - only visible during Dec 1 - Jan 31 */}
-            {proposalPeriodOpen && (
-              <Card
-                className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/30 bg-primary/5"
-                onClick={() => setShowProposalDialog(true)}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Propose Training
-                  </CardTitle>
-                  <Send className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">Proposed</div>
-                  <p className="text-xs text-muted-foreground">
-                    For {new Date().getMonth() === 11 ? new Date().getFullYear() + 1 : new Date().getFullYear()}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Propose Training Card - only visible during Dec 1 - Feb 28 */}
+            {proposalPeriodOpen && (() => {
+              const proposalYear = new Date().getMonth() === 11 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+              return (
+                <Card
+                  className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/30 bg-primary/5"
+                  onClick={() => setShowProposalDialog(true)}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Propose Training
+                    </CardTitle>
+                    <Send className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-primary">{proposalYear}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Due: 28 Feb {proposalYear}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
 
           {/* Leaderboard */}
