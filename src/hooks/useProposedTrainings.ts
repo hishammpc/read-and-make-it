@@ -24,11 +24,11 @@ export interface ProposedTraining {
   };
 }
 
-// Check if proposal period is open (Dec 1 - Jan 31)
+// Check if proposal period is open (Dec 1 - Feb 28)
 export function isProposalPeriodOpen(): boolean {
   const now = new Date();
-  const month = now.getMonth(); // 0-indexed (0=Jan, 11=Dec)
-  return month === 11 || month === 0;
+  const month = now.getMonth(); // 0-indexed (0=Jan, 1=Feb, 11=Dec)
+  return month === 11 || month === 0 || month === 1;
 }
 
 // Get the year for which proposals are being made
@@ -36,7 +36,7 @@ export function getProposalYear(): number {
   const now = new Date();
   const month = now.getMonth();
   // In Dec: proposing for next year
-  // In Jan: proposing for current year
+  // In Jan/Feb: proposing for current year
   return month === 11 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
