@@ -69,6 +69,12 @@ export function useUsersWithTrainingHours(
 
       if (usersError) throw usersError;
 
+      // Create a map of user IDs to names for supervisor lookup
+      const userMap: Record<string, string> = {};
+      users.forEach((user: any) => {
+        userMap[user.id] = user.name;
+      });
+
       // Determine date range based on year and month filters
       const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
       const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
@@ -97,10 +103,11 @@ export function useUsersWithTrainingHours(
         }
       });
 
-      // Merge hours into users
-      return users.map(user => ({
+      // Merge hours and supervisor name into users
+      return users.map((user: any) => ({
         ...user,
         training_hours: hoursMap[user.id] || 0,
+        supervisor_name: user.supervisor_id ? userMap[user.supervisor_id] || null : null,
       }));
     },
   });

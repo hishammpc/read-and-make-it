@@ -182,7 +182,7 @@ export default function UsersList() {
                 <TableRow>
                   <TableHead className="font-bold">Name</TableHead>
                   <TableHead className="font-bold">Email</TableHead>
-                  <TableHead className="font-bold">Position</TableHead>
+                  <TableHead className="font-bold">Supervisor</TableHead>
                   <TableHead className="font-bold text-center">Training Hours ({selectedYear})</TableHead>
                   <TableHead className="font-bold text-right">Actions</TableHead>
                 </TableRow>
@@ -221,7 +221,7 @@ export default function UsersList() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.position || '-'}</TableCell>
+                      <TableCell>{user.supervisor_name || '-'}</TableCell>
                       <TableCell className="text-center">{user.training_hours}h</TableCell>
                       <TableCell className="text-right">
                         <Button
