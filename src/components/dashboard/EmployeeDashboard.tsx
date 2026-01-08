@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useEmployeeDashboardStats } from '@/hooks/useDashboardStats';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useMyPendingAnnualEvaluations, usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
+import { useUserSupervisor } from '@/hooks/useSupervisors';
 import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
@@ -43,6 +44,7 @@ export default function EmployeeDashboard() {
   const { data: leaderboard } = useLeaderboard(user?.userId || '', selectedYear);
   const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '');
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
+  const { data: supervisor } = useUserSupervisor(user?.userId || '');
   const [showProposalDialog, setShowProposalDialog] = useState(false);
 
   // Generate available years (current year and 4 previous years)
@@ -113,6 +115,11 @@ export default function EmployeeDashboard() {
               <h2 className="text-3xl font-bold tracking-tight">
                 Welcome Back, {user?.name || 'User'}
               </h2>
+              {supervisor && (
+                <p className="text-sm text-muted-foreground">
+                  Current Supervisor: <span className="font-medium">{supervisor.name}</span>
+                </p>
+              )}
               <p className="text-muted-foreground">
                 Here's your training overview for <Badge className="ml-1 bg-amber-100 text-amber-800 hover:bg-amber-100">{selectedYear}</Badge>
               </p>
@@ -143,7 +150,7 @@ export default function EmployeeDashboard() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="h-5 w-5 text-orange-600" />
-                  <CardTitle className="text-lg text-orange-800">Penilaian Tahunan Menunggu</CardTitle>
+                  <CardTitle className="text-lg text-orange-800">Penilaian Tahunan</CardTitle>
                 </div>
                 <CardDescription className="text-orange-700">
                   Sila lengkapkan penilaian kendiri anda untuk tahun {(pendingAnnualEvals[0].cycle as any)?.year}

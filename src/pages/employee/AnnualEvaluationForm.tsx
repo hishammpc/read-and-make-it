@@ -136,6 +136,11 @@ export default function AnnualEvaluationForm() {
             <p className="text-muted-foreground">
               Tahun {(evaluation.cycle as any)?.year}
             </p>
+            {(evaluation.supervisor as any)?.name && (
+              <p className="text-sm text-muted-foreground">
+                Penyelia: <span className="font-medium">{(evaluation.supervisor as any).name}</span>
+              </p>
+            )}
           </div>
         </div>
 
