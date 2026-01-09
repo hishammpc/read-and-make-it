@@ -115,14 +115,11 @@ export default function EmployeeDashboard() {
               <h2 className="text-3xl font-bold tracking-tight">
                 Welcome Back, {user?.name || 'User'}
               </h2>
-              {supervisor && (
+              {/* {supervisor && (
                 <p className="text-sm text-muted-foreground">
                   Current Supervisor: <span className="font-medium">{supervisor.name}</span>
                 </p>
-              )}
-              <p className="text-muted-foreground">
-                Here's your training overview for <Badge className="ml-1 bg-amber-100 text-amber-800 hover:bg-amber-100">{selectedYear}</Badge>
-              </p>
+              )} */}
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -154,6 +151,8 @@ export default function EmployeeDashboard() {
                 </div>
                 <CardDescription className="text-orange-700">
                   Sila lengkapkan penilaian kendiri anda untuk tahun {(pendingAnnualEvals[0].cycle as any)?.year}
+                  <br />
+                  <span className="text-orange-600 font-medium">Semak nama penyelia anda sebelum menjawab penilaian kendiri <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold animate-pulse">!</span></span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-2">

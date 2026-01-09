@@ -446,3 +446,45 @@ export function useCloseEvaluationCycle() {
     },
   });
 }
+
+// Get evaluation stats by year
+export function useAnnualEvaluationStatsByYear(year: number) {
+  return useQuery({
+    queryKey: ['annual-evaluation-stats', year],
+    queryFn: async () => {
+      // Get the cycle for this year
+      const { data: cycle, error: cycleError } = await supabase
+        .from('annual_evaluation_cycles')
+        .select('id')
+        .eq('year', year)
+        .maybeSingle();
+
+      if (cycleError) throw cycleError;
+
+      if (!cycle) {
+        return {
+          staffSubmitted: 0,
+          supervisorSubmitted: 0,
+          total: 0,
+        };
+      }
+
+      // Get evaluations for this cycle
+      const { data: evaluations, error: evalError } = await supabase
+        .from('annual_evaluations')
+        .select('staff_submitted_at, supervisor_submitted_at')
+        .eq('cycle_id', cycle.id);
+
+      if (evalError) throw evalError;
+
+      const staffSubmitted = evaluations?.filter((e) => e.staff_submitted_at !== null).length || 0;
+      const supervisorSubmitted = evaluations?.filter((e) => e.supervisor_submitted_at !== null).length || 0;
+
+      return {
+        staffSubmitted,
+        supervisorSubmitted,
+        total: evaluations?.length || 0,
+      };
+    },
+  });
+}

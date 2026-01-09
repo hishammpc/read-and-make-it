@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
     { icon: Users, label: 'Users', path: '/admin/users' },
-    { icon: FileCheck, label: 'Evaluations', path: '/dashboard/evaluations' },
+    { icon: FileCheck, label: 'Training Evaluation', path: '/dashboard/evaluations' },
     { icon: ClipboardCheck, label: 'Annual Evaluation', path: '/dashboard/annual-evaluations' },
     { icon: Send, label: 'Proposed Trainings', path: '/dashboard/proposed-trainings' },
     { icon: FileText, label: 'Reports', path: '/dashboard/reports' },

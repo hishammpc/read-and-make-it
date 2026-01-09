@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -35,18 +34,18 @@ export default function AnnualEvaluationForm() {
 
   if (error) {
     return (
-      <EmployeeLayout>
+      <div className="min-h-screen bg-background p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>Ralat memuatkan penilaian: {(error as Error).message}</AlertDescription>
         </Alert>
-      </EmployeeLayout>
+      </div>
     );
   }
 
   if (isLoading) {
     return (
-      <EmployeeLayout>
+      <div className="min-h-screen bg-background p-6">
         <div className="space-y-6">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-24" />
@@ -54,25 +53,25 @@ export default function AnnualEvaluationForm() {
             <Skeleton key={i} className="h-64" />
           ))}
         </div>
-      </EmployeeLayout>
+      </div>
     );
   }
 
   if (!evaluation) {
     return (
-      <EmployeeLayout>
+      <div className="min-h-screen bg-background p-6">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>Penilaian tidak dijumpai.</AlertDescription>
         </Alert>
-      </EmployeeLayout>
+      </div>
     );
   }
 
   // Check if already submitted
   if (evaluation.status !== 'pending_staff') {
     return (
-      <EmployeeLayout>
+      <div className="min-h-screen bg-background p-6">
         <Alert className="bg-green-50 border-green-200">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-700">
@@ -80,13 +79,13 @@ export default function AnnualEvaluationForm() {
             <Button
               variant="link"
               className="ml-2 p-0 h-auto text-green-700"
-              onClick={() => navigate('/dashboard/my-annual-evaluation')}
+              onClick={() => navigate('/dashboard')}
             >
               Lihat status →
             </Button>
           </AlertDescription>
         </Alert>
-      </EmployeeLayout>
+      </div>
     );
   }
 
@@ -107,7 +106,7 @@ export default function AnnualEvaluationForm() {
       answers,
     });
 
-    navigate('/dashboard/my-annual-evaluation');
+    navigate('/dashboard');
   };
 
   const answeredCount = Object.keys(answers).length;
@@ -118,14 +117,14 @@ export default function AnnualEvaluationForm() {
   const questionsByCategory = getQuestionsByCategory();
 
   return (
-    <EmployeeLayout>
+    <div className="min-h-screen bg-background p-6">
       <div className="space-y-6 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/dashboard/my-annual-evaluation')}
+            onClick={() => navigate('/dashboard')}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -133,12 +132,12 @@ export default function AnnualEvaluationForm() {
             <h1 className="text-3xl font-bold tracking-tight">
               Penilaian Kendiri Tahunan
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground font-bold">
               Tahun {(evaluation.cycle as any)?.year}
             </p>
             {(evaluation.supervisor as any)?.name && (
               <p className="text-sm text-muted-foreground">
-                Penyelia: <span className="font-medium">{(evaluation.supervisor as any).name}</span>
+                Penyelia: <span className="font-bold">{(evaluation.supervisor as any).name}</span>
               </p>
             )}
           </div>
@@ -252,6 +251,12 @@ export default function AnnualEvaluationForm() {
                     </span>
                   )}
                 </p>
+                {allAnswered && (
+                  <p className="text-sm text-orange-600 mt-1">
+                    Sila maklumkan kepada penyelia anda setelah menghantar penilaian{' '}
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs font-bold animate-pulse">!</span>
+                  </p>
+                )}
               </div>
               <Button
                 onClick={handleSubmit}
@@ -271,6 +276,6 @@ export default function AnnualEvaluationForm() {
           </CardContent>
         </Card>
       </div>
-    </EmployeeLayout>
+    </div>
   );
 }

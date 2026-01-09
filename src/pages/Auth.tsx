@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,12 +85,6 @@ export default function Auth() {
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
-
-          <div className="mt-6 text-center text-sm">
-            <Link to="/admin/login" className="text-muted-foreground hover:text-primary">
-              Admin? Login here →
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -44,6 +44,7 @@ import {
   useAnnualEvaluationCycles,
   useCreateAnnualEvaluationCycle,
   useStaffWithoutSupervisors,
+  useAnnualEvaluationStatsByYear,
 } from '@/hooks/useAnnualEvaluations';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
@@ -61,6 +62,12 @@ export default function AnnualEvaluations() {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+
+  // Default stats year to latest cycle year, or current year if no cycles
+  const latestCycleYear = cycles?.[0]?.year || currentYear;
+  const [statsYear, setStatsYear] = useState<number | null>(null);
+  const effectiveStatsYear = statsYear ?? latestCycleYear;
+  const { data: evalStats } = useAnnualEvaluationStatsByYear(effectiveStatsYear);
 
   const handleCreateCycle = async () => {
     if (!user?.userId) return;
@@ -138,38 +145,66 @@ export default function AnnualEvaluations() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Jumlah Kitaran</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{cycles?.length || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Kitaran Aktif</CardTitle>
-              <Clock className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {cycles?.filter((c) => c.status === 'active').length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Kakitangan Tanpa Penyelia</CardTitle>
-              <Users className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {staffWithoutSupervisors?.length || 0}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-muted-foreground">Statistik Tahun:</span>
+            <Select
+              value={effectiveStatsYear.toString()}
+              onValueChange={(value) => setStatsYear(parseInt(value))}
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_YEARS.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Bil. Dijawab (Pekerja)</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {evalStats?.staffSubmitted || 0}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">
+                    / {evalStats?.total || 0}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Bil. Disemak (Penyelia)</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {evalStats?.supervisorSubmitted || 0}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">
+                    / {evalStats?.total || 0}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Kakitangan Tanpa Penyelia</CardTitle>
+                <Users className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {staffWithoutSupervisors?.length || 0}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Cycles Table */}
