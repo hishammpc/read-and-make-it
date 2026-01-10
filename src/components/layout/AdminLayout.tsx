@@ -1,7 +1,9 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,9 +14,12 @@ import {
   Send,
   LogOut,
   Menu,
+  Lock,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+
+const ADMIN_PIN = '101010';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -25,6 +30,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState(false);
+
+  useEffect(() => {
+    // Check if PIN was already verified in this session
+    const verified = sessionStorage.getItem('adminPinVerified');
+    if (verified === 'true') {
+      setIsPinVerified(true);
+    }
+  }, []);
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === ADMIN_PIN) {
+      setIsPinVerified(true);
+      sessionStorage.setItem('adminPinVerified', 'true');
+      setPinError(false);
+    } else {
+      setPinError(true);
+      setPin('');
+    }
+  };
+
+  const handleBackLogout = () => {
+    sessionStorage.removeItem('adminPinVerified');
+    signOut();
+  };
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -47,6 +80,62 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
     return location.pathname.startsWith(path);
   };
+
+  // PIN verification overlay
+  if (!isPinVerified) {
+    return (
+      <div className="min-h-screen bg-background relative">
+        {/* Blurred background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 backdrop-blur-sm" />
+
+        {/* PIN entry card */}
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+          <Card className="w-full max-w-sm">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle>Admin Access</CardTitle>
+              <p className="text-sm text-muted-foreground">Enter PIN to continue</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePinSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Enter PIN"
+                    value={pin}
+                    onChange={(e) => {
+                      setPin(e.target.value);
+                      setPinError(false);
+                    }}
+                    className={`text-center text-lg tracking-widest ${pinError ? 'border-destructive' : ''}`}
+                    maxLength={6}
+                    autoFocus
+                  />
+                  {pinError && (
+                    <p className="text-sm text-destructive text-center">PIN salah. Sila cuba lagi.</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full">
+                  Masuk
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleBackLogout}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

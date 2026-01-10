@@ -1,6 +1,8 @@
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -10,6 +12,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,8 +40,10 @@ import {
   UserCheck,
   Users,
   Lock,
+  RotateCcw,
+  Search,
 } from 'lucide-react';
-import { useAnnualEvaluationCycle, useCloseEvaluationCycle } from '@/hooks/useAnnualEvaluations';
+import { useAnnualEvaluationCycle, useCloseEvaluationCycle, useResetAnnualEvaluation, AnnualEvaluation } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { calculateTotalScore, calculatePercentage, SCORE_MAP } from '@/lib/annualEvaluationQuestions';
 
@@ -33,6 +52,59 @@ export default function AnnualEvaluationCycle() {
   const { cycleId } = useParams<{ cycleId: string }>();
   const { data, isLoading, error } = useAnnualEvaluationCycle(cycleId || '');
   const closeCycle = useCloseEvaluationCycle();
+  const resetEvaluation = useResetAnnualEvaluation();
+
+  // Reset dialog state
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<AnnualEvaluation | null>(null);
+  const [resetType, setResetType] = useState<'staff' | 'supervisor' | 'full'>('full');
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter evaluations by search query - must be before early returns
+  const filteredEvaluations = useMemo(() => {
+    const evaluations = data?.evaluations || [];
+    if (!searchQuery.trim()) return evaluations;
+    const query = searchQuery.toLowerCase();
+    return evaluations.filter((e) => {
+      const name = (e.profiles as any)?.name?.toLowerCase() || '';
+      return name.includes(query);
+    });
+  }, [data?.evaluations, searchQuery]);
+
+  const handleResetClick = (evaluation: AnnualEvaluation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedEvaluation(evaluation);
+    setResetType('full');
+    setResetDialogOpen(true);
+  };
+
+  const handleResetConfirm = () => {
+    if (!selectedEvaluation) return;
+    resetEvaluation.mutate(
+      { evaluationId: selectedEvaluation.id, resetType },
+      {
+        onSuccess: () => {
+          setResetDialogOpen(false);
+          setSelectedEvaluation(null);
+        },
+      }
+    );
+  };
+
+  const getResetDescription = () => {
+    switch (resetType) {
+      case 'staff':
+        return 'Ini akan memadamkan jawapan kakitangan dan mengembalikan status kepada "Menunggu Kakitangan".';
+      case 'supervisor':
+        return 'Ini akan memadamkan jawapan penyelia dan mengembalikan status kepada "Menunggu Penyelia".';
+      case 'full':
+        return 'Ini akan memadamkan semua jawapan (kakitangan & penyelia) dan mengembalikan status kepada "Menunggu Kakitangan".';
+      default:
+        return '';
+    }
+  };
 
   if (error) {
     return (
@@ -202,10 +274,23 @@ export default function AnnualEvaluationCycle() {
         {/* Evaluations Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Senarai Kakitangan</CardTitle>
-            <CardDescription>
-              Klik pada kakitangan yang telah selesai untuk melihat keputusan penilaian
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Senarai Kakitangan</CardTitle>
+                <CardDescription>
+                  Klik pada kakitangan yang telah selesai untuk melihat keputusan penilaian
+                </CardDescription>
+              </div>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -220,7 +305,7 @@ export default function AnnualEvaluationCycle() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {evaluations.map((evaluation) => {
+                {filteredEvaluations.map((evaluation) => {
                   const supervisorScore = evaluation.supervisor_answers
                     ? calculateTotalScore(evaluation.supervisor_answers as Record<string, number>)
                     : null;
@@ -258,19 +343,32 @@ export default function AnnualEvaluationCycle() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {evaluation.status === 'completed' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Lihat
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {evaluation.status === 'completed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Lihat
+                            </Button>
+                          )}
+                          {evaluation.status !== 'pending_staff' && cycle.status === 'active' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleResetClick(evaluation, e)}
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Reset
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -279,6 +377,48 @@ export default function AnnualEvaluationCycle() {
             </Table>
           </CardContent>
         </Card>
+        {/* Reset Confirmation Dialog */}
+        <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Penilaian</DialogTitle>
+              <DialogDescription>
+                Reset penilaian untuk <strong>{(selectedEvaluation?.profiles as any)?.name}</strong>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Jenis Reset</label>
+                <Select value={resetType} onValueChange={(value) => setResetType(value as 'staff' | 'supervisor' | 'full')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full">Reset Penuh (Kakitangan & Penyelia)</SelectItem>
+                    <SelectItem value="staff">Reset Kakitangan Sahaja</SelectItem>
+                    <SelectItem value="supervisor">Reset Penyelia Sahaja</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{getResetDescription()}</AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleResetConfirm}
+                disabled={resetEvaluation.isPending}
+              >
+                {resetEvaluation.isPending ? 'Mereset...' : 'Sahkan Reset'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

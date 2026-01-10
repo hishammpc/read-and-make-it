@@ -130,8 +130,8 @@ export default function Evaluations() {
     yPosition += 30;
 
     // Table headers
-    const headers = ['#', 'Program', 'Tarikh', 'Responses', 'Rating', 'Score'];
-    const colWidths = [10, 100, 60, 30, 30, 25];
+    const headers = ['#', 'Program', 'Tarikh', 'Participant', 'Responses', 'Rating', 'Score'];
+    const colWidths = [10, 90, 55, 25, 25, 25, 25];
     const rowHeight = 8;
 
     // Draw header background
@@ -170,9 +170,10 @@ export default function Evaluations() {
       // Row data
       const rowData = [
         (index + 1).toString(),
-        evaluation.programTitle.length > 50 ? evaluation.programTitle.substring(0, 47) + '...' : evaluation.programTitle,
+        evaluation.programTitle.length > 45 ? evaluation.programTitle.substring(0, 42) + '...' : evaluation.programTitle,
         `${formatMalaysianDate(evaluation.startDate)} - ${formatMalaysianDate(evaluation.endDate)}`,
-        `${evaluation.totalResponses}/${evaluation.totalAssigned}`,
+        evaluation.totalAssigned.toString(),
+        evaluation.totalResponses.toString(),
         evaluation.totalResponses > 0 ? evaluation.averageRating : '-',
         evaluation.totalResponses > 0 ? evaluation.averageScore.toFixed(2) : '-',
       ];
@@ -293,6 +294,7 @@ export default function Evaluations() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold">Program</TableHead>
+                    <TableHead className="font-bold text-center">Participant</TableHead>
                     <TableHead className="font-bold text-center">Responses</TableHead>
                     <TableHead className="font-bold text-center">Overall Rating</TableHead>
                     <TableHead className="font-bold text-right">Actions</TableHead>
@@ -311,7 +313,12 @@ export default function Evaluations() {
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="font-semibold">
-                          {evaluation.totalResponses}/{evaluation.totalAssigned}
+                          {evaluation.totalAssigned}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="font-semibold">
+                          {evaluation.totalResponses}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">

@@ -488,3 +488,68 @@ export function useAnnualEvaluationStatsByYear(year: number) {
     },
   });
 }
+
+// Reset an annual evaluation
+export function useResetAnnualEvaluation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      evaluationId,
+      resetType,
+    }: {
+      evaluationId: string;
+      resetType: 'staff' | 'supervisor' | 'full';
+    }) => {
+      const updates: {
+        staff_answers?: null;
+        staff_submitted_at?: null;
+        supervisor_answers?: null;
+        supervisor_submitted_at?: null;
+        status: 'pending_staff' | 'pending_supervisor';
+      } = {
+        status: resetType === 'supervisor' ? 'pending_supervisor' : 'pending_staff',
+      };
+
+      if (resetType === 'staff' || resetType === 'full') {
+        updates.staff_answers = null;
+        updates.staff_submitted_at = null;
+      }
+
+      if (resetType === 'supervisor' || resetType === 'full') {
+        updates.supervisor_answers = null;
+        updates.supervisor_submitted_at = null;
+      }
+
+      const { data, error } = await supabase
+        .from('annual_evaluations')
+        .update(updates)
+        .eq('id', evaluationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
+      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['my-annual-evaluation'] });
+      queryClient.invalidateQueries({ queryKey: ['my-pending-annual-evaluations'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisee-evaluations'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-supervisee-count'] });
+      toast({
+        title: 'Berjaya',
+        description: 'Penilaian telah direset',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Ralat',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
