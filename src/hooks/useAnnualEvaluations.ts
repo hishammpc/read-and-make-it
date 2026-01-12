@@ -237,11 +237,31 @@ export function useMyAnnualEvaluation(userId: string, cycleId?: string) {
   });
 }
 
-// Get all pending evaluations for a user (active cycles)
-export function useMyPendingAnnualEvaluations(userId: string) {
+// Get pending evaluations for a user filtered by year (active cycles only)
+export function useMyPendingAnnualEvaluations(userId: string, year?: number) {
   return useQuery({
-    queryKey: ['my-pending-annual-evaluations', userId],
+    queryKey: ['my-pending-annual-evaluations', userId, year],
     queryFn: async () => {
+      // First get active cycles, optionally filtered by year
+      let cycleQuery = supabase
+        .from('annual_evaluation_cycles')
+        .select('id')
+        .eq('status', 'active');
+
+      if (year) {
+        cycleQuery = cycleQuery.eq('year', year);
+      }
+
+      const { data: activeCycles, error: cycleError } = await cycleQuery;
+
+      if (cycleError) throw cycleError;
+
+      if (!activeCycles || activeCycles.length === 0) {
+        return [];
+      }
+
+      const activeCycleIds = activeCycles.map(c => c.id);
+
       const { data, error } = await supabase
         .from('annual_evaluations')
         .select(`
@@ -249,7 +269,8 @@ export function useMyPendingAnnualEvaluations(userId: string) {
           cycle:cycle_id(id, year, start_date, end_date, status)
         `)
         .eq('user_id', userId)
-        .eq('status', 'pending_staff');
+        .eq('status', 'pending_staff')
+        .in('cycle_id', activeCycleIds);
 
       if (error) throw error;
       return data;

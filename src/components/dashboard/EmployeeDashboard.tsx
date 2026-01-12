@@ -42,7 +42,7 @@ export default function EmployeeDashboard() {
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '', selectedYear);
   const { data: leaderboard } = useLeaderboard(user?.userId || '', selectedYear);
-  const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '');
+  const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '', selectedYear);
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
   const { data: supervisor } = useUserSupervisor(user?.userId || '');
   const [showProposalDialog, setShowProposalDialog] = useState(false);
