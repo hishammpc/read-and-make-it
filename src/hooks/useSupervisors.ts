@@ -95,6 +95,7 @@ export function useUpdateSupervisor() {
       userId: string;
       supervisorId: string | null;
     }) => {
+      // Update profiles table
       const { data, error } = await supabase
         .from('profiles')
         .update({ supervisor_id: supervisorId })
@@ -103,12 +104,31 @@ export function useUpdateSupervisor() {
         .single();
 
       if (error) throw error;
+
+      // Also update any pending annual evaluations for this user
+      // (only update evaluations that haven't been completed yet)
+      if (supervisorId) {
+        const { error: evalError } = await supabase
+          .from('annual_evaluations')
+          .update({ supervisor_id: supervisorId })
+          .eq('user_id', userId)
+          .in('status', ['pending_staff', 'pending_supervisor']);
+
+        if (evalError) {
+          console.error('Error updating annual evaluations supervisor:', evalError);
+          // Don't throw - profile update succeeded, this is secondary
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-with-supervisors'] });
       queryClient.invalidateQueries({ queryKey: ['staff-without-supervisors'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
+      queryClient.invalidateQueries({ queryKey: ['supervisee-evaluations'] });
+      queryClient.invalidateQueries({ queryKey: ['my-pending-annual-evaluations'] });
       toast({
         title: 'Berjaya',
         description: 'Penyelia telah dikemaskini',
