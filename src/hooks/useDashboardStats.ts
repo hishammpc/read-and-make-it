@@ -180,10 +180,13 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
           new Date(b.programs?.start_date_time).getTime()
         )[0];
 
-      // Get pending evaluations (only programs that require evaluation)
+      // Get pending evaluations (only programs that require evaluation AND match selected year)
       const pendingEvaluations = [];
       const programsRequiringEvaluation = (assignments || []).filter(
-        (a: any) => a.programs?.notify_for_evaluation === true
+        (a: any) =>
+          a.programs?.notify_for_evaluation === true &&
+          a.programs?.end_date_time >= startOfYear &&
+          a.programs?.end_date_time <= endOfYear
       );
 
       for (const assignment of programsRequiringEvaluation) {
