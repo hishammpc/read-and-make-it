@@ -148,6 +148,7 @@ export function useDeleteProgram() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programs'] });
+      queryClient.invalidateQueries({ queryKey: ['programs-with-stats'] });
       toast({
         title: 'Success',
         description: 'Program deleted successfully',
