@@ -245,6 +245,9 @@ VITE_SUPABASE_PUBLISHABLE_KEY=[anon-key]
 - Evaluation reset functionality (staff/supervisor/full)
 - Search filter in annual evaluation cycle page
 - Participant column in Training Evaluation table
-- Year filter for dashboard and stats
+- Year filter for dashboard and stats (including pending training evaluations)
 - Supervisor info display in evaluation forms
 - Flashing reminder badges for pending items
+- Supervisor change now updates both `profiles` and `annual_evaluations` tables
+- Fixed annual evaluation mutations using `maybeSingle()` to prevent JSON coerce errors
+- Fixed ProgramEdit routing (uses `/dashboard/programs/` not `/admin/programs/`)
