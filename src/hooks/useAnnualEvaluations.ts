@@ -280,9 +280,10 @@ export function useSubmitStaffEvaluation() {
         })
         .eq('id', evaluationId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Penilaian tidak dijumpai atau anda tidak mempunyai akses');
       return data;
     },
     onSuccess: () => {
@@ -372,9 +373,10 @@ export function useSubmitSupervisorEvaluation() {
         })
         .eq('id', evaluationId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Penilaian tidak dijumpai atau anda tidak mempunyai akses');
       return data;
     },
     onSuccess: () => {
@@ -527,9 +529,10 @@ export function useResetAnnualEvaluation() {
         .update(updates)
         .eq('id', evaluationId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) throw new Error('Penilaian tidak dijumpai');
       return data;
     },
     onSuccess: () => {

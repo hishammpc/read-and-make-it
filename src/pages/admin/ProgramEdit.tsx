@@ -20,7 +20,7 @@ export default function ProgramEdit() {
       { id, updates: data },
       {
         onSuccess: () => {
-          navigate(`/admin/programs/${id}`);
+          navigate(`/dashboard/programs/${id}`);
         },
       }
     );
@@ -138,7 +138,7 @@ export default function ProgramEdit() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/admin/programs/${id}`)}
+            onClick={() => navigate(`/dashboard/programs/${id}`)}
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>

@@ -88,7 +88,6 @@ export default function EvaluationPreview() {
   ).length;
 
   const onSubmit = async (data: EvaluationFormValues) => {
-    console.log('Form submitted:', data);
     toast({
       title: 'Penilaian Dihantar',
       description: 'Terima kasih atas maklum balas anda.',
