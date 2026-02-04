@@ -239,8 +239,19 @@ VITE_SUPABASE_PUBLISHABLE_KEY=[anon-key]
 4. **Proposal Period**: December 1 - February 28 only
 5. **Admin PIN**: `101010` (session-based, stored in sessionStorage)
 
+## Database Security Note
+
+**RLS (Row Level Security) is DISABLED** on all tables to support the hybrid authentication model:
+- Employees use email-only auth (no Supabase JWT token)
+- RLS policies that rely on `auth.uid()` or JWT claims don't work with email-only auth
+- Security is enforced at the application level instead
+
+Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
+
 ## Recent Updates
 
+- Proposed training dialog button text updated to Malay ("Sila Cadangkan" with descriptive subtitle)
+- **Disabled RLS** on all tables for hybrid auth compatibility (assessment submission & program creation fixes)
 - Admin PIN lock for security
 - Evaluation reset functionality (staff/supervisor/full)
 - Search filter in annual evaluation cycle page
