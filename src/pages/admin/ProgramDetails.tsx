@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
 import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignments';
 import { useProgramEvaluationDetails } from '@/hooks/useEvaluations';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDateTime } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,8 @@ import {
   X,
   ClipboardCheck,
   MessageSquare,
+  CheckCircle2,
+  MinusCircle,
 } from 'lucide-react';
 import {
   RadarChart,
@@ -59,6 +63,19 @@ export default function ProgramDetails() {
   const { data: evaluationDetails, isLoading: evaluationLoading } = useProgramEvaluationDetails(id!);
   const deleteProgram = useDeleteProgram();
   const removeAssignment = useRemoveAssignment();
+
+  const { data: programEvaluations } = useQuery({
+    queryKey: ['program-evaluations-users', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('evaluations')
+        .select('user_id')
+        .eq('program_id', id!);
+      if (error) throw error;
+      return new Set(data.map((e: any) => e.user_id));
+    },
+    enabled: !!id && !!program?.notify_for_evaluation,
+  });
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [removeAssignmentDialogOpen, setRemoveAssignmentDialogOpen] = useState(false);
@@ -270,6 +287,7 @@ export default function ProgramDetails() {
         </Card>
 
         {/* Evaluation Summary with Radar Chart */}
+        {program.notify_for_evaluation && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -392,6 +410,7 @@ export default function ProgramDetails() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Assigned Employees */}
         <Card>
@@ -430,6 +449,7 @@ export default function ProgramDetails() {
                     <TableHead>Name</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Email</TableHead>
+                    {program.notify_for_evaluation && <TableHead>Penilaian</TableHead>}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -441,6 +461,21 @@ export default function ProgramDetails() {
                       </TableCell>
                       <TableCell>{assignment.profiles?.position || '-'}</TableCell>
                       <TableCell>{assignment.profiles?.email || '-'}</TableCell>
+                      {program.notify_for_evaluation && (
+                      <TableCell>
+                        {programEvaluations?.has(assignment.profiles?.id) ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Selesai
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            <MinusCircle className="w-3 h-3 mr-1" />
+                            Belum
+                          </Badge>
+                        )}
+                      </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"

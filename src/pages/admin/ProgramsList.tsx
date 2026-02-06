@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Plus, Eye, Edit, Trash2, Search } from 'lucide-react';
 
 const MONTHS = [
@@ -227,6 +228,7 @@ export default function ProgramsList() {
                     <TableHead className="font-bold">End Date</TableHead>
                     <TableHead className="font-bold text-center">Hours</TableHead>
                     <TableHead className="font-bold text-center">Assigned</TableHead>
+                    <TableHead className="font-bold text-center">Penilaian</TableHead>
                     <TableHead className="font-bold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -247,6 +249,13 @@ export default function ProgramsList() {
                       <TableCell>{formatMalaysianDate(program.end_date_time)}</TableCell>
                       <TableCell className="text-center">{program.hours}h</TableCell>
                       <TableCell className="text-center">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
+                      <TableCell className="text-center">
+                        {(program as any).notify_for_evaluation ? (
+                          <Badge className="bg-green-500 hover:bg-green-600">Diperlukan</Badge>
+                        ) : (
+                          <Badge variant="secondary">Tidak</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -283,6 +292,7 @@ export default function ProgramsList() {
                     <TableCell colSpan={3} className="font-semibold">Total</TableCell>
                     <TableCell className="text-center font-semibold">{totalHours}h</TableCell>
                     <TableCell className="text-center font-semibold">{totalAssigned}</TableCell>
+                    <TableCell></TableCell>
                     <TableCell></TableCell>
                   </TableRow>
                 </TableFooter>

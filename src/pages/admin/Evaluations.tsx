@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEvaluationsByProgram, ProgramEvaluationSummary } from '@/hooks/useEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
@@ -87,6 +88,7 @@ export default function Evaluations() {
   const [toMonth, setToMonth] = useState('');
   const [selectedProgram, setSelectedProgram] = useState<ProgramEvaluationSummary | null>(null);
 
+  const navigate = useNavigate();
   const { data: evaluations, isLoading, error } = useEvaluationsByProgram(
     parseInt(selectedYear),
     fromMonth,
@@ -334,9 +336,8 @@ export default function Evaluations() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setSelectedProgram(evaluation)}
-                          title="View feedback"
-                          disabled={evaluation.comments.length === 0}
+                          onClick={() => navigate(`/dashboard/programs/${evaluation.programId}`)}
+                          title="View program details"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
