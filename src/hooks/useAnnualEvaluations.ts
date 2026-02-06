@@ -318,7 +318,7 @@ export function useSuperviseeEvaluations(supervisorId: string, cycleId?: string)
           cycle:cycle_id(id, year, start_date, end_date, status)
         `)
         .eq('supervisor_id', supervisorId)
-        .in('status', ['pending_supervisor', 'completed']);
+        .in('status', ['pending_staff', 'pending_supervisor', 'completed']);
 
       if (cycleId) {
         query = query.eq('cycle_id', cycleId);

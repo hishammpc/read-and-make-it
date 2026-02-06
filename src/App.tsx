@@ -40,7 +40,9 @@ import AnnualEvaluationCycle from "./pages/admin/AnnualEvaluationCycle";
 import AnnualEvaluationResult from "./pages/admin/AnnualEvaluationResult";
 import MyAnnualEvaluation from "./pages/employee/MyAnnualEvaluation";
 import AnnualEvaluationForm from "./pages/employee/AnnualEvaluationForm";
+import AnnualEvaluationHistory from "./pages/employee/AnnualEvaluationHistory";
 import SuperviseeEvaluations from "./pages/employee/SuperviseeEvaluations";
+import SuperviseeEvaluationDetail from "./pages/employee/SuperviseeEvaluationDetail";
 import SupervisorEvaluationForm from "./pages/employee/SupervisorEvaluationForm";
 // Proposed Trainings
 import ProposedTrainings from "./pages/admin/ProposedTrainings";
@@ -277,10 +279,26 @@ const App = () => (
               }
             />
             <Route
+              path="/dashboard/my-annual-evaluation/history/:evaluationId"
+              element={
+                <ProtectedRoute>
+                  <AnnualEvaluationHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard/supervisee-evaluations"
               element={
                 <ProtectedRoute>
                   <SuperviseeEvaluations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/supervisee-evaluations/detail/:evaluationId"
+              element={
+                <ProtectedRoute>
+                  <SuperviseeEvaluationDetail />
                 </ProtectedRoute>
               }
             />
