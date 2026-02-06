@@ -174,7 +174,7 @@ export default function SupervisorEvaluationForm() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Penilaian Penyelia
             </h1>
             <p className="text-muted-foreground">
@@ -263,7 +263,7 @@ export default function SupervisorEvaluationForm() {
                                 'bg-red-100 text-red-700 border-red-300'
                               }`}
                             >
-                              Tahap {staffLevel.tahap} - {staffLevel.label}
+                              Tahap {staffLevel.tahap}
                             </Badge>
                           </div>
                           <p className="text-sm text-blue-700">{staffLevel.description}</p>
@@ -307,7 +307,7 @@ export default function SupervisorEvaluationForm() {
                                     'bg-red-100 text-red-700 border-red-300'
                                   }`}
                                 >
-                                  Tahap {level.tahap} - {level.label}
+                                  Tahap {level.tahap}
                                 </Badge>
                                 <span className="text-sm text-muted-foreground">
                                   ({level.marks} markah)
@@ -331,7 +331,7 @@ export default function SupervisorEvaluationForm() {
         {/* Submit Section */}
         <Card className="sticky bottom-4 border-2 border-green-200 bg-background/95 backdrop-blur">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="font-medium">
                   {allAnswered ? (

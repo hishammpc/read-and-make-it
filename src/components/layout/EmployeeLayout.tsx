@@ -37,20 +37,23 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
   // Check if proposal period is open
   const proposalPeriodOpen = isProposalPeriodOpen();
 
-  const menuItems = [
+  const trainingMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpen, label: 'My Trainings', path: '/dashboard/my-trainings' },
     { icon: Clock, label: 'My Hours', path: '/dashboard/my-hours' },
     { icon: Award, label: 'My Certificates', path: '/dashboard/my-certificates' },
     { icon: FileCheck, label: 'Program Evaluations', path: '/dashboard/my-evaluations' },
-    { icon: ClipboardCheck, label: 'Annual Evaluation', path: '/dashboard/my-annual-evaluation' },
+  ];
+
+  const annualEvalMenuItems: { icon: any; label: string; path: string }[] = [
+    { icon: ClipboardCheck, label: 'My Evaluation', path: '/dashboard/my-annual-evaluation' },
   ];
 
   // Add supervisor menu item if user has supervisees
   if (pendingSuperviseeCount !== undefined && pendingSuperviseeCount >= 0) {
-    menuItems.push({
+    annualEvalMenuItems.push({
       icon: Users,
-      label: `Staff Evaluations${pendingSuperviseeCount > 0 ? ` (${pendingSuperviseeCount})` : ''}`,
+      label: `Staff Evaluation${pendingSuperviseeCount > 0 ? ` (${pendingSuperviseeCount})` : ''}`,
       path: '/dashboard/supervisee-evaluations',
     });
   }
@@ -81,46 +84,56 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
                 <div className="pt-16">
-                  <nav className="space-y-1 p-4">
-                    {menuItems.map((item) => (
-                      <Button
-                        key={item.label}
-                        variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
-                        className="w-full justify-start"
-                        onClick={() => handleNavigation(item.path)}
-                      >
-                        <item.icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Button>
-                    ))}
+                  <nav className="p-4">
+                    <div className="space-y-1">
+                      {trainingMenuItems.map((item) => (
+                        <Button
+                          key={item.label}
+                          variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
+                          className="w-full justify-start"
+                          onClick={() => handleNavigation(item.path)}
+                        >
+                          <item.icon className="w-4 h-4 mr-3" />
+                          {item.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <hr className="my-3" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Annual Evaluation</p>
+                    <div className="space-y-1">
+                      {annualEvalMenuItems.map((item) => (
+                        <Button
+                          key={item.label}
+                          variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
+                          className="w-full justify-start"
+                          onClick={() => handleNavigation(item.path)}
+                        >
+                          <item.icon className="w-4 h-4 mr-3" />
+                          {item.label}
+                        </Button>
+                      ))}
+                    </div>
                   </nav>
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
+            <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
               <img
                 src="/mpclogo.jpeg"
                 alt="MPC Logo"
-                className="h-10 object-contain"
+                className="h-7 sm:h-10 object-contain"
               />
-              <h1 className="text-xl font-semibold">
+              <h1 className="text-sm sm:text-xl font-semibold">
                 MyLearning Pro
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {proposalPeriodOpen && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowProposalDialog(true)}
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Propose Training
-              </Button>
-            )}
             {/* <ThemeToggle /> */}
-            <Button variant="ghost" onClick={signOut}>
+            <Button variant="ghost" size="icon" onClick={signOut} className="sm:hidden">
+              <LogOut className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="hidden sm:inline-flex">
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
@@ -131,23 +144,40 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
       <div className="flex">
         {/* Sidebar - Desktop */}
         <aside className="hidden md:block w-64 border-r bg-card min-h-[calc(100vh-4rem)] sticky top-16">
-          <nav className="space-y-1 p-4">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-                onClick={() => handleNavigation(item.path)}
-              >
-                <item.icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </Button>
-            ))}
+          <nav className="p-4">
+            <div className="space-y-1">
+              {trainingMenuItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => handleNavigation(item.path)}
+                >
+                  <item.icon className="w-4 h-4 mr-3" />
+                  {item.label}
+                </Button>
+              ))}
+            </div>
+            <hr className="my-3" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">Annual Evaluation</p>
+            <div className="space-y-1">
+              {annualEvalMenuItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => handleNavigation(item.path)}
+                >
+                  <item.icon className="w-4 h-4 mr-3" />
+                  {item.label}
+                </Button>
+              ))}
+            </div>
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-3 sm:p-6 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

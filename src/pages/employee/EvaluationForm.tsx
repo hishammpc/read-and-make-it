@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubmitEvaluation } from '@/hooks/useEvaluations';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,7 +17,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, CheckCircle2, Target, Brain, Lightbulb, Users, Presentation, Building, Wrench, ThumbsUp, Star, MessageSquare } from 'lucide-react';
+import { Loader2, CheckCircle2, Target, Brain, Lightbulb, Users, Presentation, Building, Wrench, ThumbsUp, Star, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Fixed evaluation questions with icons
@@ -125,238 +126,191 @@ export default function EvaluationForm() {
 
   if (programLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card">
-          <div className="flex items-center h-16 px-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard/my-evaluations')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Kembali
-            </Button>
-            <h1 className="text-xl font-semibold ml-4">Borang Penilaian</h1>
-          </div>
-        </header>
+      <EmployeeLayout>
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Memuatkan borang penilaian...</p>
           </div>
         </div>
-      </div>
+      </EmployeeLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Header */}
-      <header className="border-b bg-white dark:bg-slate-900 sticky top-0 z-10">
-        <div className="flex items-center justify-between h-16 px-4 max-w-4xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard/my-evaluations')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Kembali
-            </Button>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="text-lg font-semibold">Borang Penilaian</h1>
-          </div>
-
-          {/* Progress indicator */}
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-muted-foreground">
-              {answeredCount}/5 soalan
+    <EmployeeLayout>
+      <div className="max-w-4xl mx-auto space-y-4">
+        {/* Program Info Card */}
+        <Card className="border-0 shadow-md bg-primary text-primary-foreground">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 text-primary-foreground/70 text-sm font-medium mb-1">
+              <CheckCircle2 className="h-4 w-4" />
+              BORANG PENILAIAN SELEPAS PROGRAM
             </div>
-            <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 transition-all duration-500 ease-out"
-                style={{ width: `${(answeredCount / 5) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+            <CardTitle className="text-2xl font-bold">
+              {program?.title}
+            </CardTitle>
+            <p className="text-primary-foreground/70 text-sm mt-1">
+              Maklum balas anda membantu kami meningkatkan kualiti program latihan
+            </p>
+          </CardHeader>
+        </Card>
 
-      {/* Main Content */}
-      <main className="p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {/* Program Info Card */}
-          <Card className="border-0 shadow-md bg-primary text-primary-foreground">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-2 text-primary-foreground/70 text-sm font-medium mb-1">
-                <CheckCircle2 className="h-4 w-4" />
-                BORANG PENILAIAN SELEPAS PROGRAM
-              </div>
-              <CardTitle className="text-2xl font-bold">
-                {program?.title}
-              </CardTitle>
-              <p className="text-primary-foreground/70 text-sm mt-1">
-                Maklum balas anda membantu kami meningkatkan kualiti program latihan
-              </p>
-            </CardHeader>
-          </Card>
+        {/* Evaluation Form */}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Rating Questions 1-9 */}
+            {EVALUATION_QUESTIONS.map((question, index) => {
+              const Icon = question.icon;
+              const currentValue = watchedValues[question.id as keyof EvaluationFormValues];
+              const isAnswered = !!currentValue;
 
-          {/* Evaluation Form */}
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {/* Rating Questions 1-9 */}
-              {EVALUATION_QUESTIONS.map((question, index) => {
-                const Icon = question.icon;
-                const currentValue = watchedValues[question.id as keyof EvaluationFormValues];
-                const isAnswered = !!currentValue;
-
-                return (
-                  <FormField
-                    key={question.id}
-                    control={form.control}
-                    name={question.id as keyof EvaluationFormValues}
-                    render={({ field }) => (
-                      <Card className={cn(
-                        "border transition-all duration-300",
-                        isAnswered
-                          ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20"
-                          : "border-slate-200 dark:border-slate-700"
-                      )}>
-                        <CardContent className="p-5">
-                          <FormItem className="space-y-4">
-                            <div className="flex items-start gap-4">
-                              <div className={cn(
-                                "flex items-center justify-center w-10 h-10 rounded-lg shrink-0 transition-colors",
-                                isAnswered
-                                  ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                              )}>
-                                <Icon className="h-5 w-5" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    {index + 1}/5
-                                  </span>
-                                  {isAnswered && (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                  )}
-                                </div>
-                                <p className="text-sm font-medium text-foreground">
-                                  {question.text}
-                                </p>
-                              </div>
+              return (
+                <FormField
+                  key={question.id}
+                  control={form.control}
+                  name={question.id as keyof EvaluationFormValues}
+                  render={({ field }) => (
+                    <Card className={cn(
+                      "border transition-all duration-300",
+                      isAnswered
+                        ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20"
+                        : "border-slate-200 dark:border-slate-700"
+                    )}>
+                      <CardContent className="p-5">
+                        <FormItem className="space-y-4">
+                          <div className="flex items-start gap-4">
+                            <div className={cn(
+                              "flex items-center justify-center w-10 h-10 rounded-lg shrink-0 transition-colors",
+                              isAnswered
+                                ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                            )}>
+                              <Icon className="h-5 w-5" />
                             </div>
-
-                            <FormControl>
-                              <div className="grid grid-cols-3 gap-3">
-                                {RATING_OPTIONS.map((option) => {
-                                  const isSelected = field.value === option.value;
-                                  return (
-                                    <button
-                                      key={option.value}
-                                      type="button"
-                                      onClick={() => field.onChange(option.value)}
-                                      className={cn(
-                                        "flex items-center justify-center py-3 rounded-lg border-2 transition-all duration-200 font-semibold text-sm",
-                                        isSelected
-                                          ? `${option.selectedBg} ${option.selectedBorder} text-white shadow-md`
-                                          : `${option.bgColor} ${option.borderColor} ${option.hoverBorder} ${option.textColor}`
-                                      )}
-                                    >
-                                      {option.label}
-                                    </button>
-                                  );
-                                })}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {index + 1}/5
+                                </span>
+                                {isAnswered && (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                )}
                               </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        </CardContent>
-                      </Card>
-                    )}
-                  />
-                );
-              })}
-
-              {/* Question 6 - Comments Card */}
-              <Card className="border border-slate-200 dark:border-slate-700">
-                <CardContent className="p-5">
-                  <FormField
-                    control={form.control}
-                    name="q6"
-                    render={({ field }) => (
-                      <FormItem className="space-y-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 shrink-0">
-                            <MessageSquare className="h-5 w-5" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                PILIHAN
-                              </span>
+                              <p className="text-sm font-medium text-foreground">
+                                {question.text}
+                              </p>
                             </div>
-                            <p className="text-sm font-medium text-foreground">
-                              Lain-lain komen atau cadangan
-                            </p>
                           </div>
+
+                          <FormControl>
+                            <div className="grid grid-cols-3 gap-3">
+                              {RATING_OPTIONS.map((option) => {
+                                const isSelected = field.value === option.value;
+                                return (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => field.onChange(option.value)}
+                                    className={cn(
+                                      "flex items-center justify-center py-3 rounded-lg border-2 transition-all duration-200 font-semibold text-sm",
+                                      isSelected
+                                        ? `${option.selectedBg} ${option.selectedBorder} text-white shadow-md`
+                                        : `${option.bgColor} ${option.borderColor} ${option.hoverBorder} ${option.textColor}`
+                                    )}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      </CardContent>
+                    </Card>
+                  )}
+                />
+              );
+            })}
+
+            {/* Question 6 - Comments Card */}
+            <Card className="border border-slate-200 dark:border-slate-700">
+              <CardContent className="p-5">
+                <FormField
+                  control={form.control}
+                  name="q6"
+                  render={({ field }) => (
+                    <FormItem className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 shrink-0">
+                          <MessageSquare className="h-5 w-5" />
                         </div>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Kongsi pendapat anda untuk membantu kami menambah baik program ini..."
-                            className="min-h-[100px] resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              PILIHAN
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-foreground">
+                            Lain-lain komen atau cadangan
+                          </p>
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Kongsi pendapat anda untuk membantu kami menambah baik program ini..."
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
 
-              {/* Submit Section */}
-              <Card className="border-0 shadow-md bg-slate-800 dark:bg-slate-700 text-white">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">Sedia untuk hantar?</h3>
-                      <p className="text-slate-300 text-sm">
-                        {answeredCount === 5
-                          ? "Semua soalan telah dijawab"
-                          : `${5 - answeredCount} soalan lagi perlu dijawab`}
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => navigate('/dashboard/my-evaluations')}
-                        className="bg-transparent border-slate-600 text-white hover:bg-slate-700"
-                      >
-                        Batal
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={submitEvaluation.isPending || answeredCount < 5}
-                        className="bg-green-500 hover:bg-green-600 text-white"
-                      >
-                        {submitEvaluation.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                        )}
-                        Hantar Penilaian
-                      </Button>
-                    </div>
+            {/* Submit Section */}
+            <Card className="border-0 shadow-md bg-slate-800 dark:bg-slate-700 text-white">
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">Sedia untuk hantar?</h3>
+                    <p className="text-slate-300 text-sm">
+                      {answeredCount === 5
+                        ? "Semua soalan telah dijawab"
+                        : `${5 - answeredCount} soalan lagi perlu dijawab`}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            </form>
-          </Form>
-        </div>
-      </main>
-    </div>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/dashboard/my-evaluations')}
+                      className="bg-transparent border-slate-600 text-white hover:bg-slate-700"
+                    >
+                      Batal
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={submitEvaluation.isPending || answeredCount < 5}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      {submitEvaluation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      )}
+                      Hantar Penilaian
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </div>
+    </EmployeeLayout>
   );
 }

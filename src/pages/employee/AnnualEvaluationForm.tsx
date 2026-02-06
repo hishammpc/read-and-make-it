@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -34,18 +35,18 @@ export default function AnnualEvaluationForm() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <EmployeeLayout>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>Ralat memuatkan penilaian: {(error as Error).message}</AlertDescription>
         </Alert>
-      </div>
+      </EmployeeLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <EmployeeLayout>
         <div className="space-y-6">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-24" />
@@ -53,25 +54,25 @@ export default function AnnualEvaluationForm() {
             <Skeleton key={i} className="h-64" />
           ))}
         </div>
-      </div>
+      </EmployeeLayout>
     );
   }
 
   if (!evaluation) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <EmployeeLayout>
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>Penilaian tidak dijumpai.</AlertDescription>
         </Alert>
-      </div>
+      </EmployeeLayout>
     );
   }
 
   // Check if already submitted
   if (evaluation.status !== 'pending_staff') {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <EmployeeLayout>
         <Alert className="bg-green-50 border-green-200">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-700">
@@ -85,7 +86,7 @@ export default function AnnualEvaluationForm() {
             </Button>
           </AlertDescription>
         </Alert>
-      </div>
+      </EmployeeLayout>
     );
   }
 
@@ -117,7 +118,7 @@ export default function AnnualEvaluationForm() {
   const questionsByCategory = getQuestionsByCategory();
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <EmployeeLayout>
       <div className="space-y-6 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -129,7 +130,7 @@ export default function AnnualEvaluationForm() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Penilaian Kendiri Tahunan
             </h1>
             <p className="text-muted-foreground font-bold">
@@ -218,7 +219,7 @@ export default function AnnualEvaluationForm() {
                                 'bg-red-100 text-red-700 border-red-300'
                               }`}
                             >
-                              Tahap {level.tahap} - {level.label}
+                              Tahap {level.tahap}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -237,7 +238,7 @@ export default function AnnualEvaluationForm() {
         {/* Submit Section */}
         <Card className="sticky bottom-4 border-2 border-primary/20 bg-background/95 backdrop-blur">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="font-medium">
                   {allAnswered ? (
@@ -276,6 +277,6 @@ export default function AnnualEvaluationForm() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </EmployeeLayout>
   );
 }
