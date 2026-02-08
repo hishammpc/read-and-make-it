@@ -441,16 +441,16 @@ export default function EmployeeDashboard() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {allAnnualEvals && allAnnualEvals.length > 0 ? (
-                allAnnualEvals.map((evalItem: any) => {
+              {allAnnualEvals && allAnnualEvals.filter((e: any) => (e.cycle as any)?.year >= 2025).length > 0 ? (
+                allAnnualEvals.filter((e: any) => (e.cycle as any)?.year >= 2025).map((evalItem: any) => {
                   const status = evalItem.status;
-                  const staffAnswers = (evalItem.staff_answers || {}) as Record<string, number>;
+                  const supervisorAnswers = (evalItem.supervisor_answers || {}) as Record<string, number>;
                   const isCompleted = status === 'completed';
                   const isPendingSupervisor = status === 'pending_supervisor';
-                  const percentage = isCompleted || isPendingSupervisor
-                    ? calculatePercentage(staffAnswers)
+                  const percentage = isCompleted
+                    ? calculatePercentage(supervisorAnswers)
                     : 0;
-                  const rating = isCompleted || isPendingSupervisor
+                  const rating = isCompleted
                     ? getRatingLabel(percentage)
                     : null;
 

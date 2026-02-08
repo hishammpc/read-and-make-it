@@ -49,9 +49,9 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 
-// Generate available years (current year back to 2023)
+// Generate available years (current year back to 2025)
 const currentYear = new Date().getFullYear();
-const AVAILABLE_YEARS = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
+const AVAILABLE_YEARS = Array.from({ length: currentYear - 2024 }, (_, i) => currentYear - i);
 
 export default function AnnualEvaluations() {
   const navigate = useNavigate();

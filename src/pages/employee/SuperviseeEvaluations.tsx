@@ -32,7 +32,7 @@ import {
   MinusCircle,
 } from 'lucide-react';
 import { useSuperviseeEvaluations, usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
-import { calculateTotalScore, calculatePercentage } from '@/lib/annualEvaluationQuestions';
+import { calculateTotalScore, calculatePercentage, getRatingLabel } from '@/lib/annualEvaluationQuestions';
 
 export default function SuperviseeEvaluations() {
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ export default function SuperviseeEvaluations() {
     const yearSet = new Set<number>();
     evaluations.forEach((e) => {
       const year = (e.cycle as any)?.year;
-      if (year) yearSet.add(year);
+      if (year && year >= 2025) yearSet.add(year);
     });
     return Array.from(yearSet).sort((a, b) => b - a);
   }, [evaluations]);
@@ -208,10 +208,21 @@ export default function SuperviseeEvaluations() {
                           {getStatusBadge(evaluation.status)}
                         </TableCell>
                         <TableCell>
-                          {supervisorScore !== null ? (
-                            <span className="font-medium">
-                              {supervisorScore}/100 ({supervisorPercentage}%)
-                            </span>
+                          {supervisorPercentage !== null ? (() => {
+                            const rating = getRatingLabel(supervisorPercentage);
+                            const colorClass =
+                              rating.color === 'green' ? 'bg-green-100 text-green-800 border-green-300' :
+                              rating.color === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                              rating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                              rating.color === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                              'bg-red-100 text-red-800 border-red-300';
+                            return (
+                              <Badge variant="outline" className={colorClass}>
+                                {supervisorPercentage}% - {rating.label}
+                              </Badge>
+                            );
+                          })() : evaluation.status === 'pending_supervisor' ? (
+                            <span className="text-orange-600 text-sm">Menunggu Penyelia</span>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}

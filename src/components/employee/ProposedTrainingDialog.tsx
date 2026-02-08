@@ -74,6 +74,9 @@ export default function ProposedTrainingDialog({
           <DialogDescription>
             Submit your training proposals for the upcoming year. You can suggest up to 2 trainings.
           </DialogDescription>
+          <p className="text-sm text-muted-foreground italic mt-1">
+            Sila cadangkan 2 latihan yang dirasakan dapat menyumbang kepada peningkatan kecekapan tugasan anda.
+          </p>
         </DialogHeader>
 
         {existingProposal && (
@@ -116,21 +119,9 @@ export default function ProposedTrainingDialog({
           <Button
             onClick={handleSubmit}
             disabled={!hasContent || submitProposal.isPending || isLoading}
-            className="h-auto py-3 max-w-[280px]"
           >
-            {submitProposal.isPending ? (
-              'Menghantar...'
-            ) : (
-              <div className="flex flex-col items-center text-center">
-                <div className="flex items-center">
-                  <Send className="h-4 w-4 mr-2" />
-                  <span className="font-semibold">Sila Cadangkan</span>
-                </div>
-                <span className="text-xs font-normal opacity-90 whitespace-normal">
-                  (2 latihan yang dirasakan dapat menyumbang kepada peningkatan kecekapan tugasan anda)
-                </span>
-              </div>
-            )}
+            <Send className="h-4 w-4 mr-2" />
+            {submitProposal.isPending ? 'Menghantar...' : 'Hantar'}
           </Button>
         </DialogFooter>
       </DialogContent>

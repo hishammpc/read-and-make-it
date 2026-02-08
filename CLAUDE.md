@@ -262,3 +262,9 @@ Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
 - Supervisor change now updates both `profiles` and `annual_evaluations` tables
 - Fixed annual evaluation mutations using `maybeSingle()` to prevent JSON coerce errors
 - Fixed ProgramEdit routing (uses `/dashboard/programs/` not `/admin/programs/`)
+- Added "Penilaian" column to Programs List showing evaluation requirement status (Diperlukan/Tidak) based on `notify_for_evaluation` flag
+- Program Details conditionally hides Evaluation Summary card and Penilaian column when `notify_for_evaluation` is false
+- Training Evaluations page eye icon now navigates to Program Details instead of opening a feedback dialog
+- Annual evaluation year filters hide 2024 (demo data) — only 2025+ shown across admin, employee, and supervisee pages
+- Employee dashboard "Sejarah Penilaian Tahunan" shows supervisor score (not self-score), or status if pending
+- Supervisee Evaluations "Markah" column shows colour-coded badge (e.g. "85% - Bagus") based on rating tier

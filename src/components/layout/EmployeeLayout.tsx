@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Clock,
-  Award,
   FileCheck,
   ClipboardCheck,
   Users,
@@ -41,7 +40,6 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpen, label: 'My Trainings', path: '/dashboard/my-trainings' },
     { icon: Clock, label: 'My Hours', path: '/dashboard/my-hours' },
-    { icon: Award, label: 'My Certificates', path: '/dashboard/my-certificates' },
     { icon: FileCheck, label: 'Program Evaluations', path: '/dashboard/my-evaluations' },
   ];
 

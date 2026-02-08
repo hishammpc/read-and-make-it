@@ -57,6 +57,7 @@ export default function MyAnnualEvaluation() {
   // Get unique years from evaluations
   const availableYears = allEvaluations
     ? [...new Set(allEvaluations.map((e: any) => (e.cycle as any)?.year).filter(Boolean))]
+        .filter((y) => y >= 2025)
         .sort((a, b) => b - a)
     : [];
 

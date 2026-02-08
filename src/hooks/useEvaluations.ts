@@ -272,6 +272,7 @@ export interface ProgramEvaluationSummary {
   comments: string[];
   startDate: string;
   endDate: string;
+  notifyForEvaluation: boolean;
 }
 
 export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMonth?: string) {
@@ -294,6 +295,7 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
           title,
           start_date_time,
           end_date_time,
+          notify_for_evaluation,
           program_assignments(count)
         `)
         .gte('start_date_time', startDate)
@@ -358,6 +360,7 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
           comments,
           startDate: program.start_date_time,
           endDate: program.end_date_time,
+          notifyForEvaluation: program.notify_for_evaluation ?? true,
         };
       }) || [];
 

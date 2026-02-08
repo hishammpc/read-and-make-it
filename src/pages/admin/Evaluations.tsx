@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEvaluationsByProgram, ProgramEvaluationSummary } from '@/hooks/useEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
@@ -87,6 +87,7 @@ export default function Evaluations() {
   const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
   const [selectedProgram, setSelectedProgram] = useState<ProgramEvaluationSummary | null>(null);
+  const [evalFilter, setEvalFilter] = useState('all');
 
   const navigate = useNavigate();
   const { data: evaluations, isLoading, error } = useEvaluationsByProgram(
@@ -95,8 +96,15 @@ export default function Evaluations() {
     toMonth
   );
 
+  const filteredEvaluations = useMemo(() => {
+    if (!evaluations) return evaluations;
+    if (evalFilter === 'required') return evaluations.filter(e => e.notifyForEvaluation);
+    if (evalFilter === 'not_required') return evaluations.filter(e => !e.notifyForEvaluation);
+    return evaluations;
+  }, [evaluations, evalFilter]);
+
   const handleDownloadPDF = async () => {
-    if (!evaluations || evaluations.length === 0) return;
+    if (!filteredEvaluations || filteredEvaluations.length === 0) return;
 
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -128,6 +136,11 @@ export default function Evaluations() {
     if (toMonth && toMonth !== 'all') {
       filterText += ` | Hingga: ${getMonthLabel(toMonth)}`;
     }
+    if (evalFilter === 'required') {
+      filterText += ` | Penilaian: Diperlukan`;
+    } else if (evalFilter === 'not_required') {
+      filterText += ` | Penilaian: Tidak Diperlukan`;
+    }
     doc.text(filterText, margin + 25, yPosition + 12);
     yPosition += 30;
 
@@ -156,7 +169,7 @@ export default function Evaluations() {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
 
-    evaluations.forEach((evaluation, index) => {
+    filteredEvaluations.forEach((evaluation, index) => {
       // Check if we need a new page
       if (yPosition > pageHeight - 25) {
         doc.addPage();
@@ -192,7 +205,7 @@ export default function Evaluations() {
     yPosition += 5;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Jumlah Program: ${evaluations.length}`, margin, yPosition);
+    doc.text(`Jumlah Program: ${filteredEvaluations.length}`, margin, yPosition);
 
     // Footer
     doc.setFontSize(8);
@@ -264,10 +277,24 @@ export default function Evaluations() {
             </SelectContent>
           </Select>
 
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Penilaian:</span>
+            <Select value={evalFilter} onValueChange={setEvalFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Semua" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua</SelectItem>
+                <SelectItem value="required">Diperlukan</SelectItem>
+                <SelectItem value="not_required">Tidak Diperlukan</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button
             variant="outline"
             onClick={handleDownloadPDF}
-            disabled={!evaluations || evaluations.length === 0 || isLoading}
+            disabled={!filteredEvaluations || filteredEvaluations.length === 0 || isLoading}
           >
             <Download className="h-4 w-4 mr-2" />
             Muat Turun PDF
@@ -287,7 +314,7 @@ export default function Evaluations() {
               <div className="p-6 text-center text-destructive">
                 Error loading evaluations: {error.message}
               </div>
-            ) : !evaluations || evaluations.length === 0 ? (
+            ) : !filteredEvaluations || filteredEvaluations.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground">
                 No programs found for the selected period.
               </div>
@@ -299,11 +326,12 @@ export default function Evaluations() {
                     <TableHead className="font-bold text-center">Participant</TableHead>
                     <TableHead className="font-bold text-center">Responses</TableHead>
                     <TableHead className="font-bold text-center">Overall Rating</TableHead>
+                    <TableHead className="font-bold text-center">Penilaian</TableHead>
                     <TableHead className="font-bold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {evaluations.map((evaluation) => (
+                  {filteredEvaluations.map((evaluation) => (
                     <TableRow key={evaluation.programId}>
                       <TableCell>
                         <div>
@@ -332,6 +360,11 @@ export default function Evaluations() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={evaluation.notifyForEvaluation ? 'default' : 'outline'}>
+                          {evaluation.notifyForEvaluation ? 'Diperlukan' : 'Tidak'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -350,9 +383,9 @@ export default function Evaluations() {
           </CardContent>
         </Card>
 
-        {!isLoading && evaluations && evaluations.length > 0 && (
+        {!isLoading && filteredEvaluations && filteredEvaluations.length > 0 && (
           <div className="text-sm text-muted-foreground text-center">
-            Showing {evaluations.length} programs
+            Showing {filteredEvaluations.length} programs
           </div>
         )}
 
