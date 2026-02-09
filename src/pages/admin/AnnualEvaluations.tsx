@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   Plus,
   Calendar,
+  CalendarIcon,
   Users,
   AlertCircle,
   Eye,
@@ -48,6 +49,9 @@ import {
 } from '@/hooks/useAnnualEvaluations';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 
 // Generate available years (current year back to 2025)
 const currentYear = new Date().getFullYear();
@@ -62,6 +66,8 @@ export default function AnnualEvaluations() {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [createStartDate, setCreateStartDate] = useState<Date | undefined>(new Date(currentYear, 11, 1));
+  const [createEndDate, setCreateEndDate] = useState<Date | undefined>(new Date(currentYear + 1, 1, 28));
 
   // Default stats year to latest cycle year, or current year if no cycles
   const latestCycleYear = cycles?.[0]?.year || currentYear;
@@ -75,9 +81,19 @@ export default function AnnualEvaluations() {
     await createCycle.mutateAsync({
       year: selectedYear,
       createdBy: user.userId,
+      startDate: createStartDate ? format(createStartDate, 'yyyy-MM-dd') : undefined,
+      endDate: createEndDate ? format(createEndDate, 'yyyy-MM-dd') : undefined,
     });
 
     setShowCreateDialog(false);
+  };
+
+  // Update default dates when selected year changes
+  const handleYearChange = (value: string) => {
+    const year = parseInt(value);
+    setSelectedYear(year);
+    setCreateStartDate(new Date(year, 11, 1));
+    setCreateEndDate(new Date(year + 1, 1, 28));
   };
 
   const hasStaffWithoutSupervisors = (staffWithoutSupervisors?.length || 0) > 0;
@@ -304,7 +320,7 @@ export default function AnnualEvaluations() {
               <Label htmlFor="year">Tahun Penilaian</Label>
               <Select
                 value={selectedYear.toString()}
-                onValueChange={(value) => setSelectedYear(parseInt(value))}
+                onValueChange={handleYearChange}
               >
                 <SelectTrigger id="year">
                   <SelectValue placeholder="Pilih tahun" />
@@ -317,9 +333,46 @@ export default function AnnualEvaluations() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">
-                Tempoh: 1 Disember {selectedYear} - 28 Februari {selectedYear + 1}
-              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tarikh Mula</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {createStartDate ? format(createStartDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={createStartDate}
+                    onSelect={setCreateStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tarikh Akhir</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {createEndDate ? format(createEndDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={createEndDate}
+                    onSelect={setCreateEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <Alert>

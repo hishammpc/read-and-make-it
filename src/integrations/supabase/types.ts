@@ -292,6 +292,35 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          key: string
+          value: Json
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          key: string
+          value: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          key?: string
+          value?: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminders_log: {
         Row: {
           id: string

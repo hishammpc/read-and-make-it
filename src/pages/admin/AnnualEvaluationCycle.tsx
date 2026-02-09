@@ -42,9 +42,14 @@ import {
   Lock,
   RotateCcw,
   Search,
+  CalendarIcon,
 } from 'lucide-react';
-import { useAnnualEvaluationCycle, useCloseEvaluationCycle, useResetAnnualEvaluation, AnnualEvaluation } from '@/hooks/useAnnualEvaluations';
+import { useAnnualEvaluationCycle, useCloseEvaluationCycle, useResetAnnualEvaluation, useUpdateCycleDates, AnnualEvaluation } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { format, parseISO } from 'date-fns';
 import { calculateTotalScore, calculatePercentage, SCORE_MAP } from '@/lib/annualEvaluationQuestions';
 
 export default function AnnualEvaluationCycle() {
@@ -53,6 +58,12 @@ export default function AnnualEvaluationCycle() {
   const { data, isLoading, error } = useAnnualEvaluationCycle(cycleId || '');
   const closeCycle = useCloseEvaluationCycle();
   const resetEvaluation = useResetAnnualEvaluation();
+  const updateCycleDates = useUpdateCycleDates();
+
+  // Date dialog state
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [editStartDate, setEditStartDate] = useState<Date | undefined>();
+  const [editEndDate, setEditEndDate] = useState<Date | undefined>();
 
   // Reset dialog state
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -203,16 +214,31 @@ export default function AnnualEvaluationCycle() {
               </p>
             </div>
           </div>
-          {cycle.status === 'active' && (
-            <Button
-              variant="outline"
-              onClick={() => closeCycle.mutate(cycle.id)}
-              disabled={closeCycle.isPending}
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Tutup Kitaran
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {cycle.status === 'active' && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditStartDate(parseISO(cycle.start_date));
+                  setEditEndDate(parseISO(cycle.end_date));
+                  setDateDialogOpen(true);
+                }}
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Tetapkan Tarikh
+              </Button>
+            )}
+            {cycle.status === 'active' && (
+              <Button
+                variant="outline"
+                onClick={() => closeCycle.mutate(cycle.id)}
+                disabled={closeCycle.isPending}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Tutup Kitaran
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -415,6 +441,79 @@ export default function AnnualEvaluationCycle() {
                 disabled={resetEvaluation.isPending}
               >
                 {resetEvaluation.isPending ? 'Mereset...' : 'Sahkan Reset'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Set Dates Dialog */}
+        <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tetapkan Tarikh Kitaran</DialogTitle>
+              <DialogDescription>
+                Tetapkan tarikh mula dan akhir untuk kitaran penilaian {cycle.year}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Tarikh Mula</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editStartDate ? format(editStartDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editStartDate}
+                      onSelect={setEditStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Tarikh Akhir</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {editEndDate ? format(editEndDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editEndDate}
+                      onSelect={setEditEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDateDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!editStartDate || !editEndDate) return;
+                  updateCycleDates.mutate(
+                    {
+                      cycleId: cycle.id,
+                      startDate: format(editStartDate, 'yyyy-MM-dd'),
+                      endDate: format(editEndDate, 'yyyy-MM-dd'),
+                    },
+                    { onSuccess: () => setDateDialogOpen(false) }
+                  );
+                }}
+                disabled={!editStartDate || !editEndDate || updateCycleDates.isPending}
+              >
+                {updateCycleDates.isPending ? 'Menyimpan...' : 'Simpan'}
               </Button>
             </DialogFooter>
           </DialogContent>

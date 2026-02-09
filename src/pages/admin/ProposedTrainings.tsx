@@ -28,7 +28,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Calendar,
+  CalendarIcon,
   Trash2,
+  Save,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -37,6 +39,10 @@ import {
   useDeleteProposedTraining,
   getProposalYear,
 } from '@/hooks/useProposedTrainings';
+import { useProposalPeriod, useUpdateSystemSetting } from '@/hooks/useSystemSettings';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, parseISO } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +67,36 @@ export default function ProposedTrainings() {
   const { data: proposals, isLoading, error } = useProposedTrainingsList(selectedYear);
   const markAsEntertained = useMarkAsEntertained();
   const deleteProposal = useDeleteProposedTraining();
+  const { startDate: periodStart, endDate: periodEnd, isLoading: periodLoading } = useProposalPeriod();
+  const updateSetting = useUpdateSystemSetting();
+  const [editPeriodStart, setEditPeriodStart] = useState<Date | undefined>();
+  const [editPeriodEnd, setEditPeriodEnd] = useState<Date | undefined>();
+  const [periodInitialized, setPeriodInitialized] = useState(false);
+
+  // Initialize edit dates from fetched period
+  if (!periodInitialized && !periodLoading && periodStart && periodEnd) {
+    setEditPeriodStart(parseISO(periodStart));
+    setEditPeriodEnd(parseISO(periodEnd));
+    setPeriodInitialized(true);
+  }
+
+  const handleSavePeriod = () => {
+    if (!editPeriodStart || !editPeriodEnd) return;
+    updateSetting.mutate({
+      key: 'proposal_period',
+      value: {
+        start_date: format(editPeriodStart, 'yyyy-MM-dd'),
+        end_date: format(editPeriodEnd, 'yyyy-MM-dd'),
+      },
+      updatedBy: user?.userId,
+    });
+  };
+
+  const periodChanged =
+    editPeriodStart && editPeriodEnd && periodStart && periodEnd
+      ? format(editPeriodStart, 'yyyy-MM-dd') !== periodStart ||
+        format(editPeriodEnd, 'yyyy-MM-dd') !== periodEnd
+      : false;
 
   const handleToggleEntertained = (proposalId: string, proposalNumber: 1 | 2, currentStatus: boolean) => {
     if (!user?.userId) return;
@@ -122,6 +158,69 @@ export default function ProposedTrainings() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Proposal Period Settings */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <CalendarIcon className="h-4 w-4" />
+                Tempoh Cadangan Latihan:
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Mula</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {editPeriodStart ? format(editPeriodStart, 'dd/MM/yyyy') : 'Tarikh'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={editPeriodStart}
+                        onSelect={setEditPeriodStart}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <span className="hidden sm:inline text-muted-foreground pb-1">—</span>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Akhir</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {editPeriodEnd ? format(editPeriodEnd, 'dd/MM/yyyy') : 'Tarikh'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={editPeriodEnd}
+                        onSelect={setEditPeriodEnd}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {periodChanged && (
+                  <Button
+                    size="sm"
+                    onClick={handleSavePeriod}
+                    disabled={updateSetting.isPending}
+                  >
+                    <Save className="h-3 w-3 mr-1" />
+                    {updateSetting.isPending ? 'Menyimpan...' : 'Simpan'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">

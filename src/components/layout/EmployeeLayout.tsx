@@ -11,11 +11,9 @@ import {
   Users,
   LogOut,
   Menu,
-  Send,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
-import { isProposalPeriodOpen } from '@/hooks/useProposedTrainings';
 import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -32,9 +30,6 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
 
   // Check if user has supervisees with pending evaluations
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
-
-  // Check if proposal period is open
-  const proposalPeriodOpen = isProposalPeriodOpen();
 
   const trainingMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },

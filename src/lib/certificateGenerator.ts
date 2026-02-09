@@ -76,15 +76,20 @@ export async function generateCertificate(
   const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
   const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
 
-  // Load and register Forte font
-  let forteLoaded = false;
+  // Load and register Georgia Pro fonts
+  let georgiaProLoaded = false;
   try {
-    const fontBase64 = await loadFontAsBase64('/Forte.ttf');
-    doc.addFileToVFS('Forte.ttf', fontBase64);
-    doc.addFont('Forte.ttf', 'Forte', 'normal');
-    forteLoaded = true;
+    const boldBase64 = await loadFontAsBase64('/Georgia Pro/GeorgiaPro-Bold.ttf');
+    doc.addFileToVFS('GeorgiaPro-Bold.ttf', boldBase64);
+    doc.addFont('GeorgiaPro-Bold.ttf', 'GeorgiaPro', 'bold');
+
+    const regularBase64 = await loadFontAsBase64('/Georgia Pro/GeorgiaPro-Regular.ttf');
+    doc.addFileToVFS('GeorgiaPro-Regular.ttf', regularBase64);
+    doc.addFont('GeorgiaPro-Regular.ttf', 'GeorgiaPro', 'normal');
+
+    georgiaProLoaded = true;
   } catch (error) {
-    console.warn('Failed to load Forte font, using fallback:', error);
+    console.warn('Failed to load Georgia Pro font, using fallback:', error);
   }
 
   // Load the certificate template image
@@ -100,9 +105,9 @@ export async function generateCertificate(
     drawFallbackBackground(doc, pageWidth, pageHeight);
   }
 
-  // Add Employee Name - use Forte font if loaded
-  if (forteLoaded) {
-    doc.setFont('Forte', 'normal');
+  // Add Employee Name - use Georgia Pro Bold if loaded
+  if (georgiaProLoaded) {
+    doc.setFont('GeorgiaPro', 'bold');
   } else {
     doc.setFont('helvetica', 'bold');
   }
@@ -110,8 +115,12 @@ export async function generateCertificate(
   doc.setTextColor(0, 0, 0);
   doc.text(employeeName, positions.employeeName.x, positions.employeeName.y, { align: 'center' });
 
-  // Add Program Title - use normal font
-  doc.setFont('helvetica', 'bold');
+  // Add Program Title - use Georgia Pro Bold if loaded
+  if (georgiaProLoaded) {
+    doc.setFont('GeorgiaPro', 'bold');
+  } else {
+    doc.setFont('helvetica', 'bold');
+  }
   doc.setFontSize(positions.programTitle.fontSize);
   doc.setTextColor(0, 0, 0);
 
@@ -124,8 +133,12 @@ export async function generateCertificate(
     yPosition += positions.programTitle.fontSize * 0.4;
   });
 
-  // Add Date Range - use regular font for dates
-  doc.setFont('helvetica', 'normal');
+  // Add Date Range - use Georgia Pro Regular for dates
+  if (georgiaProLoaded) {
+    doc.setFont('GeorgiaPro', 'normal');
+  } else {
+    doc.setFont('helvetica', 'normal');
+  }
   doc.setFontSize(positions.dateRange.fontSize);
   doc.setTextColor(80, 80, 80);
   const dateRange = formatMalaysianDateRange(startDate, endDate);

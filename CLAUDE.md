@@ -56,6 +56,7 @@ src/
 | `annual_evaluation_cycles` | Yearly evaluation periods |
 | `annual_evaluations` | Staff & supervisor assessments |
 | `proposed_trainings` | Employee training proposals |
+| `system_settings` | Key-value config store (JSONB) |
 
 ### Key Relationships
 
@@ -236,7 +237,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=[anon-key]
 1. **Training Compliance**: 40 hours/year target per employee
 2. **Evaluation Window**: Programs must be evaluated within 3 days of completion
 3. **Annual Evaluation**: All staff must have supervisors before creating cycle
-4. **Proposal Period**: December 1 - February 28 only
+4. **Proposal Period**: Admin-configurable via `system_settings` table (default Dec 1 - Feb 28)
 5. **Admin PIN**: `101010` (session-based, stored in sessionStorage)
 
 ## Database Security Note
@@ -268,3 +269,9 @@ Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
 - Annual evaluation year filters hide 2024 (demo data) — only 2025+ shown across admin, employee, and supervisee pages
 - Employee dashboard "Sejarah Penilaian Tahunan" shows supervisor score (not self-score), or status if pending
 - Supervisee Evaluations "Markah" column shows colour-coded badge (e.g. "85% - Bagus") based on rating tier
+- Training Evaluations page: added "Penilaian" filter dropdown (Semua/Diperlukan/Tidak Diperlukan) with label, and "Penilaian" column in table; PDF respects filter
+- Removed MyCertificates page and nav link from employee layout
+- Proposed Training dialog: moved descriptive text below subtitle, simplified submit button to "Hantar"
+- **Configurable dates**: Annual evaluation cycle dates editable via "Tetapkan Tarikh" button; create dialog includes date pickers
+- **Configurable proposal period**: Admin can set proposal start/end dates on Proposed Trainings page; `system_settings` table stores config; `useProposalPeriod()` hook replaces hardcoded `isProposalPeriodOpen()`
+- New table: `system_settings` (key/value JSONB) — migration `20260209_system_settings.sql`

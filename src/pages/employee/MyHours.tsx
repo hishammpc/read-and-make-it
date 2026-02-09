@@ -3,22 +3,10 @@ import { useEmployeeDashboardStats } from '@/hooks/useDashboardStats';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Clock, TrendingUp, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { Clock, TrendingUp } from 'lucide-react';
 
 export default function MyHours() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '');
 
   if (isLoading) {
@@ -55,16 +43,6 @@ export default function MyHours() {
   const targetHours = stats?.targetHours || 40;
   const progressPercentage = stats?.compliancePercentage || 0;
   const hoursRemaining = Math.max(0, targetHours - hoursCompleted);
-
-  // Get completed trainings only
-  const completedTrainings = stats?.trainingHistory?.filter(
-    (assignment: any) => assignment.status === 'Attended'
-  ) || [];
-
-  // Sort by date descending
-  const sortedTrainings = [...completedTrainings].sort((a: any, b: any) =>
-    new Date(b.programs?.end_date_time).getTime() - new Date(a.programs?.end_date_time).getTime()
-  );
 
   return (
     <EmployeeLayout>
@@ -138,87 +116,6 @@ export default function MyHours() {
           </CardContent>
         </Card>
 
-        {/* Hours by Category */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Hours by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats?.hoursByCategory && Object.entries(stats.hoursByCategory)
-                .filter(([_, hours]) => hours > 0)
-                .map(([category, hours]) => {
-                  const categoryPercentage = hoursCompleted > 0
-                    ? Math.round((Number(hours) / hoursCompleted) * 100)
-                    : 0;
-                  return (
-                    <div key={category} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{category}</span>
-                        <span className="text-muted-foreground">
-                          {hours} hrs ({categoryPercentage}%)
-                        </span>
-                      </div>
-                      <Progress value={categoryPercentage} className="h-2" />
-                    </div>
-                  );
-                })}
-              {(!stats?.hoursByCategory || Object.values(stats.hoursByCategory).every(h => h === 0)) && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No training hours recorded yet
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Training History */}
-        <Card className="overflow-x-auto">
-          <CardHeader>
-            <CardTitle>Training History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sortedTrainings.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No completed trainings yet</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Program Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Date Completed</TableHead>
-                    <TableHead className="text-right">Hours</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedTrainings.map((assignment: any) => (
-                    <TableRow key={assignment.id}>
-                      <TableCell className="font-medium">
-                        {assignment.programs?.title}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {assignment.programs?.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {format(new Date(assignment.programs?.end_date_time), 'MMM dd, yyyy')}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {assignment.programs?.hours} hrs
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </EmployeeLayout>
   );

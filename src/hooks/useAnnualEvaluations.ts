@@ -112,7 +112,7 @@ export function useCreateAnnualEvaluationCycle() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ year, createdBy }: { year: number; createdBy: string }) => {
+    mutationFn: async ({ year, createdBy, startDate, endDate }: { year: number; createdBy: string; startDate?: string; endDate?: string }) => {
       // Check if all staff have supervisors
       const { data: staffWithoutSupervisor, error: checkError } = await supabase
         .from('profiles')
@@ -127,15 +127,15 @@ export function useCreateAnnualEvaluationCycle() {
       }
 
       // Create the cycle
-      const startDate = `${year}-12-01`;
-      const endDate = `${year + 1}-02-28`;
+      const cycleStartDate = startDate || `${year}-12-01`;
+      const cycleEndDate = endDate || `${year + 1}-02-28`;
 
       const { data: cycle, error: cycleError } = await supabase
         .from('annual_evaluation_cycles')
         .insert({
           year,
-          start_date: startDate,
-          end_date: endDate,
+          start_date: cycleStartDate,
+          end_date: cycleEndDate,
           status: 'active',
           created_by: createdBy,
         })
@@ -444,6 +444,41 @@ export function useCloseEvaluationCycle() {
       toast({
         title: 'Berjaya',
         description: 'Kitaran penilaian telah ditutup',
+      });
+    },
+  });
+}
+
+// Update cycle dates
+export function useUpdateCycleDates() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ cycleId, startDate, endDate }: { cycleId: string; startDate: string; endDate: string }) => {
+      const { data, error } = await supabase
+        .from('annual_evaluation_cycles')
+        .update({ start_date: startDate, end_date: endDate })
+        .eq('id', cycleId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
+      toast({
+        title: 'Berjaya',
+        description: 'Tarikh kitaran telah dikemaskini',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Ralat',
+        description: error.message,
+        variant: 'destructive',
       });
     },
   });

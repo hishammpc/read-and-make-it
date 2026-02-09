@@ -16,8 +16,8 @@ import { CheckCircle2, Send } from 'lucide-react';
 import {
   useMyProposedTraining,
   useSubmitProposedTraining,
-  getProposalYear,
 } from '@/hooks/useProposedTrainings';
+import { useProposalPeriod } from '@/hooks/useSystemSettings';
 
 interface ProposedTrainingDialogProps {
   open: boolean;
@@ -29,7 +29,7 @@ export default function ProposedTrainingDialog({
   onOpenChange,
 }: ProposedTrainingDialogProps) {
   const { user } = useAuth();
-  const proposalYear = getProposalYear();
+  const { proposalYear } = useProposalPeriod();
   const { data: existingProposal, isLoading } = useMyProposedTraining(
     user?.userId || '',
     proposalYear
