@@ -61,9 +61,24 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
 
   const trainingType = form.watch('training_type');
 
+  // Append local timezone offset to datetime-local strings so PostgreSQL
+  // stores them correctly as timestamptz (instead of assuming UTC)
+  const handleSubmit = (data: ProgramFormValues) => {
+    const offset = new Date().getTimezoneOffset();
+    const sign = offset <= 0 ? '+' : '-';
+    const absH = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+    const absM = String(Math.abs(offset) % 60).padStart(2, '0');
+    const tz = `${sign}${absH}:${absM}`;
+    onSubmit({
+      ...data,
+      start_date_time: data.start_date_time + tz,
+      end_date_time: data.end_date_time + tz,
+    });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
