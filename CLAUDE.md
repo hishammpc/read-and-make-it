@@ -275,3 +275,4 @@ Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
 - **Configurable dates**: Annual evaluation cycle dates editable via "Tetapkan Tarikh" button; create dialog includes date pickers
 - **Configurable proposal period**: Admin can set proposal start/end dates on Proposed Trainings page; `system_settings` table stores config; `useProposalPeriod()` hook replaces hardcoded `isProposalPeriodOpen()`
 - New table: `system_settings` (key/value JSONB) — migration `20260209_system_settings.sql`
+- **Timezone fix**: `ProgramForm` appends local timezone offset to `datetime-local` values before saving (prevents PostgreSQL from interpreting as UTC); `ProgramEdit` uses local time components instead of `.toISOString()` when loading dates
