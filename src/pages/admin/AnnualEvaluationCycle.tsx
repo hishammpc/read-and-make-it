@@ -70,19 +70,20 @@ export default function AnnualEvaluationCycle() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<AnnualEvaluation | null>(null);
   const [resetType, setResetType] = useState<'staff' | 'supervisor' | 'full'>('full');
 
-  // Search state
+  // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Filter evaluations by search query - must be before early returns
+  // Filter evaluations by search query and status - must be before early returns
   const filteredEvaluations = useMemo(() => {
     const evaluations = data?.evaluations || [];
-    if (!searchQuery.trim()) return evaluations;
-    const query = searchQuery.toLowerCase();
     return evaluations.filter((e) => {
-      const name = (e.profiles as any)?.name?.toLowerCase() || '';
-      return name.includes(query);
+      const matchesSearch = !searchQuery.trim() ||
+        ((e.profiles as any)?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [data?.evaluations, searchQuery]);
+  }, [data?.evaluations, searchQuery, statusFilter]);
 
   const handleResetClick = (evaluation: AnnualEvaluation, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -243,7 +244,10 @@ export default function AnnualEvaluationCycle() {
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'all' ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'all' ? 'all' : 'all')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Jumlah Kakitangan</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -252,7 +256,10 @@ export default function AnnualEvaluationCycle() {
               <div className="text-2xl font-bold">{totalStaff}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'pending_staff' ? 'ring-2 ring-yellow-500' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'pending_staff' ? 'all' : 'pending_staff')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Menunggu Kakitangan</CardTitle>
               <Clock className="h-4 w-4 text-yellow-500" />
@@ -261,7 +268,10 @@ export default function AnnualEvaluationCycle() {
               <div className="text-2xl font-bold text-yellow-600">{pendingStaff}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'pending_supervisor' ? 'ring-2 ring-blue-500' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'pending_supervisor' ? 'all' : 'pending_supervisor')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Menunggu Penyelia</CardTitle>
               <UserCheck className="h-4 w-4 text-blue-500" />
@@ -270,7 +280,10 @@ export default function AnnualEvaluationCycle() {
               <div className="text-2xl font-bold text-blue-600">{pendingSupervisor}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'completed' ? 'ring-2 ring-green-500' : ''}`}
+            onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Selesai</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -307,14 +320,27 @@ export default function AnnualEvaluationCycle() {
                   Klik pada kakitangan yang telah selesai untuk melihat keputusan penilaian
                 </CardDescription>
               </div>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari nama..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="flex items-center gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Semua Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="pending_staff">Menunggu Kakitangan</SelectItem>
+                    <SelectItem value="pending_supervisor">Menunggu Penyelia</SelectItem>
+                    <SelectItem value="completed">Selesai</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari nama..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
