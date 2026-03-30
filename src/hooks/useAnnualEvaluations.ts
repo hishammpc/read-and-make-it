@@ -502,6 +502,7 @@ export function useAnnualEvaluationStatsByYear(year: number) {
         return {
           staffSubmitted: 0,
           supervisorSubmitted: 0,
+          completed: 0,
           total: 0,
         };
       }
@@ -509,17 +510,19 @@ export function useAnnualEvaluationStatsByYear(year: number) {
       // Get evaluations for this cycle
       const { data: evaluations, error: evalError } = await supabase
         .from('annual_evaluations')
-        .select('staff_submitted_at, supervisor_submitted_at')
+        .select('staff_submitted_at, supervisor_submitted_at, status')
         .eq('cycle_id', cycle.id);
 
       if (evalError) throw evalError;
 
       const staffSubmitted = evaluations?.filter((e) => e.staff_submitted_at !== null).length || 0;
       const supervisorSubmitted = evaluations?.filter((e) => e.supervisor_submitted_at !== null).length || 0;
+      const completed = evaluations?.filter((e) => e.status === 'completed').length || 0;
 
       return {
         staffSubmitted,
         supervisorSubmitted,
+        completed,
         total: evaluations?.length || 0,
       };
     },

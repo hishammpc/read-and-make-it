@@ -163,6 +163,7 @@ export default function AnnualEvaluationCycle() {
   const pendingStaff = evaluations.filter((e) => e.status === 'pending_staff').length;
   const pendingSupervisor = evaluations.filter((e) => e.status === 'pending_supervisor').length;
   const completed = evaluations.filter((e) => e.status === 'completed').length;
+  const staffSubmitted = pendingSupervisor + completed;
   const progressPercentage = totalStaff > 0 ? Math.round((completed / totalStaff) * 100) : 0;
 
   const getStatusBadge = (status: string) => {
@@ -266,6 +267,9 @@ export default function AnnualEvaluationCycle() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">{pendingStaff}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {staffSubmitted} / {totalStaff} dijawab
+              </p>
             </CardContent>
           </Card>
           <Card
@@ -278,6 +282,9 @@ export default function AnnualEvaluationCycle() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{pendingSupervisor}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {completed} / {staffSubmitted} disemak
+              </p>
             </CardContent>
           </Card>
           <Card
@@ -289,7 +296,12 @@ export default function AnnualEvaluationCycle() {
               <CheckCircle2 className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{completed}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {completed}
+                <span className="text-sm font-normal text-muted-foreground ml-1">
+                  ({progressPercentage}%)
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>

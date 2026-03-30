@@ -40,6 +40,7 @@ import {
   Eye,
   CheckCircle2,
   Clock,
+  UserCheck,
 } from 'lucide-react';
 import {
   useAnnualEvaluationCycles,
@@ -180,43 +181,55 @@ export default function AnnualEvaluations() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Bil. Dijawab (Pekerja)</CardTitle>
+                <CardTitle className="text-sm font-medium">Jumlah Kakitangan</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{evalStats?.total || 0}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Menunggu Kakitangan</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {(evalStats?.total || 0) - (evalStats?.staffSubmitted || 0)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {evalStats?.staffSubmitted || 0} / {evalStats?.total || 0} dijawab
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Menunggu Penyelia</CardTitle>
+                <UserCheck className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {(evalStats?.staffSubmitted || 0) - (evalStats?.completed || 0)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {evalStats?.completed || 0} / {evalStats?.staffSubmitted || 0} disemak
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Selesai</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {evalStats?.staffSubmitted || 0}
+                  {evalStats?.completed || 0}
                   <span className="text-sm font-normal text-muted-foreground ml-1">
-                    / {evalStats?.total || 0}
+                    ({evalStats?.total ? Math.round(((evalStats.completed || 0) / evalStats.total) * 100) : 0}%)
                   </span>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Bil. Disemak (Penyelia)</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {evalStats?.supervisorSubmitted || 0}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">
-                    / {evalStats?.total || 0}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Kakitangan Tanpa Penyelia</CardTitle>
-                <Users className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {staffWithoutSupervisors?.length || 0}
                 </div>
               </CardContent>
             </Card>
