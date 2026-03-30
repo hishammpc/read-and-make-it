@@ -45,8 +45,8 @@ export interface TextPosition {
 // Default positions (can be adjusted via test page)
 export const DEFAULT_POSITIONS: TextPosition = {
   employeeName: { x: 148.5, y: 99, fontSize: 30 },
-  programTitle: { x: 148.5, y: 128, fontSize: 20 },
-  dateRange: { x: 148.5, y: 142.5, fontSize: 19 },
+  programTitle: { x: 148.5, y: 130.5, fontSize: 17 },
+  dateRange: { x: 148.5, y: 148.5, fontSize: 19 },
 };
 
 // Load font from URL and convert to base64
