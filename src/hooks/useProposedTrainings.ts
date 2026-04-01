@@ -21,6 +21,7 @@ export interface ProposedTraining {
     name: string;
     email: string;
     department: string | null;
+    position: string | null;
   };
 }
 
@@ -125,7 +126,7 @@ export function useProposedTrainingsList(year: number) {
         .from('proposed_trainings')
         .select(`
           *,
-          profiles:user_id(id, name, email, department)
+          profiles:user_id(id, name, email, department, position)
         `)
         .eq('year', year)
         .order('created_at', { ascending: false });

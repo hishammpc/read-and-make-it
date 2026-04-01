@@ -31,6 +31,7 @@ import {
   CalendarIcon,
   Trash2,
   Save,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -122,6 +123,38 @@ export default function ProposedTrainings() {
   const totalProposals = proposals?.length || 0;
   const entertainedCount = proposals?.filter((p) => p.is_entertained).length || 0;
 
+  const handleDownloadCSV = () => {
+    if (!proposals || proposals.length === 0) return;
+
+    const headers = ['Nama', 'Emel', 'Jawatan', 'Jabatan', 'Cadangan 1', 'Cadangan 1 Dilayan', 'Cadangan 2', 'Cadangan 2 Dilayan', 'Tarikh Hantar'];
+    const rows = proposals.map((p) => {
+      const profile = p.profiles as any;
+      return [
+        profile?.name || '',
+        profile?.email || '',
+        profile?.position || '',
+        profile?.department || '',
+        p.proposal_1 || '',
+        p.proposal_1_entertained ? 'Ya' : 'Tidak',
+        p.proposal_2 || '',
+        p.proposal_2_entertained ? 'Ya' : 'Tidak',
+        p.created_at ? format(new Date(p.created_at), 'dd/MM/yyyy') : '',
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Cadangan_Latihan_${selectedYear}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -142,21 +175,32 @@ export default function ProposedTrainings() {
               </p>
             </div>
           </div>
-          <Select
-            value={selectedYear.toString()}
-            onValueChange={(value) => setSelectedYear(parseInt(value))}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadCSV}
+              disabled={!proposals || proposals.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Muat Turun CSV
+            </Button>
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(value) => setSelectedYear(parseInt(value))}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Proposal Period Settings */}
