@@ -35,7 +35,6 @@ export async function loginWithEmailOnly(email: string): Promise<{
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check if user exists in profiles table and get their role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
@@ -45,7 +44,7 @@ export async function loginWithEmailOnly(email: string): Promise<{
         status,
         user_roles!inner(role)
       `)
-      .eq('email', cleanEmail)
+      .ilike('email', cleanEmail)
       .eq('status', 'active')
       .maybeSingle();
 
@@ -222,7 +221,7 @@ export async function checkEmailExists(email: string): Promise<boolean> {
     const { data, error } = await supabase
       .from('profiles')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', email.toLowerCase().trim())
       .eq('status', 'active')
       .maybeSingle();
 

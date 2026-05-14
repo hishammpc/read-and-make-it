@@ -148,7 +148,7 @@ export function useCreateUser() {
         .insert({
           id: userId,
           name: input.name,
-          email: input.email,
+          email: input.email.toLowerCase().trim(),
           department: input.department || null,
           grade: input.grade || null,
           position: input.position || null,
