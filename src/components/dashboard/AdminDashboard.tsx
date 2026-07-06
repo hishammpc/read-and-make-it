@@ -138,7 +138,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.totalParticipants}</div>
-                  <p className="text-xs text-muted-foreground">Unique users</p>
+                  <p className="text-xs text-muted-foreground">{stats.uniqueUsers} unique users</p>
                 </CardContent>
               </Card>
 

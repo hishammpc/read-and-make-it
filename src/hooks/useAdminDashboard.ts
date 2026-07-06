@@ -43,7 +43,8 @@ export interface LeaderboardEntry {
 export interface EnhancedDashboardStats {
   // Basic KPIs
   totalPrograms: number;
-  totalParticipants: number;
+  totalParticipants: number; // Total participations across all programs (seats filled)
+  uniqueUsers: number;       // Distinct employees who attended >= 1 program
   totalHours: number;
   compliancePercentage: number;
 
@@ -117,6 +118,10 @@ export function useEnhancedAdminDashboard(year?: number) {
       );
 
       // === Calculate Basic KPIs ===
+      // Total participations = one count per (user x program) seat filled.
+      const totalParticipations = (assignments || []).length;
+      // Unique users = distinct employees (bounded by headcount); used for the
+      // compliance target below and shown as the card subtitle.
       const uniqueParticipants = new Set((assignments || []).map((a: any) => a.user_id)).size;
       const totalHours = (assignments || []).reduce(
         (sum: number, a: any) => sum + (a.programs?.hours || 0), 0
@@ -295,7 +300,8 @@ export function useEnhancedAdminDashboard(year?: number) {
 
       return {
         totalPrograms: programs?.length || 0,
-        totalParticipants: uniqueParticipants,
+        totalParticipants: totalParticipations,
+        uniqueUsers: uniqueParticipants,
         totalHours,
         compliancePercentage,
         upcomingPrograms: upcomingPrograms || [],
