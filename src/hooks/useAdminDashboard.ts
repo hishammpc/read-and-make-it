@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAllRows';
+import { parseDateSafe } from '@/lib/dateUtils';
 
 export interface DepartmentCompliance {
   department: string;
@@ -70,44 +72,49 @@ export function useEnhancedAdminDashboard(year?: number) {
       const startOfYear = `${selectedYear}-01-01`;
       const endOfYear = `${selectedYear}-12-31`;
 
-      // Get all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, department');
+      // Get all profiles (paginated to bypass the 1000-row cap)
+      const profiles = await fetchAllRows((from, to) =>
+        supabase
+          .from('profiles')
+          .select('id, name, department')
+          .range(from, to)
+      );
 
-      if (profilesError) throw profilesError;
+      // Get all programs this year (paginated)
+      const programs = await fetchAllRows((from, to) =>
+        supabase
+          .from('programs')
+          .select('id, title, hours, start_date_time, end_date_time, category')
+          .gte('start_date_time', startOfYear)
+          .lte('start_date_time', endOfYear)
+          .range(from, to)
+      );
 
-      // Get all programs this year
-      const { data: programs, error: programsError } = await supabase
-        .from('programs')
-        .select('id, title, hours, start_date_time, end_date_time, category')
-        .gte('start_date_time', startOfYear)
-        .lte('start_date_time', endOfYear);
+      // Get all assignments with program data (paginated — this is the set that
+      // feeds hours, participants, monthly trend, department compliance & leaderboard)
+      const assignments = await fetchAllRows((from, to) =>
+        supabase
+          .from('program_assignments')
+          .select(`
+            user_id,
+            program_id,
+            status,
+            programs!inner(hours, end_date_time, start_date_time)
+          `)
+          .gte('programs.end_date_time', startOfYear)
+          .lte('programs.end_date_time', endOfYear)
+          .range(from, to)
+      );
 
-      if (programsError) throw programsError;
-
-      // Get all assignments with program data
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from('program_assignments')
-        .select(`
-          user_id,
-          program_id,
-          status,
-          programs!inner(hours, end_date_time, start_date_time)
-        `)
-        .gte('programs.end_date_time', startOfYear)
-        .lte('programs.end_date_time', endOfYear);
-
-      if (assignmentsError) throw assignmentsError;
-
-      // Get all evaluations for this year
-      const { data: evaluations, error: evaluationsError } = await supabase
-        .from('evaluations')
-        .select('*')
-        .gte('submitted_at', startOfYear)
-        .lte('submitted_at', endOfYear);
-
-      if (evaluationsError) throw evaluationsError;
+      // Get all evaluations for this year (paginated)
+      const evaluations = await fetchAllRows((from, to) =>
+        supabase
+          .from('evaluations')
+          .select('*')
+          .gte('submitted_at', startOfYear)
+          .lte('submitted_at', endOfYear)
+          .range(from, to)
+      );
 
       // === Calculate Basic KPIs ===
       const uniqueParticipants = new Set((assignments || []).map((a: any) => a.user_id)).size;
@@ -157,8 +164,12 @@ export function useEnhancedAdminDashboard(year?: number) {
       }
 
       (assignments || []).forEach((assignment: any) => {
-        const endDate = new Date(assignment.programs?.end_date_time);
-        const month = endDate.getMonth() + 1;
+        const rawEnd = assignment.programs?.end_date_time;
+        if (!rawEnd) return;
+        // Use the timezone-safe parser so a program is bucketed into the month
+        // the admin actually sees (not shifted by the browser's timezone).
+        const month = parseDateSafe(rawEnd).getMonth() + 1;
+        if (Number.isNaN(month) || month < 1 || month > 12) return;
         monthlyData[month].hours += assignment.programs?.hours || 0;
         monthlyData[month].programs.add(assignment.program_id);
       });
@@ -264,9 +275,12 @@ export function useEnhancedAdminDashboard(year?: number) {
       }
 
       // === Available Years ===
-      const { data: allPrograms } = await supabase
-        .from('programs')
-        .select('start_date_time');
+      const allPrograms = await fetchAllRows((from, to) =>
+        supabase
+          .from('programs')
+          .select('start_date_time')
+          .range(from, to)
+      );
 
       const yearsSet = new Set<number>();
       yearsSet.add(new Date().getFullYear());

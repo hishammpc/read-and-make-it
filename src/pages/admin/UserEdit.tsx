@@ -52,6 +52,7 @@ export default function UserEdit() {
         id,
         updates: {
           name: values.name,
+          email: values.email.toLowerCase().trim(),
           position: values.position,
         },
       });

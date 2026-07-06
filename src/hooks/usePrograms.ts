@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export interface Program {
   id: string;
@@ -169,16 +170,18 @@ export function useProgramsWithStats() {
   return useQuery({
     queryKey: ['programs-with-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('programs')
-        .select(`
-          *,
-          program_assignments(count)
-        `)
-        .order('start_date_time', { ascending: false });
-
-      if (error) throw error;
-      return data;
+      // Paginated to bypass the 1000-row cap (each program's participant count
+      // rides along via the aggregate embed).
+      return await fetchAllRows((from, to) =>
+        supabase
+          .from('programs')
+          .select(`
+            *,
+            program_assignments(count)
+          `)
+          .order('start_date_time', { ascending: false })
+          .range(from, to)
+      );
     },
   });
 }

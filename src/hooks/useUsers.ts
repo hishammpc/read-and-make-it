@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export interface Profile {
   id: string;
@@ -26,6 +27,7 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   name?: string;
+  email?: string;
   department?: string;
   grade?: string;
   position?: string;
@@ -58,16 +60,17 @@ export function useUsersWithTrainingHours(
   return useQuery({
     queryKey: ['users-with-training-hours', year, fromMonth, toMonth],
     queryFn: async () => {
-      // Fetch all users
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          user_roles(role)
-        `)
-        .order('name', { ascending: true });
-
-      if (usersError) throw usersError;
+      // Fetch all users (paginated to bypass the 1000-row cap)
+      const users = await fetchAllRows((from, to) =>
+        supabase
+          .from('profiles')
+          .select(`
+            *,
+            user_roles(role)
+          `)
+          .order('name', { ascending: true })
+          .range(from, to)
+      );
 
       // Create a map of user IDs to names for supervisor lookup
       const userMap: Record<string, string> = {};
@@ -84,16 +87,17 @@ export function useUsersWithTrainingHours(
       const lastDay = new Date(year, endMonth, 0).getDate();
       const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
 
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from('program_assignments')
-        .select(`
-          user_id,
-          programs:program_id(hours, start_date_time)
-        `)
-        .gte('programs.start_date_time', startDate)
-        .lte('programs.start_date_time', endDate);
-
-      if (assignmentsError) throw assignmentsError;
+      const assignments = await fetchAllRows((from, to) =>
+        supabase
+          .from('program_assignments')
+          .select(`
+            user_id,
+            programs:program_id(hours, start_date_time)
+          `)
+          .gte('programs.start_date_time', startDate)
+          .lte('programs.start_date_time', endDate)
+          .range(from, to)
+      );
 
       // Calculate total hours per user
       const hoursMap: Record<string, number> = {};

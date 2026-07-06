@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadCSV } from '@/lib/csvUtils';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -144,34 +145,36 @@ export default function Reports() {
   };
 
   const generateTrainingHoursByUser = async (startDate: string, endDate: string): Promise<ReportData[]> => {
-    // Fetch all assignments (no status filter)
-    const { data: assignments, error } = await supabase
-      .from('program_assignments')
-      .select(`
-        id,
-        status,
-        user_id,
-        profiles:user_id (
+    // Fetch all assignments (no status filter, paginated to bypass the 1000-row cap)
+    const assignments = await fetchAllRows((from, to) =>
+      supabase
+        .from('program_assignments')
+        .select(`
           id,
-          name
-        ),
-        programs:program_id (
-          id,
-          title,
-          hours,
-          start_date_time,
-          end_date_time
-        )
-      `);
+          status,
+          user_id,
+          profiles:user_id (
+            id,
+            name
+          ),
+          programs:program_id (
+            id,
+            title,
+            hours,
+            start_date_time,
+            end_date_time
+          )
+        `)
+        .range(from, to)
+    );
 
-    if (error) throw error;
-
-    // Fetch all evaluations to check completion status
-    const { data: evaluations, error: evalError } = await supabase
-      .from('evaluations')
-      .select('user_id, program_id');
-
-    if (evalError) throw evalError;
+    // Fetch all evaluations to check completion status (paginated)
+    const evaluations = await fetchAllRows((from, to) =>
+      supabase
+        .from('evaluations')
+        .select('user_id, program_id')
+        .range(from, to)
+    );
 
     // Create a Set for quick lookup of completed evaluations
     const completedEvaluations = new Set(
@@ -209,21 +212,22 @@ export default function Reports() {
   };
 
   const generateProgramList = async (startDate: string, endDate: string): Promise<ReportData[]> => {
-    const { data: programs, error } = await supabase
-      .from('programs')
-      .select(`
-        id,
-        title,
-        hours,
-        start_date_time,
-        end_date_time,
-        program_assignments(count)
-      `)
-      .gte('start_date_time', startDate)
-      .lte('start_date_time', endDate)
-      .order('start_date_time', { ascending: false });
-
-    if (error) throw error;
+    const programs = await fetchAllRows((from, to) =>
+      supabase
+        .from('programs')
+        .select(`
+          id,
+          title,
+          hours,
+          start_date_time,
+          end_date_time,
+          program_assignments(count)
+        `)
+        .gte('start_date_time', startDate)
+        .lte('start_date_time', endDate)
+        .order('start_date_time', { ascending: false })
+        .range(from, to)
+    );
 
     return programs?.map((program: any) => {
       const participants = program.program_assignments?.[0]?.count || 0;
@@ -244,26 +248,27 @@ export default function Reports() {
     const startDate = `${fromYear}-01-01T00:00:00`;
     const endDate = `${toYearParam}-12-31T23:59:59`;
 
-    const { data: assignments, error } = await supabase
-      .from('program_assignments')
-      .select(`
-        id,
-        profiles:user_id (
-          name,
-          position
-        ),
-        programs:program_id (
+    const assignments = await fetchAllRows((from, to) =>
+      supabase
+        .from('program_assignments')
+        .select(`
           id,
-          title,
-          training_type,
-          location,
-          start_date_time,
-          end_date_time
-        )
-      `)
-      .eq('programs.training_type', 'International');
-
-    if (error) throw error;
+          profiles:user_id (
+            name,
+            position
+          ),
+          programs:program_id (
+            id,
+            title,
+            training_type,
+            location,
+            start_date_time,
+            end_date_time
+          )
+        `)
+        .eq('programs.training_type', 'International')
+        .range(from, to)
+    );
 
     const result: ReportData[] = [];
 

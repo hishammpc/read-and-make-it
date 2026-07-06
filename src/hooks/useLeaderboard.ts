@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -26,24 +27,27 @@ export function useLeaderboard(currentUserId: string, year?: number) {
       const startOfYear = `${selectedYear}-01-01`;
       const endOfYear = `${selectedYear}-12-31`;
 
-      // Get all profiles first
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, name, department');
+      // Get all profiles first (paginated to bypass the 1000-row cap)
+      const profiles = await fetchAllRows((from, to) =>
+        supabase
+          .from('profiles')
+          .select('id, name, department')
+          .range(from, to)
+      );
 
-      if (profilesError) throw profilesError;
-
-      // Get all assignments with program hours for current year
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from('program_assignments')
-        .select(`
-          user_id,
-          programs!inner(hours, end_date_time)
-        `)
-        .gte('programs.end_date_time', startOfYear)
-        .lte('programs.end_date_time', endOfYear);
-
-      if (assignmentsError) throw assignmentsError;
+      // Get all assignments with program hours for current year (paginated —
+      // without this the leaderboard sums a truncated set and undercounts hours)
+      const assignments = await fetchAllRows((from, to) =>
+        supabase
+          .from('program_assignments')
+          .select(`
+            user_id,
+            programs!inner(hours, end_date_time)
+          `)
+          .gte('programs.end_date_time', startOfYear)
+          .lte('programs.end_date_time', endOfYear)
+          .range(from, to)
+      );
 
       // Aggregate hours by user
       const hoursByUser: Record<string, number> = {};
