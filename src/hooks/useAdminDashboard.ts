@@ -164,11 +164,13 @@ export function useEnhancedAdminDashboard(year?: number) {
       }
 
       (assignments || []).forEach((assignment: any) => {
-        const rawEnd = assignment.programs?.end_date_time;
-        if (!rawEnd) return;
-        // Use the timezone-safe parser so a program is bucketed into the month
-        // the admin actually sees (not shifted by the browser's timezone).
-        const month = parseDateSafe(rawEnd).getMonth() + 1;
+        // Bucket by START date so a program that spans a month boundary
+        // (e.g. starts 31 Mar, ends 1 Apr) counts in the month it was held —
+        // matching admin expectation and useUsersWithTrainingHours. Use the
+        // timezone-safe parser so the month isn't shifted by the browser's TZ.
+        const rawStart = assignment.programs?.start_date_time;
+        if (!rawStart) return;
+        const month = parseDateSafe(rawStart).getMonth() + 1;
         if (Number.isNaN(month) || month < 1 || month > 12) return;
         monthlyData[month].hours += assignment.programs?.hours || 0;
         monthlyData[month].programs.add(assignment.program_id);
