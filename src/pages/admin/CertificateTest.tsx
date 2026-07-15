@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateCertificate, DEFAULT_POSITIONS, TextPosition } from '@/lib/certificateGenerator';
+import { generateCertificate, DEFAULT_POSITIONS, TextPosition, formatMalaysianDateRange } from '@/lib/certificateGenerator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,26 +110,9 @@ export default function CertificateTest() {
     return isX ? (mm / 297) * 100 : (mm / 210) * 100;
   };
 
-  // Format date range for preview
-  const formatDateRange = () => {
-    const MALAY_MONTHS = [
-      'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun',
-      'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
-    ];
-    const start = new Date(formData.startDate);
-    const end = new Date(formData.endDate);
-
-    const startDay = start.getDate();
-    const endDay = end.getDate();
-    const startMonth = MALAY_MONTHS[start.getMonth()];
-    const endMonth = MALAY_MONTHS[end.getMonth()];
-    const year = start.getFullYear();
-
-    if (start.getMonth() === end.getMonth()) {
-      return `${startDay} - ${endDay} ${startMonth} ${year}`;
-    }
-    return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${year}`;
-  };
+  // Format date range for preview — reuse the generator's logic so the
+  // preview matches the PDF exactly (single-day vs range).
+  const formatDateRange = () => formatMalaysianDateRange(formData.startDate, formData.endDate);
 
   return (
     <div className="min-h-screen bg-background">
@@ -442,13 +425,15 @@ dateRange: { x: ${positions.dateRange.x}, y: ${positions.dateRange.y}, fontSize:
 
                     {/* Program Title */}
                     <div
-                      className="absolute text-green-600 font-bold text-center pointer-events-none px-4"
+                      className="absolute font-bold text-center pointer-events-none px-4"
                       style={{
                         left: `${mmToPercent(positions.programTitle.x, true)}%`,
                         top: `${mmToPercent(positions.programTitle.y, false)}%`,
                         transform: 'translate(-50%, -50%)',
                         fontSize: `${positions.programTitle.fontSize * 1.2}px`,
-                        maxWidth: '80%',
+                        lineHeight: 1.5,
+                        maxWidth: '67%',
+                        color: '#800020',
                       }}
                     >
                       {formData.programTitle}
@@ -456,8 +441,9 @@ dateRange: { x: ${positions.dateRange.x}, y: ${positions.dateRange.y}, fontSize:
 
                     {/* Date Range */}
                     <div
-                      className="absolute text-orange-600 whitespace-nowrap pointer-events-none"
+                      className="absolute whitespace-nowrap pointer-events-none"
                       style={{
+                        color: '#800020',
                         left: `${mmToPercent(positions.dateRange.x, true)}%`,
                         top: `${mmToPercent(positions.dateRange.y, false)}%`,
                         transform: 'translate(-50%, -50%)',
@@ -476,8 +462,8 @@ dateRange: { x: ${positions.dateRange.x}, y: ${positions.dateRange.y}, fontSize:
                 </p>
                 <div className="flex gap-2 text-xs">
                   <span className="text-blue-600">■ Name</span>
-                  <span className="text-green-600">■ Title</span>
-                  <span className="text-orange-600">■ Date</span>
+                  <span style={{ color: '#800020' }}>■ Title (maroon)</span>
+                  <span style={{ color: '#800020' }}>■ Date (maroon)</span>
                 </div>
               </div>
             </CardContent>

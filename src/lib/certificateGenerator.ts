@@ -5,9 +5,13 @@ const MALAY_MONTHS = [
   'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
 ];
 
-function formatMalaysianDateRange(startDate: string, endDate: string): string {
+function formatSingleDate(date: Date): string {
+  return `${date.getDate()} ${MALAY_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+export function formatMalaysianDateRange(startDate: string, endDate?: string): string {
   const start = new Date(startDate);
-  const end = new Date(endDate);
+  const end = endDate ? new Date(endDate) : start;
 
   const startDay = start.getDate();
   const startMonth = MALAY_MONTHS[start.getMonth()];
@@ -17,6 +21,14 @@ function formatMalaysianDateRange(startDate: string, endDate: string): string {
   const endMonth = MALAY_MONTHS[end.getMonth()];
   const endYear = end.getFullYear();
 
+  // Single day (same date) — no range dash, e.g. "15 Oktober 2026"
+  if (
+    startYear === endYear &&
+    start.getMonth() === end.getMonth() &&
+    startDay === endDay
+  ) {
+    return formatSingleDate(start);
+  }
   // Same month and year
   if (start.getMonth() === end.getMonth() && startYear === endYear) {
     return `${startDay} - ${endDay} ${startMonth} ${startYear}`;
@@ -42,11 +54,16 @@ export interface TextPosition {
   dateRange: { x: number; y: number; fontSize: number };
 }
 
-// Default positions (can be adjusted via test page)
+// MPC brand maroon — used for program title & date
+export const MPC_MAROON: [number, number, number] = [128, 0, 32];
+
+// Default positions (can be adjusted via test page).
+// Tuned for the signature-free template, so the program title has room to
+// wrap to 2-3 lines with a clear gap before the date.
 export const DEFAULT_POSITIONS: TextPosition = {
-  employeeName: { x: 148.5, y: 99, fontSize: 30 },
-  programTitle: { x: 148.5, y: 130.5, fontSize: 17 },
-  dateRange: { x: 148.5, y: 148.5, fontSize: 19 },
+  employeeName: { x: 148.5, y: 101, fontSize: 30 },
+  programTitle: { x: 148.5, y: 140, fontSize: 20 },
+  dateRange: { x: 148.5, y: 168, fontSize: 18 },
 };
 
 // Load font from URL and convert to base64
@@ -122,15 +139,20 @@ export async function generateCertificate(
     doc.setFont('helvetica', 'bold');
   }
   doc.setFontSize(positions.programTitle.fontSize);
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(...MPC_MAROON);
 
-  const maxWidth = pageWidth - 60; // Leave margins
+  const maxWidth = 200; // mm — wide enough to use the empty space, wraps long titles to 2-3 lines
   const splitTitle = doc.splitTextToSize(programTitle, maxWidth);
-  let yPosition = positions.programTitle.y;
+
+  // 1.5 line spacing (pt -> mm: pt * 0.3528 * 1.5). Center the block on the
+  // anchor Y so 1-, 2- or 3-line titles stay balanced.
+  const lineHeight = positions.programTitle.fontSize * 0.53;
+  const blockHeight = (splitTitle.length - 1) * lineHeight;
+  let yPosition = positions.programTitle.y - blockHeight / 2;
 
   splitTitle.forEach((line: string) => {
     doc.text(line, positions.programTitle.x, yPosition, { align: 'center' });
-    yPosition += positions.programTitle.fontSize * 0.4;
+    yPosition += lineHeight;
   });
 
   // Add Date Range - use Georgia Pro Regular for dates
@@ -140,7 +162,7 @@ export async function generateCertificate(
     doc.setFont('helvetica', 'normal');
   }
   doc.setFontSize(positions.dateRange.fontSize);
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(...MPC_MAROON);
   const dateRange = formatMalaysianDateRange(startDate, endDate);
   doc.text(dateRange, positions.dateRange.x, positions.dateRange.y, { align: 'center' });
 
