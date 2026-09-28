@@ -106,7 +106,7 @@ Vite doesn't typecheck, so all of these ship.
 ## Phases (verify each: build + tsc + Hazman eyeballs on dev server)
 - [x] **P1 Foundation (global, low risk)** — font; colour tokens + status tokens in `index.css`/tailwind; light by default (dark off until P5); `index.html` title/meta/`lang="ms"`; delete `App.css`; button/card/input polish (transitions, press feedback, focus rings, radius scale); `tabular-nums` utility.
 - [x] **P2 Shell** — one shared `AppShell` for Admin + Employee layouts (grouped nav, red active marker, user menu with sign-out, `<Link>` logo, mobile drawer); login, admin login and PIN screens redesigned.
-- [ ] **P3 Shared components** — `PageHeader`, `StatCard`, `StatusBadge` (single source for every status → colour/label), `EmptyState`, `LoadingState`; roll out dashboards first, then lists, then forms. Replace `alert()`.
+- [x] **P3 Shared components** — `PageHeader`, `StatCard`, `StatusBadge` (single source for every status → colour/label), `EmptyState`, `LoadingState`; roll out dashboards first, then lists, then forms. Replace `alert()`.
 - [ ] **P4 Charts + a11y** — one `RadarScoreChart` on theme tokens (load dataviz skill first); progress/compliance colours from tokens; aria-labels, keyboard-accessible rows/cards, label `htmlFor`, mobile-stacking headers/filters.
 - [ ] **P5 (optional)** — language standardisation pass; re-enable dark mode properly with a visible toggle.
 
@@ -117,3 +117,17 @@ Vite doesn't typecheck, so all of these ship.
 - Dark mode: **wanted** → proper tokens + Light/Dark/System switch. Default light until every page is converted, then consider System.
 
 Phase changes: i18n infrastructure + switch lands in P2 (shell); pages are translated as they are restyled in P3/P4. P5 = flip default to System once all pages are dark-safe.
+
+## Review — UI phase 3 (2026-09-28)
+- Shared `components/common/*` + `lib/status.ts` + per-area `i18n/sections/*`; ProgramsList converted as the reference, then 4 parallel passes (dashboards, admin training, admin staff/annual/reports, staff pages). ~45 files; every page on PageHeader / StatCard / StatusBadge / EmptyState / PageSkeleton / ErrorState and translated BM/EN.
+- Raw palette classes ~730 → only intentional ones (auth panel, dark-mode logo chip), the unused `components/certificates/CertificateUpload.tsx`, and the 5 Recharts charts (P4).
+- `alert()` → toasts; "Tutup kitaran" now confirms; admin dashboard/leaderboard/staff dashboard keep previous year on screen while a new year loads; Badge renders `<span>`.
+- **Bugs fixed on the way:** admin evaluation summary still used the retired 9-question form (q6 is now a text comment; divided by 9 → capped ~1.67/3) — now q1–q5 with current labels and a pooled overall; UsersList sorted the React Query cache in place; create-cycle rejection unhandled; template create/edit `<SelectItem value="">` (Radix throws → page crash); template builder remove buttons submitted the form.
+- **Verified:** build ✅, tsc 121 → 112 (all remaining = stale types / pre-existing), lint errors 169 → 159, all 56 changed modules compile in dev. Not seen rendered by me.
+- **Noticed, left for later:** N success toasts when uploading one certificate to N staff (hook); "Upload another" doesn't reset the file input; EvaluationForm program query `.single()` retries 3× before "not found"; MyAnnualEvaluation shows only a header when a closed cycle is still `pending_staff`; hook toasts (useUsers, useAnnualEvaluations, useBulkImport…) still English/BM-only; `useUserSupervisor` fetched but unused on staff dashboard; BulkUserImport not linked anywhere.
+
+## P4 scope additions
+- One `RadarScoreChart` (4 copies) + ProgramDetails chart on tokens (load dataviz skill first); tooltip `bg-white`.
+- Promote local copies to shared: `ScoreCard` (3 files), `Callout` / notice banner (dashboard, MyAnnualEvaluation, Attendance, CertificateUpload), 5-level rating option (2 files); StatCard `active`/`aria-pressed` for filter toggles; `t.common.unknown`.
+- Delete unused `@keyframes pulse-glow`, `components/certificates/CertificateUpload.tsx`, `lib/calculations.ts`.
+- Translate hook toasts.

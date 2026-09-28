@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Question {
   id: string;
@@ -26,20 +27,17 @@ interface EvaluationQuestionRendererProps {
   index: number;
 }
 
-const LIKERT_OPTIONS = [
-  { value: '1', label: 'Strongly Disagree' },
-  { value: '2', label: 'Disagree' },
-  { value: '3', label: 'Neutral' },
-  { value: '4', label: 'Agree' },
-  { value: '5', label: 'Strongly Agree' },
-];
+const LIKERT_VALUES = ['1', '2', '3', '4', '5'];
 
 export function EvaluationQuestionRenderer({
   question,
   control,
   index,
 }: EvaluationQuestionRendererProps) {
+  const { t } = useLanguage();
+  const tr = t.adminTraining.templates.renderer;
   const fieldName = `q${index}`;
+  const likertOptions = LIKERT_VALUES.map((value, i) => ({ value, label: tr.likert[i] }));
 
   const renderQuestionInput = (field: any) => {
     switch (question.type) {
@@ -50,7 +48,7 @@ export function EvaluationQuestionRenderer({
             value={field.value}
             className="flex flex-col space-y-2"
           >
-            {LIKERT_OPTIONS.map((option) => (
+            {likertOptions.map((option) => (
               <div key={option.value} className="flex items-center space-x-2">
                 <RadioGroupItem value={option.value} id={`${fieldName}-${option.value}`} />
                 <Label
@@ -117,7 +115,7 @@ export function EvaluationQuestionRenderer({
         return (
           <Textarea
             {...field}
-            placeholder="Enter your response..."
+            placeholder={tr.textPlaceholder}
             className="min-h-[100px]"
           />
         );
@@ -132,15 +130,15 @@ export function EvaluationQuestionRenderer({
       control={control}
       name={fieldName}
       rules={{
-        required: question.required ? 'This field is required' : false,
+        required: question.required ? tr.fieldRequired : false,
         validate: (value) => {
           if (!question.required) return true;
           if (question.type === 'checkbox') {
             return Array.isArray(value) && value.length > 0
               ? true
-              : 'Please select at least one option';
+              : tr.selectAtLeastOne;
           }
-          return value ? true : 'This field is required';
+          return value ? true : tr.fieldRequired;
         },
       }}
       render={({ field }) => (

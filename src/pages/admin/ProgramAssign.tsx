@@ -4,7 +4,13 @@ import { useProgram } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
 import { useProgramAssignments, useAssignUsersToProgram, useRemoveAssignment } from '@/hooks/useAssignments';
 import { formatDateTime } from '@/lib/dateUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,19 +50,20 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  ArrowLeft,
   Calendar,
   Tag,
   UserPlus,
   Users,
   X,
-  AlertCircle,
   Loader2,
-  Search,
+  SearchX,
 } from 'lucide-react';
 
 export default function ProgramAssign() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const ta = t.adminTraining.assign;
+  const ts = t.adminTraining.shared;
   const { id } = useParams<{ id: string }>();
   const { data: program, isLoading: programLoading, error: programError } = useProgram(id!);
   const { data: users, isLoading: usersLoading } = useUsers();
@@ -156,30 +163,8 @@ export default function ProgramAssign() {
   if (programError) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/dashboard/programs/${id}`)}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Assign Users to Program</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="w-5 h-5" />
-                <div>
-                  <h3 className="font-semibold">Error Loading Program</h3>
-                  <p className="text-sm text-muted-foreground">{programError.message}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <PageHeader title={ta.title} backTo={`/dashboard/programs/${id}`} />
+        <ErrorState message={programError.message} />
       </AdminLayout>
     );
   }
@@ -187,30 +172,7 @@ export default function ProgramAssign() {
   if (programLoading || usersLoading) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div>
-                <Skeleton className="h-9 w-64 mb-2" />
-                <Skeleton className="h-5 w-48" />
-              </div>
-            </div>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-        </div>
+        <PageSkeleton variant="detail" />
       </AdminLayout>
     );
   }
@@ -218,67 +180,44 @@ export default function ProgramAssign() {
   if (!program) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
+        <PageHeader title={ta.title} backTo="/dashboard/programs" />
+        <EmptyState
+          icon={SearchX}
+          title={ts.programNotFoundTitle}
+          description={ts.programNotFoundDescription}
+          action={
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/programs')}>
+              {ts.backToPrograms}
             </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Assign Users to Program</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">Program not found.</p>
-            </CardContent>
-          </Card>
-        </div>
+          }
+        />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/dashboard/programs/${id}`)}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Assign Users to Program</h1>
-            <p className="text-muted-foreground">Add employees to this training program</p>
-          </div>
-        </div>
+      <PageHeader title={ta.title} description={ta.description} backTo={`/dashboard/programs/${id}`} />
 
+      <div className="space-y-6">
         {/* Program Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Program Information</CardTitle>
+            <CardTitle>{program.title}</CardTitle>
+            {program.description && <CardDescription>{program.description}</CardDescription>}
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">{program.title}</h3>
-                <p className="text-sm text-muted-foreground">{program.description}</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <span>{formatDateTime(program.start_date_time)}</span>
               </div>
-              <div className="flex flex-wrap gap-4 text-sm">
+              {program.category && (
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span>{formatDateTime(program.start_date_time)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-muted-foreground" />
+                  <Tag className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Badge variant="outline">{program.category}</Badge>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -286,45 +225,40 @@ export default function ProgramAssign() {
         {/* Select Users */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1.5">
                 <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="w-5 h-5" />
-                  Select Employees
+                  <UserPlus className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  {ta.selectTitle}
                 </CardTitle>
-                <CardDescription>
-                  Search and select employees to assign to this program
-                </CardDescription>
+                <CardDescription>{ta.selectDescription}</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filter by department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-full sm:w-56" aria-label={t.common.department}>
+                  <SelectValue placeholder={ta.allDepartments} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{ta.allDepartments}</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
-            <Command className="border rounded-lg" shouldFilter={false}>
+            <Command className="rounded-lg border" shouldFilter={false}>
               <CommandInput
-                placeholder="Search employees by name, email, or department..."
+                placeholder={ta.searchPlaceholder}
+                aria-label={t.common.search}
                 value={searchQuery}
                 onValueChange={setSearchQuery}
               />
               <CommandList>
                 <CommandEmpty>
-                  {availableUsers.length === 0
-                    ? 'All active employees have been assigned to this program.'
-                    : 'No employees found matching your search.'}
+                  {availableUsers.length === 0 ? ta.allAssigned : ta.noMatch}
                 </CommandEmpty>
                 <CommandGroup>
                   {filteredUsers.map((user: any) => (
@@ -337,8 +271,9 @@ export default function ProgramAssign() {
                       <Checkbox
                         checked={selectedUserIds.includes(user.id)}
                         onCheckedChange={() => toggleUserSelection(user.id)}
+                        aria-label={user.name}
                       />
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <div className="font-medium">{user.name}</div>
                         <div className="text-sm text-muted-foreground">
                           {user.email} {user.department && `• ${user.department}`}
@@ -351,28 +286,21 @@ export default function ProgramAssign() {
             </Command>
 
             {selectedUserIds.length > 0 && (
-              <div className="mt-4 p-4 bg-muted rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">
-                    {selectedUserIds.length} employee(s) selected
-                  </div>
-                  <Button
-                    onClick={handleAssignUsers}
-                    disabled={assignUsers.isPending}
-                  >
-                    {assignUsers.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Assigning...
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Assign Selected Users
-                      </>
-                    )}
-                  </Button>
-                </div>
+              <div className="mt-4 flex flex-col gap-3 rounded-lg bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm font-medium">{ta.selectedCount(selectedUserIds.length)}</div>
+                <Button onClick={handleAssignUsers} disabled={assignUsers.isPending}>
+                  {assignUsers.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {ta.assigning}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      {ta.assignSelected}
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </CardContent>
@@ -381,69 +309,60 @@ export default function ProgramAssign() {
         {/* Already Assigned Employees */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Assigned Employees
-                </CardTitle>
-                <CardDescription>
-                  {assignments?.length || 0} employee(s) currently assigned to this program
-                </CardDescription>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              {ts.assignedStaff}
+            </CardTitle>
+            <CardDescription>{ts.assignedCount(assignments?.length || 0)}</CardDescription>
           </CardHeader>
           <CardContent>
             {assignmentsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
               </div>
             ) : !assignments || assignments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No employees assigned to this program yet.
-              </div>
+              <EmptyState
+                compact
+                icon={Users}
+                title={ts.noAssignedTitle}
+                description={ts.noAssignedDescription}
+              />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t.common.name}</TableHead>
+                    <TableHead>{t.common.email}</TableHead>
+                    <TableHead>{t.common.department}</TableHead>
+                    <TableHead>{t.common.status}</TableHead>
+                    <TableHead className="text-right">
+                      <span className="sr-only">{t.common.actions}</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {assignments.map((assignment: any) => (
                     <TableRow key={assignment.id}>
                       <TableCell className="font-medium">
-                        {assignment.profiles?.name || 'Unknown'}
+                        {assignment.profiles?.name || ts.unknown}
                       </TableCell>
                       <TableCell>{assignment.profiles?.email || '-'}</TableCell>
                       <TableCell>{assignment.profiles?.department || '-'}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            assignment.status === 'Attended'
-                              ? 'default'
-                              : assignment.status === 'No-Show'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {assignment.status}
-                        </Badge>
+                        <StatusBadge kind="assignment" status={assignment.status} />
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
                           onClick={() => handleRemoveAssignment(assignment.id)}
-                          title="Remove assignment"
+                          aria-label={ts.removeAssignment}
+                          title={ts.removeAssignment}
                         >
-                          <X className="w-4 h-4 text-destructive" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -459,19 +378,16 @@ export default function ProgramAssign() {
       <AlertDialog open={removeAssignmentDialogOpen} onOpenChange={setRemoveAssignmentDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this employee from the program?
-              This will delete their assignment record.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{ts.removeTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{ts.removeDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmRemoveAssignment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove Assignment
+              {ts.removeConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

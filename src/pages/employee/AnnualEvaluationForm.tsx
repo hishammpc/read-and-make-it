@@ -1,26 +1,30 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { ToneBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import {
-  ChevronLeft,
-  AlertCircle,
+  Info,
   CheckCircle2,
   Send,
+  SearchX,
 } from 'lucide-react';
 import { useMyAnnualEvaluation, useSubmitStaffEvaluation } from '@/hooks/useAnnualEvaluations';
-import { formatMalaysianDate } from '@/lib/dateUtils';
+import { getRatingLevelTone } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
-  RATING_LABELS,
   getQuestionsByCategory,
 } from '@/lib/annualEvaluationQuestions';
 
@@ -28,6 +32,9 @@ export default function AnnualEvaluationForm() {
   const navigate = useNavigate();
   const { cycleId } = useParams<{ cycleId: string }>();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const ta = t.employee.annual;
+  const tf = t.employee.annualForm;
   const { data: evaluation, isLoading, error } = useMyAnnualEvaluation(user?.userId || '', cycleId);
   const submitEvaluation = useSubmitStaffEvaluation();
 
@@ -36,10 +43,10 @@ export default function AnnualEvaluationForm() {
   if (error) {
     return (
       <EmployeeLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan penilaian: {(error as Error).message}</AlertDescription>
-        </Alert>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard" />
+          <ErrorState message={(error as Error).message} />
+        </div>
       </EmployeeLayout>
     );
   }
@@ -47,13 +54,7 @@ export default function AnnualEvaluationForm() {
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <Skeleton className="h-24" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-64" />
-          ))}
-        </div>
+        <PageSkeleton variant="form" />
       </EmployeeLayout>
     );
   }
@@ -61,10 +62,10 @@ export default function AnnualEvaluationForm() {
   if (!evaluation) {
     return (
       <EmployeeLayout>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Penilaian tidak dijumpai.</AlertDescription>
-        </Alert>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard" />
+          <EmptyState icon={SearchX} title={ta.notFoundTitle} description={ta.notFoundDescription} />
+        </div>
       </EmployeeLayout>
     );
   }
@@ -73,19 +74,19 @@ export default function AnnualEvaluationForm() {
   if (evaluation.status !== 'pending_staff') {
     return (
       <EmployeeLayout>
-        <Alert className="bg-green-50 border-green-200">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-700">
-            Penilaian kendiri anda telah dihantar.
-            <Button
-              variant="link"
-              className="ml-2 p-0 h-auto text-green-700"
-              onClick={() => navigate('/dashboard')}
-            >
-              Lihat status →
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard" />
+          <EmptyState
+            icon={CheckCircle2}
+            title={tf.submittedTitle}
+            description={tf.submittedDescription}
+            action={
+              <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                {tf.viewStatus}
+              </Button>
+            }
+          />
+        </div>
       </EmployeeLayout>
     );
   }
@@ -117,71 +118,62 @@ export default function AnnualEvaluationForm() {
   const allAnswered = answeredCount === totalQuestions;
 
   const questionsByCategory = getQuestionsByCategory();
+  const supervisorName = (evaluation.supervisor as any)?.name;
 
   return (
     <EmployeeLayout>
-      <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/dashboard')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Penilaian Kendiri Tahunan
-            </h1>
-            <p className="text-muted-foreground font-bold">
-              Tahun {(evaluation.cycle as any)?.year}
-            </p>
-            {(evaluation.supervisor as any)?.name && (
-              <p className="text-sm text-muted-foreground">
-                Penyelia: <span className="font-bold">{(evaluation.supervisor as any).name}</span>
-              </p>
-            )}
-          </div>
-        </div>
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader
+          className="mb-0"
+          title={tf.title}
+          description={
+            <>
+              {ta.year((evaluation.cycle as any)?.year)}
+              {supervisorName && (
+                <>
+                  {' · '}
+                  {t.common.supervisor}: <span className="font-medium text-foreground">{supervisorName}</span>
+                </>
+              )}
+            </>
+          }
+          backTo="/dashboard"
+        />
 
-        {/* Progress Card */}
+        {/* Progress */}
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Kemajuan</span>
-                <span className="font-medium">{answeredCount}/{totalQuestions} soalan</span>
+                <span className="text-muted-foreground">{ta.progress}</span>
+                <span className="font-medium tabular-nums">{ta.answeredOf(answeredCount, totalQuestions)}</span>
               </div>
-              <Progress value={progressPercentage} className="h-2" />
+              <Progress value={progressPercentage} aria-label={ta.progress} className="h-2" />
             </div>
           </CardContent>
         </Card>
 
         {/* Instructions */}
         <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Sila jawab semua {totalQuestions} soalan berdasarkan penilaian kendiri anda.
-            Pilih tahap yang paling sesuai dengan kemampuan anda.
-          </AlertDescription>
+          <Info className="h-4 w-4" />
+          <AlertDescription>{tf.instructions(totalQuestions)}</AlertDescription>
         </Alert>
 
-        {/* Questions by Category */}
+        {/* Questions by category (official BM content) */}
         {Object.entries(questionsByCategory).map(([category, questions]) => (
           <Card key={category}>
             <CardHeader>
               <CardTitle>{category}</CardTitle>
-              <CardDescription>{questions.length} soalan</CardDescription>
+              <CardDescription>{ta.questionCount(questions.length)}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               {questions.map((q, qIndex) => (
                 <div key={q.id} className="space-y-4">
                   <div className="border-b pb-4">
-                    <p className="font-medium text-lg">
+                    <p id={`${q.id}-label`} className="font-medium">
                       {q.categoryShort}{qIndex + 1}. {q.shortLabel}
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {q.question}
                     </p>
                   </div>
@@ -189,46 +181,33 @@ export default function AnnualEvaluationForm() {
                   <RadioGroup
                     value={answers[q.id]?.toString()}
                     onValueChange={(value) => handleAnswerChange(q.id, parseInt(value))}
+                    aria-labelledby={`${q.id}-label`}
                     className="space-y-3"
                   >
-                    {q.levels.map((level) => (
-                      <div
-                        key={level.tahap}
-                        className={`flex items-start space-x-3 p-4 rounded-lg border transition-colors ${
-                          answers[q.id] === level.tahap
-                            ? level.tahap === 5 ? 'border-green-500 bg-green-50' :
-                              level.tahap === 4 ? 'border-blue-500 bg-blue-50' :
-                              level.tahap === 3 ? 'border-yellow-500 bg-yellow-50' :
-                              level.tahap === 2 ? 'border-orange-500 bg-orange-50' :
-                              'border-red-500 bg-red-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <RadioGroupItem value={level.tahap.toString()} id={`${q.id}-${level.tahap}`} />
-                        <Label
-                          htmlFor={`${q.id}-${level.tahap}`}
-                          className="flex-1 cursor-pointer"
+                    {q.levels.map((level) => {
+                      const isSelected = answers[q.id] === level.tahap;
+                      return (
+                        <div
+                          key={level.tahap}
+                          className={cn(
+                            'flex items-start gap-3 rounded-lg border p-4 transition-colors',
+                            isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-accent'
+                          )}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge
-                              variant="outline"
-                              className={`${
-                                level.tahap === 5 ? 'bg-green-100 text-green-700 border-green-300' :
-                                level.tahap === 4 ? 'bg-blue-100 text-blue-700 border-blue-300' :
-                                level.tahap === 3 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' :
-                                level.tahap === 2 ? 'bg-orange-100 text-orange-700 border-orange-300' :
-                                'bg-red-100 text-red-700 border-red-300'
-                              }`}
-                            >
-                              Tahap {level.tahap}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {level.description}
-                          </p>
-                        </Label>
-                      </div>
-                    ))}
+                          <RadioGroupItem
+                            value={level.tahap.toString()}
+                            id={`${q.id}-${level.tahap}`}
+                            className="mt-0.5"
+                          />
+                          <Label htmlFor={`${q.id}-${level.tahap}`} className="flex-1 cursor-pointer font-normal leading-normal">
+                            <span className="mb-1 flex items-center gap-2">
+                              <ToneBadge tone={getRatingLevelTone(level.tahap)}>{ta.level(level.tahap)}</ToneBadge>
+                            </span>
+                            <span className="block text-sm text-muted-foreground">{level.description}</span>
+                          </Label>
+                        </div>
+                      );
+                    })}
                   </RadioGroup>
                 </div>
               ))}
@@ -236,27 +215,30 @@ export default function AnnualEvaluationForm() {
           </Card>
         ))}
 
-        {/* Submit Section */}
-        <Card className="sticky bottom-4 border-2 border-primary/20 bg-background/95 backdrop-blur">
+        {/* Submit */}
+        <Card className="sticky bottom-4 border-primary/20 bg-background/95 backdrop-blur">
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">
                   {allAnswered ? (
-                    <span className="text-green-600 flex items-center gap-2">
+                    <span className="flex items-center gap-2 text-success">
                       <CheckCircle2 className="h-4 w-4" />
-                      Semua soalan telah dijawab
+                      {ta.allAnswered}
                     </span>
                   ) : (
-                    <span className="text-orange-600">
-                      {totalQuestions - answeredCount} soalan belum dijawab
-                    </span>
+                    <span className="text-warning">{ta.remaining(totalQuestions - answeredCount)}</span>
                   )}
                 </p>
                 {allAnswered && (
-                  <p className="text-sm text-orange-600 mt-1">
-                    Sila maklumkan kepada penyelia anda setelah menghantar penilaian{' '}
-                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs font-bold animate-pulse">!</span>
+                  <p className="mt-1 flex items-center gap-2 text-sm text-warning-soft-foreground">
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex h-4 w-4 shrink-0 animate-pulse items-center justify-center rounded-full bg-warning text-xs font-semibold text-warning-foreground"
+                    >
+                      !
+                    </span>
+                    {tf.notifySupervisor}
                   </p>
                 )}
               </div>
@@ -266,11 +248,11 @@ export default function AnnualEvaluationForm() {
                 size="lg"
               >
                 {submitEvaluation.isPending ? (
-                  'Menghantar...'
+                  t.common.submitting
                 ) : (
                   <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Hantar Penilaian
+                    <Send className="h-4 w-4" />
+                    {ta.submit}
                   </>
                 )}
               </Button>

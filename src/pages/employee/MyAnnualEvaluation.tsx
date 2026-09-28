@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -15,14 +19,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  AlertCircle,
   ClipboardCheck,
   Clock,
-  CheckCircle2,
   User,
   UserCheck,
   ChevronRight,
-  Calendar,
 } from 'lucide-react';
 import {
   RadarChart,
@@ -36,9 +37,10 @@ import {
 } from 'recharts';
 import { useMyPendingAnnualEvaluations, useMyAllAnnualEvaluations } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { getRatingPercentageTone, toneClasses, type StatusTone } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
-  SCORE_MAP,
   calculateTotalScore,
   calculatePercentage,
   getRatingLabel,
@@ -47,6 +49,8 @@ import {
 export default function MyAnnualEvaluation() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tm = t.employee.myAnnual;
   const [selectedYear, setSelectedYear] = useState<string>('latest');
 
   const { data: pendingEvaluations, isLoading: pendingLoading } = useMyPendingAnnualEvaluations(user?.userId || '');
@@ -69,11 +73,7 @@ export default function MyAnnualEvaluation() {
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <Skeleton className="h-48" />
-          <Skeleton className="h-96" />
-        </div>
+        <PageSkeleton variant="detail" />
       </EmployeeLayout>
     );
   }
@@ -85,121 +85,167 @@ export default function MyAnnualEvaluation() {
   // Check evaluation status
   const isCompleted = selectedEvaluation?.status === 'completed';
   const isWaitingSupervisor = selectedEvaluation?.status === 'pending_supervisor';
+  const waitingSupervisorName: string | undefined = (selectedEvaluation?.supervisor as any)?.name;
 
   return (
     <EmployeeLayout>
+      <PageHeader
+        title={tm.title}
+        description={tm.description}
+        actions={
+          availableYears.length > 0 && (
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-full sm:w-36" aria-label={t.common.year}>
+                <SelectValue placeholder={tm.selectYear} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">{tm.latest}</SelectItem>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }
+      />
+
       <div className="space-y-6">
-        {/* Header with Year Filter */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Penilaian Tahunan</h1>
-            <p className="text-muted-foreground">
-              Penilaian kompetensi tahunan kakitangan
-            </p>
-          </div>
-          {availableYears.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Pilih Tahun" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="latest">Terkini</SelectItem>
-                  {availableYears.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        {/* Pending Evaluation Alert */}
+        {/* Pending evaluation */}
         {hasPending && pendingEval && (
-          <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-orange-600" />
-                <CardTitle className="text-orange-800 dark:text-orange-200">Penilaian Menunggu</CardTitle>
-              </div>
-              <CardDescription className="text-orange-700 dark:text-orange-300">
-                Sila lengkapkan penilaian kendiri anda untuk tahun {(pendingEval.cycle as any)?.year}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-orange-700 dark:text-orange-300">
-                    Tempoh: {formatMalaysianDate((pendingEval.cycle as any)?.start_date)} - {formatMalaysianDate((pendingEval.cycle as any)?.end_date)}
-                  </p>
-                </div>
-                <Button
-                  onClick={() => navigate(`/dashboard/my-annual-evaluation/${(pendingEval.cycle as any)?.id}/submit`)}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  Mula Penilaian
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <Callout
+            tone="warning"
+            icon={ClipboardCheck}
+            title={tm.pendingTitle}
+            description={tm.pendingDescription((pendingEval.cycle as any)?.year)}
+            action={
+              <Button onClick={() => navigate(`/dashboard/my-annual-evaluation/${(pendingEval.cycle as any)?.id}/submit`)}>
+                {tm.start}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            }
+          >
+            <p className="text-sm text-muted-foreground">
+              {tm.period(
+                formatMalaysianDate((pendingEval.cycle as any)?.start_date),
+                formatMalaysianDate((pendingEval.cycle as any)?.end_date)
+              )}
+            </p>
+          </Callout>
         )}
 
-        {/* Waiting for Supervisor */}
+        {/* Waiting for supervisor */}
         {isWaitingSupervisor && selectedEvaluation && (
-          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-blue-600" />
-                <CardTitle className="text-blue-800 dark:text-blue-200">Menunggu Penilaian Penyelia</CardTitle>
-              </div>
-              <CardDescription className="text-blue-700 dark:text-blue-300">
-                Penilaian kendiri anda telah dihantar. Menunggu penyelia melengkapkan penilaian mereka.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-200">
-                  <UserCheck className="h-3 w-3 mr-1" />
-                  Menunggu: {(selectedEvaluation.supervisor as any)?.name || 'Penyelia'}
-                </Badge>
-                {selectedEvaluation.staff_submitted_at && (
-                  <span className="text-sm text-blue-700 dark:text-blue-300">
-                    Dihantar: {formatMalaysianDate(selectedEvaluation.staff_submitted_at)}
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <Callout tone="info" icon={Clock} title={tm.waitingTitle} description={tm.waitingDescription}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+              <StatusBadge kind="annualEvaluation" status="pending_supervisor" />
+              {waitingSupervisorName && (
+                <span className="inline-flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4" />
+                  {tm.supervisorName(waitingSupervisorName)}
+                </span>
+              )}
+              {selectedEvaluation.staff_submitted_at && (
+                <span>{t.employee.annual.submittedOn(formatMalaysianDate(selectedEvaluation.staff_submitted_at))}</span>
+              )}
+            </div>
+          </Callout>
         )}
 
-        {/* Completed Evaluation Results */}
+        {/* Completed evaluation results */}
         {isCompleted && selectedEvaluation && (
           <CompletedEvaluationView evaluation={selectedEvaluation} />
         )}
 
-        {/* No Evaluation Yet */}
+        {/* No evaluation yet */}
         {!hasPending && !selectedEvaluation && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Tiada Penilaian</h3>
-              <p className="text-muted-foreground">
-                Tiada penilaian tahunan yang perlu dilengkapkan pada masa ini.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={ClipboardCheck} title={tm.emptyTitle} description={tm.emptyDescription} />
         )}
       </div>
     </EmployeeLayout>
   );
 }
 
+/** Notice card (pending / waiting) with a tone-coloured icon chip — tokens only, dark-mode safe. */
+function Callout({
+  tone,
+  icon: Icon,
+  title,
+  description,
+  action,
+  children,
+}: {
+  tone: StatusTone;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 gap-4">
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', toneClasses[tone].soft)}>
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 space-y-1">
+            <h2 className="font-semibold">{title}</h2>
+            <p className="text-sm text-muted-foreground">{description}</p>
+            {children && <div className="pt-2">{children}</div>}
+          </div>
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
+    </Card>
+  );
+}
+
+/** Self / supervisor score summary: total out of 100, rating tier and percentage. */
+function ScoreCard({
+  label,
+  icon,
+  tone,
+  total,
+  percentage,
+  hint,
+}: {
+  label: string;
+  icon: LucideIcon;
+  tone: StatusTone;
+  total: number;
+  percentage: number;
+  hint?: string;
+}) {
+  const rating = getRatingLabel(percentage);
+  return (
+    <StatCard
+      label={label}
+      icon={icon}
+      tone={tone}
+      value={
+        <>
+          {total}
+          <span className="text-base font-normal text-muted-foreground">/100</span>
+        </>
+      }
+      hint={hint}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <ToneBadge tone={getRatingPercentageTone(percentage)}>{rating.label}</ToneBadge>
+        <span className="text-sm tabular-nums text-muted-foreground">{percentage}%</span>
+      </div>
+    </StatCard>
+  );
+}
+
 // Component to show completed evaluation with spider chart
 function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
+  const { t } = useLanguage();
+  const tm = t.employee.myAnnual;
+  const ta = t.employee.annual;
+
   const staffAnswers = (evaluation.staff_answers || {}) as Record<string, number>;
   const supervisorAnswers = (evaluation.supervisor_answers || {}) as Record<string, number>;
 
@@ -207,9 +253,6 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
   const staffPercentage = calculatePercentage(staffAnswers);
   const supervisorTotal = calculateTotalScore(supervisorAnswers);
   const supervisorPercentage = calculatePercentage(supervisorAnswers);
-
-  const staffRating = getRatingLabel(staffPercentage);
-  const supervisorRating = getRatingLabel(supervisorPercentage);
 
   // Prepare radar chart data (using tahap 1-5 instead of scores 2-10)
   const radarData = ANNUAL_EVALUATION_QUESTIONS.map((q) => ({
@@ -219,80 +262,34 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
     fullMark: 5,
   }));
 
+  const supervisorName = (evaluation.supervisor as any)?.name;
+
   return (
     <>
-      {/* Score Summary */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-blue-200">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-blue-600" />
-              <CardTitle>Penilaian Kendiri Anda</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-blue-600">{staffTotal}/100</p>
-                <p className="text-muted-foreground">{staffPercentage}%</p>
-              </div>
-              <Badge
-                className={`text-base px-3 py-1 ${
-                  staffRating.color === 'green' ? 'bg-green-100 text-green-800' :
-                  staffRating.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                  staffRating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                  staffRating.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                  'bg-red-100 text-red-800'
-                }`}
-              >
-                {staffRating.label}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-green-200">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-green-600" />
-              <CardTitle>Penilaian Penyelia</CardTitle>
-            </div>
-            <CardDescription>
-              Oleh: {(evaluation.supervisor as any)?.name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-bold text-green-600">{supervisorTotal}/100</p>
-                <p className="text-muted-foreground">{supervisorPercentage}%</p>
-              </div>
-              <Badge
-                className={`text-base px-3 py-1 ${
-                  supervisorRating.color === 'green' ? 'bg-green-100 text-green-800' :
-                  supervisorRating.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                  supervisorRating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                  supervisorRating.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                  'bg-red-100 text-red-800'
-                }`}
-              >
-                {supervisorRating.label}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Score summary */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ScoreCard
+          label={tm.yourSelfEvaluation}
+          icon={User}
+          tone="info"
+          total={staffTotal}
+          percentage={staffPercentage}
+        />
+        <ScoreCard
+          label={ta.supervisorEvaluation}
+          icon={UserCheck}
+          tone="success"
+          total={supervisorTotal}
+          percentage={supervisorPercentage}
+          hint={supervisorName ? tm.by(supervisorName) : undefined}
+        />
       </div>
 
-      {/* Spider Chart */}
+      {/* Spider chart (chart internals unchanged until phase 4) */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            <CardTitle>Carta Spider Web - Penilaian Tahun {(evaluation.cycle as any)?.year}</CardTitle>
-          </div>
-          <CardDescription>
-            Perbandingan antara penilaian kendiri (biru) dan penilaian penyelia (hijau)
-          </CardDescription>
+          <CardTitle>{tm.chartTitle((evaluation.cycle as any)?.year)}</CardTitle>
+          <CardDescription>{ta.chartDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[400px]">
@@ -311,7 +308,7 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
                   tickCount={6}
                 />
                 <Radar
-                  name="Kendiri"
+                  name={ta.chartSelf}
                   dataKey="staff"
                   stroke="#3b82f6"
                   fill="#3b82f6"
@@ -319,7 +316,7 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
                   strokeWidth={2}
                 />
                 <Radar
-                  name="Penyelia"
+                  name={ta.chartSupervisor}
                   dataKey="supervisor"
                   stroke="#22c55e"
                   fill="#22c55e"
@@ -334,7 +331,7 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
                           <p className="font-semibold mb-1">{label}</p>
                           {payload.map((entry: any, index: number) => (
                             <p key={index} style={{ color: entry.color }}>
-                              {entry.name}: Tahap {entry.value}
+                              {entry.name}: {ta.level(entry.value)}
                             </p>
                           ))}
                         </div>

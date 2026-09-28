@@ -6,19 +6,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubmitEvaluation } from '@/hooks/useEvaluations';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, CheckCircle2, Target, Brain, Lightbulb, Users, Presentation, Building, Wrench, ThumbsUp, Star, MessageSquare } from 'lucide-react';
+import { Loader2, CheckCircle2, Check, SearchX, Target, Lightbulb, Users, ThumbsUp, Star, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getTrainingRatingTone, toneClasses } from '@/lib/status';
 
 // Fixed evaluation questions with icons
 const EVALUATION_QUESTIONS = [
@@ -29,38 +35,8 @@ const EVALUATION_QUESTIONS = [
   { id: 'q5', text: 'Program ini wajar diteruskan di masa akan datang', icon: ThumbsUp },
 ];
 
-const RATING_OPTIONS = [
-  {
-    value: 'LEMAH',
-    label: 'LEMAH',
-    bgColor: 'bg-red-50 dark:bg-red-950/30',
-    borderColor: 'border-red-200 dark:border-red-800',
-    hoverBorder: 'hover:border-red-400',
-    selectedBg: 'bg-red-500',
-    selectedBorder: 'border-red-500',
-    textColor: 'text-red-700 dark:text-red-300',
-  },
-  {
-    value: 'SEDERHANA',
-    label: 'SEDERHANA',
-    bgColor: 'bg-yellow-50 dark:bg-yellow-950/30',
-    borderColor: 'border-yellow-200 dark:border-yellow-800',
-    hoverBorder: 'hover:border-yellow-400',
-    selectedBg: 'bg-yellow-500',
-    selectedBorder: 'border-yellow-500',
-    textColor: 'text-yellow-700 dark:text-yellow-300',
-  },
-  {
-    value: 'BAGUS',
-    label: 'BAGUS',
-    bgColor: 'bg-green-50 dark:bg-green-950/30',
-    borderColor: 'border-green-200 dark:border-green-800',
-    hoverBorder: 'hover:border-green-400',
-    selectedBg: 'bg-green-500',
-    selectedBorder: 'border-green-500',
-    textColor: 'text-green-700 dark:text-green-300',
-  },
-] as const;
+// Official BM rating words; colour comes from the shared training-rating tone.
+const RATING_OPTIONS = ['LEMAH', 'SEDERHANA', 'BAGUS'] as const;
 
 // Form validation schema - all 5 questions required, q6 optional (comments)
 const ratingEnum = ['LEMAH', 'SEDERHANA', 'BAGUS'] as const;
@@ -79,6 +55,8 @@ export default function EvaluationForm() {
   const { programId } = useParams<{ programId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tf = t.employee.evaluationForm;
 
   // Fetch program details
   const { data: program, isLoading: programLoading } = useQuery({
@@ -127,11 +105,26 @@ export default function EvaluationForm() {
   if (programLoading) {
     return (
       <EmployeeLayout>
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Memuatkan borang penilaian...</p>
-          </div>
+        <PageSkeleton variant="form" />
+      </EmployeeLayout>
+    );
+  }
+
+  if (!program) {
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard/my-evaluations" />
+          <EmptyState
+            icon={SearchX}
+            title={tf.notFoundTitle}
+            description={tf.notFoundDescription}
+            action={
+              <Button variant="outline" onClick={() => navigate('/dashboard/my-evaluations')}>
+                {tf.backToList}
+              </Button>
+            }
+          />
         </div>
       </EmployeeLayout>
     );
@@ -139,27 +132,12 @@ export default function EvaluationForm() {
 
   return (
     <EmployeeLayout>
-      <div className="max-w-4xl mx-auto space-y-4">
-        {/* Program Info Card */}
-        <Card className="border-0 shadow-md bg-primary text-primary-foreground">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-2 text-primary-foreground/70 text-sm font-medium mb-1">
-              <CheckCircle2 className="h-4 w-4" />
-              BORANG PENILAIAN SELEPAS PROGRAM
-            </div>
-            <CardTitle className="text-2xl font-bold">
-              {program?.title}
-            </CardTitle>
-            <p className="text-primary-foreground/70 text-sm mt-1">
-              Maklum balas anda membantu kami meningkatkan kualiti program latihan
-            </p>
-          </CardHeader>
-        </Card>
+      <div className="mx-auto max-w-4xl">
+        <PageHeader title={program.title} description={tf.description} backTo="/dashboard/my-evaluations" />
 
-        {/* Evaluation Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Rating Questions 1-9 */}
+            {/* Rating questions (official BM text) */}
             {EVALUATION_QUESTIONS.map((question, index) => {
               const Icon = question.icon;
               const currentValue = watchedValues[question.id as keyof EvaluationFormValues];
@@ -171,55 +149,68 @@ export default function EvaluationForm() {
                   control={form.control}
                   name={question.id as keyof EvaluationFormValues}
                   render={({ field }) => (
-                    <Card className={cn(
-                      "border transition-all duration-300",
-                      isAnswered
-                        ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20"
-                        : "border-slate-200 dark:border-slate-700"
-                    )}>
+                    <Card className={cn('transition-colors', isAnswered && 'border-success/40')}>
                       <CardContent className="p-5">
                         <FormItem className="space-y-4">
                           <div className="flex items-start gap-4">
-                            <div className={cn(
-                              "flex items-center justify-center w-10 h-10 rounded-lg shrink-0 transition-colors",
-                              isAnswered
-                                ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                                : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                            )}>
+                            <div
+                              className={cn(
+                                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors',
+                                isAnswered ? toneClasses.success.soft : 'bg-muted text-muted-foreground'
+                              )}
+                            >
                               <Icon className="h-5 w-5" />
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-medium text-muted-foreground">
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className="text-xs font-medium tabular-nums text-muted-foreground">
                                   {index + 1}/5
                                 </span>
                                 {isAnswered && (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                                    <span className="sr-only">{tf.answered}</span>
+                                  </>
                                 )}
                               </div>
-                              <p className="text-sm font-medium text-foreground">
+                              <p id={`${question.id}-label`} className="text-sm font-medium">
                                 {question.text}
                               </p>
                             </div>
                           </div>
 
                           <FormControl>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div
+                              role="group"
+                              aria-labelledby={`${question.id}-label`}
+                              className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3"
+                            >
                               {RATING_OPTIONS.map((option) => {
-                                const isSelected = field.value === option.value;
+                                const isSelected = field.value === option;
+                                const tone = getTrainingRatingTone(option);
                                 return (
                                   <button
-                                    key={option.value}
+                                    key={option}
                                     type="button"
-                                    onClick={() => field.onChange(option.value)}
+                                    aria-pressed={isSelected}
+                                    onClick={() => field.onChange(option)}
                                     className={cn(
-                                      "flex items-center justify-center py-3 rounded-lg border-2 transition-all duration-200 font-semibold text-sm",
+                                      'flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-3 text-sm font-semibold transition-colors',
+                                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                                       isSelected
-                                        ? `${option.selectedBg} ${option.selectedBorder} text-white shadow-md`
-                                        : `${option.bgColor} ${option.borderColor} ${option.hoverBorder} ${option.textColor}`
+                                        ? cn(toneClasses[tone].solid, 'border-transparent shadow-sm')
+                                        : 'border-border bg-background text-foreground hover:bg-accent'
                                     )}
                                   >
-                                    {option.label}
+                                    {isSelected ? (
+                                      <Check className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                      <span
+                                        aria-hidden="true"
+                                        className={cn('h-2 w-2 rounded-full', toneClasses[tone].solid)}
+                                      />
+                                    )}
+                                    {option}
                                   </button>
                                 );
                               })}
@@ -234,8 +225,8 @@ export default function EvaluationForm() {
               );
             })}
 
-            {/* Question 6 - Comments Card */}
-            <Card className="border border-slate-200 dark:border-slate-700">
+            {/* Question 6 - comments (optional) */}
+            <Card>
               <CardContent className="p-5">
                 <FormField
                   control={form.control}
@@ -243,23 +234,19 @@ export default function EvaluationForm() {
                   render={({ field }) => (
                     <FormItem className="space-y-4">
                       <div className="flex items-start gap-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 shrink-0">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                           <MessageSquare className="h-5 w-5" />
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              PILIHAN
-                            </span>
+                          <div className="mb-1">
+                            <span className="text-xs font-medium text-muted-foreground">{tf.optional}</span>
                           </div>
-                          <p className="text-sm font-medium text-foreground">
-                            Lain-lain komen atau cadangan
-                          </p>
+                          <FormLabel className="text-sm font-medium">Lain-lain komen atau cadangan</FormLabel>
                         </div>
                       </div>
                       <FormControl>
                         <Textarea
-                          placeholder="Kongsi pendapat anda untuk membantu kami menambah baik program ini..."
+                          placeholder={tf.commentsPlaceholder}
                           className="min-h-[100px] resize-none"
                           {...field}
                         />
@@ -271,38 +258,32 @@ export default function EvaluationForm() {
               </CardContent>
             </Card>
 
-            {/* Submit Section */}
-            <Card className="border-0 shadow-md bg-slate-800 dark:bg-slate-700 text-white">
+            {/* Submit */}
+            <Card className="bg-muted/40">
               <CardContent className="p-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="font-semibold">Sedia untuk hantar?</h3>
-                    <p className="text-slate-300 text-sm">
-                      {answeredCount === 5
-                        ? "Semua soalan telah dijawab"
-                        : `${5 - answeredCount} soalan lagi perlu dijawab`}
+                    <h3 className="font-semibold">{tf.readyTitle}</h3>
+                    <p
+                      className={cn(
+                        'text-sm',
+                        answeredCount === 5 ? 'text-success' : 'text-muted-foreground'
+                      )}
+                    >
+                      {answeredCount === 5 ? tf.allAnswered : tf.remaining(5 - answeredCount)}
                     </p>
                   </div>
                   <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate('/dashboard/my-evaluations')}
-                      className="bg-transparent border-slate-600 text-white hover:bg-slate-700"
-                    >
-                      Batal
+                    <Button type="button" variant="outline" onClick={() => navigate('/dashboard/my-evaluations')}>
+                      {t.common.cancel}
                     </Button>
-                    <Button
-                      type="submit"
-                      disabled={submitEvaluation.isPending || answeredCount < 5}
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                    >
+                    <Button type="submit" disabled={submitEvaluation.isPending || answeredCount < 5}>
                       {submitEvaluation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4" />
                       )}
-                      Hantar Penilaian
+                      {tf.submit}
                     </Button>
                   </div>
                 </div>

@@ -1,8 +1,13 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useProgramsWithStats, useDeleteProgram } from '@/hooks/usePrograms';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -32,24 +37,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Eye, Edit, Trash2, Search } from 'lucide-react';
-
-const MONTHS = [
-  { value: '1', label: 'January' },
-  { value: '2', label: 'February' },
-  { value: '3', label: 'March' },
-  { value: '4', label: 'April' },
-  { value: '5', label: 'May' },
-  { value: '6', label: 'June' },
-  { value: '7', label: 'July' },
-  { value: '8', label: 'August' },
-  { value: '9', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
-];
+import { Card } from '@/components/ui/card';
+import { Plus, Eye, Pencil, Trash2, Search, BookOpen } from 'lucide-react';
 
 const currentYear = new Date().getFullYear();
 // Extended years from 2023 to 2035
@@ -57,6 +46,8 @@ const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 
 export default function ProgramsList() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tp = t.adminTraining.programs;
   const { data: programs, isLoading, error } = useProgramsWithStats();
   const deleteProgram = useDeleteProgram();
 
@@ -106,6 +97,15 @@ export default function ProgramsList() {
     }, 0);
   }, [filteredPrograms]);
 
+  const hasActiveFilters =
+    !!searchQuery || (!!fromMonth && fromMonth !== 'all') || (!!toMonth && toMonth !== 'all');
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFromMonth('');
+    setToMonth('');
+  };
+
   const handleDelete = (id: string) => {
     setProgramToDelete(id);
     setDeleteDialogOpen(true);
@@ -119,51 +119,51 @@ export default function ProgramsList() {
     }
   };
 
+  const header = (
+    <PageHeader
+      title={tp.title}
+      description={tp.description}
+      actions={
+        <Button onClick={() => navigate('/dashboard/programs/new')}>
+          <Plus className="h-4 w-4" />
+          {tp.create}
+        </Button>
+      }
+    />
+  );
+
   if (error) {
     return (
       <AdminLayout>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-destructive mb-2">Error Loading Programs</h3>
-              <p className="text-muted-foreground">{error.message}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {header}
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
 
+  const monthOptions = t.common.months.map((label, index) => ({ value: String(index + 1), label }));
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Programs</h1>
-            <p className="text-muted-foreground">Manage training programs and workshops</p>
-          </div>
-          <Button onClick={() => navigate('/dashboard/programs/new')}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Program
-          </Button>
-        </div>
+      {header}
 
+      <div className="space-y-4">
         {/* Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search program name..."
+              placeholder={tp.searchPlaceholder}
+              aria-label={t.common.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-64"
+              className="pl-9"
             />
           </div>
 
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Year" />
+            <SelectTrigger className="w-full sm:w-28" aria-label={t.common.year}>
+              <SelectValue placeholder={t.common.year} />
             </SelectTrigger>
             <SelectContent>
               {YEARS.map((year) => (
@@ -174,162 +174,199 @@ export default function ProgramsList() {
             </SelectContent>
           </Select>
 
-          <Select value={fromMonth} onValueChange={setFromMonth}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="From Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
-              {MONTHS.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={fromMonth} onValueChange={setFromMonth}>
+              <SelectTrigger className="w-full sm:w-40" aria-label={tp.fromMonth}>
+                <SelectValue placeholder={tp.fromMonth} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tp.allMonths}</SelectItem>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <span className="text-muted-foreground">to</span>
+            <span className="text-sm text-muted-foreground">{t.common.to.toLowerCase()}</span>
 
-          <Select value={toMonth} onValueChange={setToMonth}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="To Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Months</SelectItem>
-              {MONTHS.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={toMonth} onValueChange={setToMonth}>
+              <SelectTrigger className="w-full sm:w-40" aria-label={tp.toMonth}>
+                <SelectValue placeholder={tp.toMonth} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tp.allMonths}</SelectItem>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground sm:ml-auto">
+              {t.common.clearFilters}
+            </Button>
+          )}
         </div>
 
         {/* Programs Table */}
-        <Card>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="p-6 space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : filteredPrograms.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                No programs found. Try adjusting your filters or create a new program.
-              </div>
+        <Card className="overflow-hidden">
+          {isLoading ? (
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full" />
+              ))}
+            </div>
+          ) : filteredPrograms.length === 0 ? (
+            hasActiveFilters ? (
+              <EmptyState
+                compact
+                icon={Search}
+                title={t.common.noResults}
+                description={t.common.noResultsHint}
+                action={
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    {t.common.clearFilters}
+                  </Button>
+                }
+              />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-bold">Title</TableHead>
-                    <TableHead className="font-bold">Start Date</TableHead>
-                    <TableHead className="font-bold">End Date</TableHead>
-                    <TableHead className="font-bold text-center">Hours</TableHead>
-                    <TableHead className="font-bold text-center">Assigned</TableHead>
-                    <TableHead className="font-bold text-center">Penilaian</TableHead>
-                    <TableHead className="font-bold text-right">Actions</TableHead>
+              <EmptyState
+                compact
+                icon={BookOpen}
+                title={tp.emptyTitle}
+                description={tp.emptyDescription}
+                action={
+                  <Button size="sm" onClick={() => navigate('/dashboard/programs/new')}>
+                    <Plus className="h-4 w-4" />
+                    {tp.create}
+                  </Button>
+                }
+              />
+            )
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{tp.colTitle}</TableHead>
+                  <TableHead>{tp.colStart}</TableHead>
+                  <TableHead>{tp.colEnd}</TableHead>
+                  <TableHead className="text-right">{tp.colHours}</TableHead>
+                  <TableHead className="text-right">{tp.colAssigned}</TableHead>
+                  <TableHead>{tp.colEvaluation}</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">{t.common.actions}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPrograms.map((program) => (
+                  <TableRow key={program.id}>
+                    <TableCell className="max-w-sm">
+                      <Link
+                        to={`/dashboard/programs/${program.id}`}
+                        className="font-medium hover:text-primary hover:underline underline-offset-4"
+                      >
+                        {program.title}
+                      </Link>
+                      {program.description && (
+                        <div className="line-clamp-1 text-sm text-muted-foreground">{program.description}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{formatMalaysianDate(program.start_date_time)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatMalaysianDate(program.end_date_time)}</TableCell>
+                    <TableCell className="text-right">
+                      {program.hours} {t.common.hoursShort}
+                    </TableCell>
+                    <TableCell className="text-right">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
+                    <TableCell>
+                      {(program as any).notify_for_evaluation ? (
+                        <ToneBadge tone="info">{t.common.required}</ToneBadge>
+                      ) : (
+                        <ToneBadge tone="muted">{t.common.notRequired}</ToneBadge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => navigate(`/dashboard/programs/${program.id}`)}
+                          aria-label={tp.viewDetails}
+                          title={tp.viewDetails}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => navigate(`/dashboard/programs/${program.id}/edit`)}
+                          aria-label={tp.editProgram}
+                          title={tp.editProgram}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                          onClick={() => handleDelete(program.id)}
+                          aria-label={tp.deleteProgram}
+                          title={tp.deleteProgram}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPrograms.map((program) => (
-                    <TableRow key={program.id}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div>{program.title}</div>
-                          {program.description && (
-                            <div className="text-sm text-muted-foreground line-clamp-1">
-                              {program.description}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatMalaysianDate(program.start_date_time)}</TableCell>
-                      <TableCell>{formatMalaysianDate(program.end_date_time)}</TableCell>
-                      <TableCell className="text-center">{program.hours}h</TableCell>
-                      <TableCell className="text-center">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
-                      <TableCell className="text-center">
-                        {(program as any).notify_for_evaluation ? (
-                          <Badge className="bg-green-500 hover:bg-green-600">Diperlukan</Badge>
-                        ) : (
-                          <Badge variant="secondary">Tidak</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/dashboard/programs/${program.id}`)}
-                            title="View details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/dashboard/programs/${program.id}/edit`)}
-                            title="Edit program"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(program.id)}
-                            title="Delete program"
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={3} className="font-semibold">Total</TableCell>
-                    <TableCell className="text-center font-semibold">{totalHours}h</TableCell>
-                    <TableCell className="text-center font-semibold">{totalAssigned}</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            )}
-          </CardContent>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={3} className="font-semibold">{t.common.total}</TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {totalHours} {t.common.hoursShort}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">{totalAssigned}</TableCell>
+                  <TableCell colSpan={2} />
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
         </Card>
 
         {/* Results Count */}
         {!isLoading && filteredPrograms.length > 0 && (
-          <div className="text-sm text-muted-foreground text-center">
-            Showing {filteredPrograms.length} of {programs?.length || 0} programs
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {tp.showing(filteredPrograms.length, programs?.length || 0)}
+          </p>
         )}
+      </div>
 
-        {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the program
-              and remove all associated data.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{tp.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{tp.deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
     </AdminLayout>
   );
 }

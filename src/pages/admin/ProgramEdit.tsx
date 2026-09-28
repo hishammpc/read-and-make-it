@@ -1,14 +1,21 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useProgram, useUpdateProgram } from '@/hooks/usePrograms';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
 import ProgramForm from '@/components/programs/ProgramForm';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { SearchX } from 'lucide-react';
 
 export default function ProgramEdit() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tf = t.adminTraining.programForm;
+  const ts = t.adminTraining.shared;
   const { id } = useParams<{ id: string }>();
   const { data: program, isLoading, error } = useProgram(id!);
   const updateProgram = useUpdateProgram();
@@ -29,30 +36,8 @@ export default function ProgramEdit() {
   if (error) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Edit Program</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="w-5 h-5" />
-                <div>
-                  <h3 className="font-semibold">Error Loading Program</h3>
-                  <p className="text-sm text-muted-foreground">{error.message}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <PageHeader title={tf.editTitle} backTo="/dashboard/programs" />
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
@@ -60,34 +45,7 @@ export default function ProgramEdit() {
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <Skeleton className="h-9 w-48 mb-2" />
-              <Skeleton className="h-5 w-64" />
-            </div>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-96" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </CardContent>
-          </Card>
-        </div>
+        <PageSkeleton variant="form" />
       </AdminLayout>
     );
   }
@@ -95,24 +53,17 @@ export default function ProgramEdit() {
   if (!program) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
+        <PageHeader title={tf.editTitle} backTo="/dashboard/programs" />
+        <EmptyState
+          icon={SearchX}
+          title={ts.programNotFoundTitle}
+          description={ts.programNotFoundDescription}
+          action={
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/programs')}>
+              {ts.backToPrograms}
             </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Edit Program</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">Program not found.</p>
-            </CardContent>
-          </Card>
-        </div>
+          }
+        />
       </AdminLayout>
     );
   }
@@ -137,41 +88,21 @@ export default function ProgramEdit() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/dashboard/programs/${id}`)}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Edit Program</h1>
-            <p className="text-muted-foreground">
-              Update the training program details
-            </p>
-          </div>
-        </div>
+      <PageHeader title={tf.editTitle} description={tf.editDescription} backTo={`/dashboard/programs/${id}`} />
 
-        {/* Form Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Program Details</CardTitle>
-            <CardDescription>
-              Update the information for this training program. Fields marked with * are required.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ProgramForm
-              initialData={initialData}
-              onSubmit={handleSubmit}
-              isLoading={updateProgram.isPending}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{tf.cardTitle}</CardTitle>
+          <CardDescription>{ts.requiredFieldsHint}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProgramForm
+            initialData={initialData}
+            onSubmit={handleSubmit}
+            isLoading={updateProgram.isPending}
+          />
+        </CardContent>
+      </Card>
     </AdminLayout>
   );
 }

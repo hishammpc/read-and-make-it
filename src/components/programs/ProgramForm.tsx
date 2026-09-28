@@ -1,6 +1,9 @@
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { Dictionary } from '@/i18n/ms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,23 +24,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const programSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  training_type: z.enum(['Local', 'International']),
-  location: z.string().optional(),
-  start_date_time: z.string().min(1, 'Start date is required'),
-  end_date_time: z.string().min(1, 'End date is required'),
-  hours: z.coerce.number().min(0, 'Hours must be positive'),
-  notify_for_evaluation: z.boolean().default(false),
-}).refine(
-  (data) => new Date(data.end_date_time) > new Date(data.start_date_time),
-  {
-    message: 'End date must be after start date',
-    path: ['end_date_time'],
-  }
-);
+type ProgramFormErrors = Dictionary['adminTraining']['programForm']['errors'];
 
-type ProgramFormValues = z.infer<typeof programSchema>;
+// Built per language so validation messages follow the UI language.
+const buildProgramSchema = (e: ProgramFormErrors) =>
+  z.object({
+    title: z.string().min(1, e.titleRequired),
+    training_type: z.enum(['Local', 'International']),
+    location: z.string().optional(),
+    start_date_time: z.string().min(1, e.startRequired),
+    end_date_time: z.string().min(1, e.endRequired),
+    hours: z.coerce.number().min(0, e.hoursNotNegative),
+    notify_for_evaluation: z.boolean().default(false),
+  }).refine(
+    (data) => new Date(data.end_date_time) > new Date(data.start_date_time),
+    {
+      message: e.endAfterStart,
+      path: ['end_date_time'],
+    }
+  );
+
+type ProgramFormValues = z.infer<ReturnType<typeof buildProgramSchema>>;
+
+const TRAINING_TYPES = ['Local', 'International'] as const;
+
+function RequiredMark() {
+  return <span className="text-destructive" aria-hidden="true"> *</span>;
+}
 
 interface ProgramFormProps {
   initialData?: Partial<ProgramFormValues>;
@@ -46,6 +59,10 @@ interface ProgramFormProps {
 }
 
 export default function ProgramForm({ initialData, onSubmit, isLoading }: ProgramFormProps) {
+  const { t } = useLanguage();
+  const tf = t.adminTraining.programForm;
+  const programSchema = useMemo(() => buildProgramSchema(tf.errors), [tf]);
+
   const form = useForm<ProgramFormValues>({
     resolver: zodResolver(programSchema),
     defaultValues: {
@@ -85,9 +102,12 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
             name="title"
             render={({ field }) => (
               <FormItem className="md:col-span-2">
-                <FormLabel>Title *</FormLabel>
+                <FormLabel>
+                  {tf.title}
+                  <RequiredMark />
+                </FormLabel>
                 <FormControl>
-                  <Input placeholder="Program title" {...field} />
+                  <Input placeholder={tf.titlePlaceholder} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -100,16 +120,22 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
               name="training_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Training Type *</FormLabel>
+                  <FormLabel>
+                    {tf.trainingType}
+                    <RequiredMark />
+                  </FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select training type" />
+                        <SelectValue placeholder={tf.trainingTypePlaceholder} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Local">Local</SelectItem>
-                      <SelectItem value="International">International</SelectItem>
+                      {TRAINING_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {tf.trainingTypes[type]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -123,9 +149,9 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
                 name="location"
                 render={({ field }) => (
                   <FormItem className="md:col-span-3">
-                    <FormLabel>Location</FormLabel>
+                    <FormLabel>{tf.location}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter training location" {...field} />
+                      <Input placeholder={tf.locationPlaceholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -140,7 +166,10 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
               name="start_date_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Start Date & Time *</FormLabel>
+                  <FormLabel>
+                    {tf.start}
+                    <RequiredMark />
+                  </FormLabel>
                   <FormControl>
                     <Input type="datetime-local" {...field} />
                   </FormControl>
@@ -154,7 +183,10 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
               name="end_date_time"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>End Date & Time *</FormLabel>
+                  <FormLabel>
+                    {tf.end}
+                    <RequiredMark />
+                  </FormLabel>
                   <FormControl>
                     <Input type="datetime-local" {...field} />
                   </FormControl>
@@ -168,7 +200,10 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
               name="hours"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hours *</FormLabel>
+                  <FormLabel>
+                    {tf.hours}
+                    <RequiredMark />
+                  </FormLabel>
                   <FormControl>
                     <Input type="number" step="0.5" min="0" placeholder="0" {...field} />
                   </FormControl>
@@ -192,12 +227,8 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Memerlukan penilaian
-                </FormLabel>
-                <FormDescription>
-                  Peserta perlu mengisi borang penilaian selepas program tamat
-                </FormDescription>
+                <FormLabel>{tf.requiresEvaluation}</FormLabel>
+                <FormDescription>{tf.requiresEvaluationHint}</FormDescription>
               </div>
             </FormItem>
           )}
@@ -205,7 +236,7 @@ export default function ProgramForm({ initialData, onSubmit, isLoading }: Progra
 
         <div className="flex gap-2">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Saving...' : initialData ? 'Update Program' : 'Create Program'}
+            {isLoading ? t.common.saving : initialData ? tf.submitUpdate : tf.submitCreate}
           </Button>
         </div>
       </form>

@@ -1,9 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -19,11 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
-  AlertCircle,
   Users,
   Clock,
   CheckCircle2,
@@ -31,14 +34,16 @@ import {
   Eye,
   MinusCircle,
 } from 'lucide-react';
-import { useSuperviseeEvaluations, usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
-import { calculateTotalScore, calculatePercentage, getRatingLabel } from '@/lib/annualEvaluationQuestions';
+import { useSuperviseeEvaluations } from '@/hooks/useAnnualEvaluations';
+import { calculatePercentage, getRatingLabel } from '@/lib/annualEvaluationQuestions';
+import { getRatingPercentageTone, getStatusTone } from '@/lib/status';
 
 export default function SuperviseeEvaluations() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const ts = t.employee.supervisees;
   const { data: evaluations, isLoading, error } = useSuperviseeEvaluations(user?.userId || '');
-  const { data: pendingCount } = usePendingSuperviseeCount(user?.userId || '');
 
   // Extract unique years from evaluations
   const years = useMemo(() => {
@@ -67,13 +72,34 @@ export default function SuperviseeEvaluations() {
   const pendingSupervisorCount = filteredEvaluations.filter((e) => e.status === 'pending_supervisor').length;
   const completedCount = filteredEvaluations.filter((e) => e.status === 'completed').length;
 
+  const header = (
+    <PageHeader
+      title={ts.title}
+      description={ts.description}
+      actions={
+        years.length > 0 && (
+          <Select value={effectiveYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-full sm:w-36" aria-label={t.common.year}>
+              <SelectValue placeholder={ts.selectYear} />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={String(year)}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      }
+    />
+  );
+
   if (error) {
     return (
       <EmployeeLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan data: {(error as Error).message}</AlertDescription>
-        </Alert>
+        <PageHeader title={ts.title} description={ts.description} />
+        <ErrorState message={(error as Error).message} />
       </EmployeeLayout>
     );
   }
@@ -81,31 +107,10 @@ export default function SuperviseeEvaluations() {
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <div className="grid gap-4 md:grid-cols-3">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-          </div>
-          <Skeleton className="h-96" />
-        </div>
+        <PageSkeleton variant="dashboard" />
       </EmployeeLayout>
     );
   }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Selesai</Badge>;
-      case 'pending_supervisor':
-        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Menunggu Penilaian</Badge>;
-      case 'pending_staff':
-        return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100">Belum Mula</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   // Sort: pending_supervisor first, then pending_staff, then completed
   const sortedEvaluations = [...filteredEvaluations].sort((a, b) => {
@@ -113,166 +118,115 @@ export default function SuperviseeEvaluations() {
     return (order[a.status] ?? 3) - (order[b.status] ?? 3);
   });
 
+  const statusLabels = t.status.annualEvaluation;
+
   return (
     <EmployeeLayout>
+      {header}
+
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Penilaian Kakitangan</h1>
-            <p className="text-muted-foreground">
-              Senarai kakitangan di bawah penyeliaan anda
-            </p>
-          </div>
-          {years.length > 0 && (
-            <Select value={effectiveYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Pilih Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={String(year)}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label={statusLabels.pending_staff}
+            value={pendingStaffCount}
+            icon={MinusCircle}
+            tone={getStatusTone('annualEvaluation', 'pending_staff')}
+            hint={ts.pendingStaffHint}
+          />
+          <StatCard
+            label={statusLabels.pending_supervisor}
+            value={pendingSupervisorCount}
+            icon={Clock}
+            tone={getStatusTone('annualEvaluation', 'pending_supervisor')}
+            hint={ts.pendingSupervisorHint}
+          />
+          <StatCard
+            label={statusLabels.completed}
+            value={completedCount}
+            icon={CheckCircle2}
+            tone={getStatusTone('annualEvaluation', 'completed')}
+            hint={ts.completedHint}
+          />
         </div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Belum Mula</CardTitle>
-              <MinusCircle className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-500">{pendingStaffCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Menunggu Penilaian</CardTitle>
-              <Clock className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{pendingSupervisorCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Selesai</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{completedCount}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Staff Table */}
         {filteredEvaluations.length > 0 ? (
-          <Card className="overflow-x-auto">
+          <Card className="overflow-hidden">
             <CardHeader>
-              <CardTitle>Senarai Kakitangan</CardTitle>
-              <CardDescription>
-                Semua kakitangan di bawah penyeliaan anda untuk tahun {effectiveYear}
-              </CardDescription>
+              <CardTitle>{ts.listTitle}</CardTitle>
+              <CardDescription>{ts.listDescription(effectiveYear)}</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama Kakitangan</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Markah</TableHead>
-                    <TableHead className="text-right">Tindakan</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedEvaluations.map((evaluation) => {
-                    const supervisorScore = evaluation.supervisor_answers
-                      ? calculateTotalScore(evaluation.supervisor_answers as Record<string, number>)
-                      : null;
-                    const supervisorPercentage = evaluation.supervisor_answers
-                      ? calculatePercentage(evaluation.supervisor_answers as Record<string, number>)
-                      : null;
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{ts.colName}</TableHead>
+                  <TableHead>{t.common.status}</TableHead>
+                  <TableHead className="text-right">{ts.colScore}</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">{t.common.actions}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedEvaluations.map((evaluation) => {
+                  const supervisorPercentage = evaluation.supervisor_answers
+                    ? calculatePercentage(evaluation.supervisor_answers as Record<string, number>)
+                    : null;
+                  const name = (evaluation.profiles as any)?.name || '';
 
-                    return (
-                      <TableRow key={evaluation.id}>
-                        <TableCell className="font-medium">
-                          {(evaluation.profiles as any)?.name}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(evaluation.status)}
-                        </TableCell>
-                        <TableCell>
-                          {supervisorPercentage !== null ? (() => {
-                            const rating = getRatingLabel(supervisorPercentage);
-                            const colorClass =
-                              rating.color === 'green' ? 'bg-green-100 text-green-800 border-green-300' :
-                              rating.color === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                              rating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
-                              rating.color === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                              'bg-red-100 text-red-800 border-red-300';
-                            return (
-                              <Badge variant="outline" className={colorClass}>
-                                {supervisorPercentage}% - {rating.label}
-                              </Badge>
-                            );
-                          })() : evaluation.status === 'pending_supervisor' ? (
-                            <span className="text-orange-600 text-sm">Menunggu Penyelia</span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {evaluation.status === 'pending_supervisor' && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                navigate(
-                                  `/dashboard/supervisee-evaluations/${(evaluation.cycle as any)?.id}/${evaluation.user_id}`
-                                )
-                              }
-                            >
-                              Nilai
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          )}
-                          {evaluation.status === 'completed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                navigate(
-                                  `/dashboard/supervisee-evaluations/detail/${evaluation.id}`
-                                )
-                              }
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Lihat
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
+                  return (
+                    <TableRow key={evaluation.id}>
+                      <TableCell className="font-medium">{name}</TableCell>
+                      <TableCell>
+                        <StatusBadge kind="annualEvaluation" status={evaluation.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {supervisorPercentage !== null ? (
+                          <ToneBadge tone={getRatingPercentageTone(supervisorPercentage)} className="tabular-nums">
+                            {supervisorPercentage}% · {getRatingLabel(supervisorPercentage).label}
+                          </ToneBadge>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {evaluation.status === 'pending_supervisor' && (
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              navigate(
+                                `/dashboard/supervisee-evaluations/${(evaluation.cycle as any)?.id}/${evaluation.user_id}`
+                              )
+                            }
+                            aria-label={ts.evaluateFor(name)}
+                          >
+                            {ts.evaluate}
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {evaluation.status === 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              navigate(
+                                `/dashboard/supervisee-evaluations/detail/${evaluation.id}`
+                              )
+                            }
+                            aria-label={ts.viewFor(name)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            {t.common.view}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Tiada Kakitangan</h3>
-              <p className="text-muted-foreground">
-                Tiada kakitangan di bawah penyeliaan anda yang memerlukan penilaian.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState icon={Users} title={ts.emptyTitle} description={ts.emptyDescription} />
         )}
       </div>
     </EmployeeLayout>

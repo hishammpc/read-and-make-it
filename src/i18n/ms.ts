@@ -1,6 +1,13 @@
 // Bahasa Melayu — the default language. `en.ts` must mirror every key (typed as Dictionary).
 // Official content (evaluation questions, PDFs, certificates, CSV exports) stays in BM
 // and does not go through these dictionaries.
+//
+// Page-area strings live in ./sections/* (one file per area) and are mounted below.
+
+import dashboard from './sections/dashboard';
+import adminTraining from './sections/adminTraining';
+import adminStaff from './sections/adminStaff';
+import employee from './sections/employee';
 
 export const ms = {
   common: {
@@ -11,7 +18,91 @@ export const ms = {
     skipToContent: 'Langkau ke kandungan',
     language: 'Bahasa',
     account: 'Akaun',
+    back: 'Kembali',
+    search: 'Cari',
+    filter: 'Tapis',
+    all: 'Semua',
+    year: 'Tahun',
+    month: 'Bulan',
+    from: 'Dari',
+    to: 'Hingga',
+    actions: 'Tindakan',
+    view: 'Lihat',
+    edit: 'Sunting',
+    delete: 'Padam',
+    cancel: 'Batal',
+    save: 'Simpan',
+    saving: 'Menyimpan…',
+    submit: 'Hantar',
+    submitting: 'Menghantar…',
+    confirm: 'Sahkan',
+    close: 'Tutup',
+    download: 'Muat turun',
+    downloadPdf: 'Muat turun PDF',
+    downloadCsv: 'Muat turun CSV',
+    loading: 'Memuatkan…',
+    retry: 'Cuba lagi',
+    errorTitle: 'Ralat',
+    errorLoading: 'Data tidak dapat dimuatkan.',
+    success: 'Berjaya',
+    noData: 'Tiada data',
+    noResults: 'Tiada padanan',
+    noResultsHint: 'Cuba ubah carian atau penapis anda.',
+    clearFilters: 'Kosongkan penapis',
+    yes: 'Ya',
+    no: 'Tidak',
+    hours: 'jam',
+    hoursShort: 'j',
+    total: 'Jumlah',
+    status: 'Status',
+    name: 'Nama',
+    email: 'Emel',
+    department: 'Jabatan',
+    position: 'Jawatan',
+    supervisor: 'Penyelia',
+    date: 'Tarikh',
+    details: 'Butiran',
+    participants: 'Peserta',
+    required: 'Diperlukan',
+    notRequired: 'Tidak diperlukan',
+    next: 'Seterusnya',
+    previous: 'Sebelumnya',
+    months: [
+      'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun',
+      'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember',
+    ],
   },
+  status: {
+    assignment: {
+      Assigned: 'Ditugaskan',
+      Registered: 'Berdaftar',
+      Attended: 'Hadir',
+      'No-Show': 'Tidak hadir',
+    },
+    program: {
+      Planned: 'Dirancang',
+      Ongoing: 'Sedang berjalan',
+      Completed: 'Selesai',
+      Cancelled: 'Dibatalkan',
+    },
+    annualEvaluation: {
+      pending_staff: 'Menunggu kakitangan',
+      pending_supervisor: 'Menunggu penyelia',
+      completed: 'Selesai',
+    },
+    cycle: {
+      active: 'Aktif',
+      closed: 'Ditutup',
+    },
+    user: {
+      active: 'Aktif',
+      inactive: 'Tidak aktif',
+    },
+  },
+  dashboard: dashboard.ms,
+  adminTraining: adminTraining.ms,
+  adminStaff: adminStaff.ms,
+  employee: employee.ms,
   theme: {
     label: 'Tema',
     light: 'Cerah',

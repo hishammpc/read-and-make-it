@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { usePrograms } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
 import { useUploadCertificate } from '@/hooks/useCertificates';
+import { useToast } from '@/hooks/use-toast';
+import { toneClasses } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -18,12 +23,20 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Upload, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Upload, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+
+function RequiredMark() {
+  return <span className="text-destructive" aria-hidden="true"> *</span>;
+}
 
 export default function CertificateUpload() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tu = t.adminTraining.certificateUpload;
+  const ts = t.adminTraining.shared;
+  const { toast } = useToast();
   const { data: programs, isLoading: programsLoading } = usePrograms();
   const { data: users, isLoading: usersLoading } = useUsers();
   const { mutateAsync: uploadCertificate } = useUploadCertificate();
@@ -64,7 +77,7 @@ export default function CertificateUpload() {
       if (selectedFile.type === 'application/pdf') {
         setFile(selectedFile);
       } else {
-        alert('Please select a PDF file');
+        toast({ title: tu.pdfOnly, variant: 'destructive' });
         e.target.value = '';
       }
     }
@@ -72,7 +85,7 @@ export default function CertificateUpload() {
 
   const handleUpload = async () => {
     if (!selectedProgram || selectedEmployees.length === 0 || !file || !user?.userId) {
-      alert('Please fill in all required fields');
+      toast({ title: tu.missingFields, variant: 'destructive' });
       return;
     }
 
@@ -97,15 +110,15 @@ export default function CertificateUpload() {
 
         results.push({
           userId: employeeId,
-          userName: employee?.name || 'Unknown',
+          userName: employee?.name || ts.unknown,
           success: true,
         });
       } catch (error) {
         results.push({
           userId: employeeId,
-          userName: employee?.name || 'Unknown',
+          userName: employee?.name || ts.unknown,
           success: false,
-          error: error instanceof Error ? error.message : 'Upload failed',
+          error: error instanceof Error ? error.message : tu.uploadFailed,
         });
       }
 
@@ -121,200 +134,215 @@ export default function CertificateUpload() {
   const successCount = uploadResults.filter((r) => r.success).length;
   const failureCount = uploadResults.filter((r) => !r.success).length;
 
+  const resultTone = failureCount === 0 ? 'success' : 'danger';
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/dashboard/certificates')}
+      <PageHeader title={tu.title} description={tu.description} backTo="/dashboard/certificates" />
+
+      <div className="max-w-3xl space-y-6">
+        {isComplete && (
+          <div
+            role="status"
+            className={cn(
+              'flex items-start gap-3 rounded-xl border p-4 text-sm',
+              failureCount === 0 ? 'border-success/30' : 'border-destructive/30',
+              toneClasses[resultTone].soft
+            )}
           >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Upload Certificate</h1>
-            <p className="text-muted-foreground">Upload certificates for completed training programs</p>
+            {failureCount === 0 ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            <p>{tu.complete(successCount, failureCount)}</p>
           </div>
-        </div>
+        )}
 
-        <div className="max-w-3xl space-y-6">
-          {isComplete && (
-            <Alert variant={failureCount === 0 ? 'default' : 'destructive'}>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Upload complete: {successCount} successful, {failureCount} failed
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Certificate Details</CardTitle>
-              <CardDescription>
-                Select a program, choose employees, and upload the certificate file
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="program">Training Program *</Label>
-                <Select
-                  value={selectedProgram}
-                  onValueChange={setSelectedProgram}
-                  disabled={uploading || isComplete}
-                >
-                  <SelectTrigger id="program">
-                    <SelectValue placeholder="Select program" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {programsLoading ? (
-                      <SelectItem value="loading" disabled>
-                        Loading programs...
+        <Card>
+          <CardHeader>
+            <CardTitle>{tu.cardTitle}</CardTitle>
+            <CardDescription>
+              {tu.cardDescription} {ts.requiredFieldsHint}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="program">
+                {tu.program}
+                <RequiredMark />
+              </Label>
+              <Select
+                value={selectedProgram}
+                onValueChange={setSelectedProgram}
+                disabled={uploading || isComplete}
+              >
+                <SelectTrigger id="program">
+                  <SelectValue placeholder={tu.programPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {programsLoading ? (
+                    <SelectItem value="loading" disabled>
+                      {t.common.loading}
+                    </SelectItem>
+                  ) : programs && programs.length > 0 ? (
+                    programs.map((program) => (
+                      <SelectItem key={program.id} value={program.id}>
+                        {tu.programOption(program.title, program.hours)}
                       </SelectItem>
-                    ) : programs && programs.length > 0 ? (
-                      programs.map((program) => (
-                        <SelectItem key={program.id} value={program.id}>
-                          {program.title} ({program.hours} hours)
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No programs available
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>
+                      {tu.noPrograms}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Select Employees * ({selectedEmployees.length} selected)</Label>
-                <div className="flex items-center gap-2 mb-2">
+            <div className="space-y-2" role="group" aria-labelledby="staff-label">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Label id="staff-label">
+                  {tu.staff}
+                  <RequiredMark />
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    {tu.selectedCount(selectedEmployees.length)}
+                  </span>
+                </Label>
+                <div className="flex items-center gap-2">
                   <Checkbox
                     id="select-all"
                     checked={selectedEmployees.length === activeUsers.length && activeUsers.length > 0}
                     onCheckedChange={handleSelectAll}
                     disabled={uploading || isComplete}
                   />
-                  <Label htmlFor="select-all" className="text-sm font-normal cursor-pointer">
-                    Select All
+                  <Label htmlFor="select-all" className="cursor-pointer text-sm font-normal">
+                    {tu.selectAll}
                   </Label>
                 </div>
-                <div className="border rounded-md p-4 max-h-64 overflow-y-auto space-y-2">
-                  {usersLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading employees...</p>
-                  ) : activeUsers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No active employees found</p>
-                  ) : (
-                    activeUsers.map((employee) => (
-                      <div key={employee.id} className="flex items-center gap-2">
-                        <Checkbox
-                          id={employee.id}
-                          checked={selectedEmployees.includes(employee.id)}
-                          onCheckedChange={() => handleEmployeeToggle(employee.id)}
-                          disabled={uploading || isComplete}
-                        />
-                        <Label
-                          htmlFor={employee.id}
-                          className="text-sm font-normal cursor-pointer flex-1"
-                        >
-                          {employee.name} - {employee.email}
-                          {employee.department && ` (${employee.department})`}
-                        </Label>
-                      </div>
-                    ))
-                  )}
-                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="file">Certificate File (PDF only) *</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={handleFileChange}
-                  disabled={uploading || isComplete}
-                />
-                {file && (
-                  <p className="text-sm text-muted-foreground">
-                    Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                  </p>
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-4">
+                {usersLoading ? (
+                  <div className="space-y-2" aria-busy="true">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-5 w-3/4" />
+                  </div>
+                ) : activeUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{tu.noActiveStaff}</p>
+                ) : (
+                  activeUsers.map((employee) => (
+                    <div key={employee.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={employee.id}
+                        checked={selectedEmployees.includes(employee.id)}
+                        onCheckedChange={() => handleEmployeeToggle(employee.id)}
+                        disabled={uploading || isComplete}
+                      />
+                      <Label
+                        htmlFor={employee.id}
+                        className="flex-1 cursor-pointer text-sm font-normal"
+                      >
+                        {employee.name}
+                        <span className="text-muted-foreground">
+                          {' '}· {employee.email}
+                          {employee.department && ` · ${employee.department}`}
+                        </span>
+                      </Label>
+                    </div>
+                  ))
                 )}
               </div>
+            </div>
 
-              {uploading && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Uploading certificates...</span>
-                    <span>{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <Progress value={uploadProgress} />
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="file">
+                {tu.file}
+                <RequiredMark />
+              </Label>
+              <Input
+                id="file"
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleFileChange}
+                disabled={uploading || isComplete}
+              />
+              {file && (
+                <p className="text-sm text-muted-foreground">
+                  {tu.selectedFile(file.name, (file.size / 1024 / 1024).toFixed(2))}
+                </p>
               )}
+            </div>
 
-              {uploadResults.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Upload Results</Label>
-                  <div className="border rounded-md p-4 max-h-64 overflow-y-auto space-y-2">
-                    {uploadResults.map((result) => (
-                      <div
-                        key={result.userId}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        {result.success ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-600" />
-                        )}
-                        <span className={result.success ? 'text-green-600' : 'text-red-600'}>
-                          {result.userName}
-                        </span>
-                        {result.error && (
-                          <span className="text-muted-foreground">- {result.error}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+            {uploading && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{tu.uploading}</span>
+                  <span className="tabular-nums">{Math.round(uploadProgress)}%</span>
                 </div>
-              )}
+                <Progress value={uploadProgress} />
+              </div>
+            )}
 
-              <div className="flex gap-3">
-                {isComplete ? (
-                  <>
-                    <Button
-                      onClick={() => navigate('/dashboard/certificates')}
-                      className="flex-1"
-                    >
-                      Back to Certificates
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedProgram('');
-                        setSelectedEmployees([]);
-                        setFile(null);
-                        setUploadResults([]);
-                        setUploadProgress(0);
-                      }}
-                      className="flex-1"
-                    >
-                      Upload Another
-                    </Button>
-                  </>
-                ) : (
+            {uploadResults.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{tu.results}</p>
+                <ul className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-4">
+                  {uploadResults.map((result) => (
+                    <li key={result.userId} className="flex items-center gap-2 text-sm">
+                      {result.success ? (
+                        <CheckCircle2 className={cn('h-4 w-4 shrink-0', toneClasses.success.text)} aria-hidden="true" />
+                      ) : (
+                        <XCircle className={cn('h-4 w-4 shrink-0', toneClasses.danger.text)} aria-hidden="true" />
+                      )}
+                      <span className={result.success ? toneClasses.success.text : toneClasses.danger.text}>
+                        {result.userName}
+                      </span>
+                      {result.error && (
+                        <span className="text-muted-foreground">- {result.error}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {isComplete ? (
+                <>
                   <Button
-                    onClick={handleUpload}
-                    disabled={!canUpload}
+                    onClick={() => navigate('/dashboard/certificates')}
                     className="flex-1"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Certificate{selectedEmployees.length > 1 ? 's' : ''}
+                    {tu.backToList}
                   </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedProgram('');
+                      setSelectedEmployees([]);
+                      setFile(null);
+                      setUploadResults([]);
+                      setUploadProgress(0);
+                    }}
+                    className="flex-1"
+                  >
+                    {tu.uploadAnother}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleUpload}
+                  disabled={!canUpload}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4" />
+                  {tu.submit(selectedEmployees.length)}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

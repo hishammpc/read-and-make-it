@@ -1,7 +1,14 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -11,10 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, AlertCircle, User, UserCheck, Clock } from 'lucide-react';
+import { SearchX, User, UserCheck } from 'lucide-react';
 import {
   RadarChart,
   PolarGrid,
@@ -27,6 +31,8 @@ import {
 } from 'recharts';
 import { useAnnualEvaluationResult } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { getRatingLevelTone, getRatingPercentageTone, toneClasses, type StatusTone } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   SCORE_MAP,
@@ -36,21 +42,22 @@ import {
 } from '@/lib/annualEvaluationQuestions';
 
 export default function SuperviseeEvaluationDetail() {
-  const navigate = useNavigate();
   const { evaluationId } = useParams<{ evaluationId: string }>();
+  const { t } = useLanguage();
+  const ta = t.employee.annual;
 
   const { user } = useAuth();
   const { data, isLoading, error } = useAnnualEvaluationResult(evaluationId || '');
   // Only the assigned supervisor can view this result; anyone else gets "not found".
   const evaluation = data && data.supervisor_id === user?.userId ? data : null;
 
+  const backTo = '/dashboard/supervisee-evaluations';
+
   if (error) {
     return (
       <EmployeeLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan data: {(error as Error).message}</AlertDescription>
-        </Alert>
+        <PageHeader title={ta.resultTitle} backTo={backTo} />
+        <ErrorState message={(error as Error).message} />
       </EmployeeLayout>
     );
   }
@@ -58,13 +65,7 @@ export default function SuperviseeEvaluationDetail() {
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-96" />
-            <Skeleton className="h-96" />
-          </div>
-        </div>
+        <PageSkeleton variant="detail" />
       </EmployeeLayout>
     );
   }
@@ -72,13 +73,19 @@ export default function SuperviseeEvaluationDetail() {
   if (!evaluation) {
     return (
       <EmployeeLayout>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Penilaian tidak dijumpai.</AlertDescription>
-        </Alert>
+        <PageHeader title={ta.resultTitle} backTo={backTo} />
+        <EmptyState icon={SearchX} title={ta.notFoundTitle} description={ta.notFoundDescription} />
       </EmployeeLayout>
     );
   }
+
+  const header = (
+    <PageHeader
+      title={ta.resultTitle}
+      description={ta.annualYear((evaluation.cycle as any)?.year)}
+      backTo={backTo}
+    />
+  );
 
   const staffAnswers = (evaluation.staff_answers || {}) as Record<string, number>;
   const supervisorAnswers = (evaluation.supervisor_answers || {}) as Record<string, number>;
@@ -87,11 +94,9 @@ export default function SuperviseeEvaluationDetail() {
 
   const staffTotal = hasStaffAnswers ? calculateTotalScore(staffAnswers) : 0;
   const staffPercentage = hasStaffAnswers ? calculatePercentage(staffAnswers) : 0;
-  const staffRating = hasStaffAnswers ? getRatingLabel(staffPercentage) : null;
 
   const supervisorTotal = hasSupervisorAnswers ? calculateTotalScore(supervisorAnswers) : 0;
   const supervisorPercentage = hasSupervisorAnswers ? calculatePercentage(supervisorAnswers) : 0;
-  const supervisorRating = hasSupervisorAnswers ? getRatingLabel(supervisorPercentage) : null;
 
   // Prepare radar chart data
   const radarData = ANNUAL_EVALUATION_QUESTIONS.map((q) => ({
@@ -104,140 +109,62 @@ export default function SuperviseeEvaluationDetail() {
 
   return (
     <EmployeeLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/dashboard/supervisee-evaluations')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Keputusan Penilaian
-            </h1>
-            <p className="text-muted-foreground">
-              Penilaian Tahunan {(evaluation.cycle as any)?.year}
-            </p>
-          </div>
-        </div>
+      {header}
 
-        {/* Staff Info Card */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <User className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Kakitangan</p>
-                <p className="text-lg font-semibold">{(evaluation.profiles as any)?.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {(evaluation.profiles as any)?.position || ''}{' '}
-                  {(evaluation.profiles as any)?.department ? `· ${(evaluation.profiles as any).department}` : ''}
-                </p>
-              </div>
+      <div className="space-y-6">
+        {/* Staff member */}
+        <Card className="p-5">
+          <div className="flex items-start gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <User className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">{ta.staff}</p>
+              <p className="font-semibold">{(evaluation.profiles as any)?.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {(evaluation.profiles as any)?.position || ''}{' '}
+                {(evaluation.profiles as any)?.department ? `· ${(evaluation.profiles as any).department}` : ''}
+              </p>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* Score Summary */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="border-blue-200">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
-                <CardTitle>Penilaian Kendiri</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {hasStaffAnswers ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-4xl font-bold text-blue-600">{staffTotal}/100</p>
-                      <p className="text-lg text-muted-foreground">{staffPercentage}%</p>
-                    </div>
-                    <Badge
-                      className={`text-lg px-4 py-2 ${
-                        staffRating!.color === 'green' ? 'bg-green-100 text-green-800' :
-                        staffRating!.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                        staffRating!.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                        staffRating!.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {staffRating!.label}
-                    </Badge>
-                  </div>
-                  {evaluation.staff_submitted_at && (
-                    <p className="text-sm text-muted-foreground mt-4">
-                      Dihantar: {formatMalaysianDate(evaluation.staff_submitted_at)}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center gap-3 py-4">
-                  <Clock className="h-5 w-5 text-gray-400" />
-                  <p className="text-lg text-gray-500 font-medium">Belum Mula</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-200">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-green-600" />
-                <CardTitle>Penilaian Penyelia</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {hasSupervisorAnswers ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-4xl font-bold text-green-600">{supervisorTotal}/100</p>
-                      <p className="text-lg text-muted-foreground">{supervisorPercentage}%</p>
-                    </div>
-                    <Badge
-                      className={`text-lg px-4 py-2 ${
-                        supervisorRating!.color === 'green' ? 'bg-green-100 text-green-800' :
-                        supervisorRating!.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                        supervisorRating!.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                        supervisorRating!.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                        'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {supervisorRating!.label}
-                    </Badge>
-                  </div>
-                  {evaluation.supervisor_submitted_at && (
-                    <p className="text-sm text-muted-foreground mt-4">
-                      Dihantar: {formatMalaysianDate(evaluation.supervisor_submitted_at)}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center gap-3 py-4">
-                  <Clock className="h-5 w-5 text-orange-500" />
-                  <p className="text-lg text-orange-600 font-medium">Belum Selesai</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Score summary */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ScoreCard
+            label={ta.selfEvaluation}
+            icon={User}
+            tone="info"
+            score={
+              hasStaffAnswers
+                ? { total: staffTotal, percentage: staffPercentage, submittedAt: evaluation.staff_submitted_at }
+                : null
+            }
+            pendingStatus="pending_staff"
+          />
+          <ScoreCard
+            label={ta.supervisorEvaluation}
+            icon={UserCheck}
+            tone="success"
+            score={
+              hasSupervisorAnswers
+                ? {
+                    total: supervisorTotal,
+                    percentage: supervisorPercentage,
+                    submittedAt: evaluation.supervisor_submitted_at,
+                  }
+                : null
+            }
+            pendingStatus="pending_supervisor"
+          />
         </div>
 
-        {/* Spider Chart - only show if both have answered */}
+        {/* Spider chart — only once both have answered (chart internals unchanged until phase 4) */}
         {hasStaffAnswers && hasSupervisorAnswers && (
           <Card>
             <CardHeader>
-              <CardTitle>Carta Spider Web - Perbandingan Kompetensi</CardTitle>
-              <CardDescription>
-                Perbandingan antara penilaian kendiri (biru) dan penilaian penyelia (hijau)
-              </CardDescription>
+              <CardTitle>{ta.chartTitle}</CardTitle>
+              <CardDescription>{ta.chartDescription}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[350px] sm:h-[500px]">
@@ -256,7 +183,7 @@ export default function SuperviseeEvaluationDetail() {
                       tickCount={6}
                     />
                     <Radar
-                      name="Kakitangan"
+                      name={ta.chartStaff}
                       dataKey="staff"
                       stroke="#3b82f6"
                       fill="#3b82f6"
@@ -264,7 +191,7 @@ export default function SuperviseeEvaluationDetail() {
                       strokeWidth={2}
                     />
                     <Radar
-                      name="Penyelia"
+                      name={ta.chartSupervisor}
                       dataKey="supervisor"
                       stroke="#22c55e"
                       fill="#22c55e"
@@ -279,7 +206,7 @@ export default function SuperviseeEvaluationDetail() {
                               <p className="font-semibold text-sm mb-2">{label}</p>
                               {payload.map((entry: any, index: number) => (
                                 <p key={index} className="text-sm" style={{ color: entry.color }}>
-                                  {entry.name}: Tahap {entry.value}
+                                  {entry.name}: {ta.level(entry.value)}
                                 </p>
                               ))}
                             </div>
@@ -296,15 +223,13 @@ export default function SuperviseeEvaluationDetail() {
           </Card>
         )}
 
-        {/* Detailed Breakdown */}
+        {/* Detailed breakdown */}
         {hasStaffAnswers && (
-          <Card className="overflow-x-auto">
+          <Card>
             <CardHeader>
-              <CardTitle>Pecahan Markah Terperinci</CardTitle>
+              <CardTitle>{ta.breakdownTitle}</CardTitle>
               <CardDescription>
-                {hasSupervisorAnswers
-                  ? 'Perbandingan markah setiap soalan antara kakitangan dan penyelia'
-                  : 'Markah penilaian kendiri bagi setiap soalan'}
+                {hasSupervisorAnswers ? ta.breakdownCompare : ta.breakdownSelfOnly}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -312,12 +237,12 @@ export default function SuperviseeEvaluationDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">#</TableHead>
-                    <TableHead>Kompetensi</TableHead>
-                    <TableHead className="text-center">Kakitangan</TableHead>
+                    <TableHead>{ta.colCompetency}</TableHead>
+                    <TableHead className="text-right">{ta.colStaff}</TableHead>
                     {hasSupervisorAnswers && (
                       <>
-                        <TableHead className="text-center">Penyelia</TableHead>
-                        <TableHead className="text-center">Perbezaan</TableHead>
+                        <TableHead className="text-right">{ta.colSupervisor}</TableHead>
+                        <TableHead className="text-right">{ta.colDifference}</TableHead>
                       </>
                     )}
                   </TableRow>
@@ -330,40 +255,28 @@ export default function SuperviseeEvaluationDetail() {
 
                     return (
                       <TableRow key={q.id}>
-                        <TableCell className="font-medium">{index + 1}</TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{q.shortLabel}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {q.question}
-                            </p>
-                          </div>
+                          <p className="font-medium">{q.shortLabel}</p>
+                          <p className="line-clamp-2 text-xs text-muted-foreground">{q.question}</p>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        <TableCell className="text-right">
+                          <ToneBadge tone={getRatingLevelTone(staffAnswers[q.id])} className="tabular-nums">
                             {staffScore}/10
-                          </Badge>
+                          </ToneBadge>
                         </TableCell>
                         {hasSupervisorAnswers && (
                           <>
-                            <TableCell className="text-center">
-                              <Badge variant="outline" className="bg-green-50 text-green-700">
+                            <TableCell className="text-right">
+                              <ToneBadge tone={getRatingLevelTone(supervisorAnswers[q.id])} className="tabular-nums">
                                 {supervisorScore}/10
-                              </Badge>
+                              </ToneBadge>
                             </TableCell>
-                            <TableCell className="text-center">
-                              <span
-                                className={`font-medium ${
-                                  difference > 0
-                                    ? 'text-green-600'
-                                    : difference < 0
-                                    ? 'text-red-600'
-                                    : 'text-gray-500'
-                                }`}
-                              >
-                                {difference > 0 ? '+' : ''}
-                                {difference}
-                              </span>
+                            <TableCell
+                              className={cn('text-right font-medium tabular-nums', toneClasses[differenceTone(difference)].text)}
+                            >
+                              {difference > 0 ? '+' : ''}
+                              {difference}
                             </TableCell>
                           </>
                         )}
@@ -377,5 +290,57 @@ export default function SuperviseeEvaluationDetail() {
         )}
       </div>
     </EmployeeLayout>
+  );
+}
+
+function differenceTone(difference: number): StatusTone {
+  if (difference > 0) return 'success';
+  if (difference < 0) return 'danger';
+  return 'muted';
+}
+
+/** Self / supervisor score summary; shows the pending status until that side has answered. */
+function ScoreCard({
+  label,
+  icon,
+  tone,
+  score,
+  pendingStatus,
+}: {
+  label: string;
+  icon: LucideIcon;
+  tone: StatusTone;
+  score: { total: number; percentage: number; submittedAt?: string | null } | null;
+  pendingStatus?: 'pending_staff' | 'pending_supervisor';
+}) {
+  const { t } = useLanguage();
+
+  if (!score) {
+    return (
+      <StatCard label={label} icon={icon} tone="muted" value="—">
+        {pendingStatus && <StatusBadge kind="annualEvaluation" status={pendingStatus} />}
+      </StatCard>
+    );
+  }
+
+  const rating = getRatingLabel(score.percentage);
+  return (
+    <StatCard
+      label={label}
+      icon={icon}
+      tone={tone}
+      value={
+        <>
+          {score.total}
+          <span className="text-base font-normal text-muted-foreground">/100</span>
+        </>
+      }
+      hint={score.submittedAt ? t.employee.annual.submittedOn(formatMalaysianDate(score.submittedAt)) : undefined}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <ToneBadge tone={getRatingPercentageTone(score.percentage)}>{rating.label}</ToneBadge>
+        <span className="text-sm tabular-nums text-muted-foreground">{score.percentage}%</span>
+      </div>
+    </StatCard>
   );
 }

@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Trash2, Plus, GripVertical } from 'lucide-react';
 
 export interface Question {
@@ -30,6 +31,9 @@ export default function EvaluationTemplateBuilder({
   questions,
   onChange,
 }: EvaluationTemplateBuilderProps) {
+  const { t } = useLanguage();
+  const tb = t.adminTraining.templates.builder;
+
   const addQuestion = () => {
     const newQuestion: Question = {
       id: crypto.randomUUID(),
@@ -85,35 +89,38 @@ export default function EvaluationTemplateBuilder({
       {questions.map((question, index) => (
         <Card key={question.id}>
           <CardHeader className="pb-4">
-            <div className="flex items-start gap-3">
-              <GripVertical className="w-5 h-5 text-muted-foreground mt-1 cursor-move" />
-              <CardTitle className="text-lg flex-1">Question {index + 1}</CardTitle>
+            <div className="flex items-center gap-3">
+              <GripVertical className="h-5 w-5 cursor-move text-muted-foreground" aria-hidden="true" />
+              <CardTitle className="flex-1">{tb.question(index + 1)}</CardTitle>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => removeQuestion(question.id)}
-                className="text-destructive"
+                className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                aria-label={tb.removeQuestion}
+                title={tb.removeQuestion}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Question Text */}
             <div className="space-y-2">
-              <Label htmlFor={`question-${question.id}`}>Question Text</Label>
+              <Label htmlFor={`question-${question.id}`}>{tb.questionText}</Label>
               <Textarea
                 id={`question-${question.id}`}
                 value={question.text}
                 onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
-                placeholder="Enter your question here..."
+                placeholder={tb.questionTextPlaceholder}
                 rows={2}
               />
             </div>
 
             {/* Question Type */}
             <div className="space-y-2">
-              <Label htmlFor={`type-${question.id}`}>Question Type</Label>
+              <Label htmlFor={`type-${question.id}`}>{tb.questionType}</Label>
               <Select
                 value={question.type}
                 onValueChange={(value: Question['type']) => {
@@ -132,10 +139,10 @@ export default function EvaluationTemplateBuilder({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="likert">Likert Scale (1-5)</SelectItem>
-                  <SelectItem value="radio">Multiple Choice (Single)</SelectItem>
-                  <SelectItem value="checkbox">Multiple Choice (Multiple)</SelectItem>
-                  <SelectItem value="text">Text Response</SelectItem>
+                  <SelectItem value="likert">{tb.types.likert}</SelectItem>
+                  <SelectItem value="radio">{tb.types.radio}</SelectItem>
+                  <SelectItem value="checkbox">{tb.types.checkbox}</SelectItem>
+                  <SelectItem value="text">{tb.types.text}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -143,7 +150,7 @@ export default function EvaluationTemplateBuilder({
             {/* Options for Radio/Checkbox */}
             {(question.type === 'radio' || question.type === 'checkbox') && (
               <div className="space-y-3">
-                <Label>Options</Label>
+                <p className="text-sm font-medium">{tb.options}</p>
                 <div className="space-y-2">
                   {question.options?.map((option, optionIndex) => (
                     <div key={optionIndex} className="flex gap-2">
@@ -152,15 +159,19 @@ export default function EvaluationTemplateBuilder({
                         onChange={(e) =>
                           updateOption(question.id, optionIndex, e.target.value)
                         }
-                        placeholder={`Option ${optionIndex + 1}`}
+                        placeholder={tb.option(optionIndex + 1)}
+                        aria-label={tb.option(optionIndex + 1)}
                       />
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => removeOption(question.id, optionIndex)}
                         className="shrink-0"
+                        aria-label={tb.removeOption}
+                        title={tb.removeOption}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
@@ -171,8 +182,8 @@ export default function EvaluationTemplateBuilder({
                   size="sm"
                   onClick={() => addOption(question.id)}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Option
+                  <Plus className="h-4 w-4" />
+                  {tb.addOption}
                 </Button>
               </div>
             )}
@@ -190,7 +201,7 @@ export default function EvaluationTemplateBuilder({
                 htmlFor={`required-${question.id}`}
                 className="text-sm font-normal cursor-pointer"
               >
-                Required question
+                {tb.requiredQuestion}
               </Label>
             </div>
           </CardContent>
@@ -198,8 +209,8 @@ export default function EvaluationTemplateBuilder({
       ))}
 
       <Button type="button" variant="outline" onClick={addQuestion} className="w-full">
-        <Plus className="w-4 h-4 mr-2" />
-        Add Question
+        <Plus className="h-4 w-4" />
+        {tb.addQuestion}
       </Button>
     </div>
   );

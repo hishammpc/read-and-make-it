@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -19,13 +22,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  ChevronLeft,
   Send,
-  AlertCircle,
   CheckCircle2,
   Calendar,
   CalendarIcon,
@@ -34,6 +34,7 @@ import {
   Download,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   useProposedTrainingsList,
   useMarkAsEntertained,
@@ -63,8 +64,9 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear + 1 - i);
 
 export default function ProposedTrainings() {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tp = t.adminStaff.proposals;
   const [selectedYear, setSelectedYear] = useState(getProposalYear());
   const { data: proposals, isLoading, error } = useProposedTrainingsList(selectedYear);
   const markAsEntertained = useMarkAsEntertained();
@@ -110,21 +112,11 @@ export default function ProposedTrainings() {
     });
   };
 
-  if (error) {
-    return (
-      <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Error loading data: {error.message}</AlertDescription>
-        </Alert>
-      </AdminLayout>
-    );
-  }
-
   const totalProposals = proposals?.length || 0;
   const entertainedCount =
     proposals?.filter((p) => p.proposal_1_entertained || p.proposal_2_entertained).length || 0;
 
+  // CSV export is official output: headers and values stay in BM regardless of UI language.
   const handleDownloadCSV = () => {
     if (!proposals || proposals.length === 0) return;
 
@@ -148,7 +140,7 @@ export default function ProposedTrainings() {
       .map((row) => row.map(escapeCSVValue).join(','))
       .join('\n');
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -157,70 +149,84 @@ export default function ProposedTrainings() {
     URL.revokeObjectURL(url);
   };
 
+  const header = (
+    <PageHeader
+      title={tp.title}
+      description={tp.description}
+      actions={
+        <>
+          <Button
+            variant="outline"
+            onClick={handleDownloadCSV}
+            disabled={!proposals || proposals.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            {t.common.downloadCsv}
+          </Button>
+          <Select
+            value={selectedYear.toString()}
+            onValueChange={(value) => setSelectedYear(parseInt(value))}
+          >
+            <SelectTrigger className="w-28" aria-label={t.common.year}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </>
+      }
+    />
+  );
+
+  if (error) {
+    return (
+      <AdminLayout>
+        {header}
+        <ErrorState message={error.message} />
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Proposed Trainings</h1>
-              <p className="text-muted-foreground">
-                Training proposals submitted by employees
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadCSV}
-              disabled={!proposals || proposals.length === 0}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Muat Turun CSV
-            </Button>
-            <Select
-              value={selectedYear.toString()}
-              onValueChange={(value) => setSelectedYear(parseInt(value))}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {YEARS.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+      {header}
 
+      <div className="space-y-6">
         {/* Proposal Period Settings */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <div
+              role="group"
+              aria-labelledby="proposal-period-label"
+              className="flex flex-col gap-4 sm:flex-row sm:items-end"
+            >
+              <p
+                id="proposal-period-label"
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:pb-2"
+              >
                 <CalendarIcon className="h-4 w-4" />
-                Tempoh Cadangan Latihan:
-              </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+                {tp.periodLabel}
+              </p>
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end">
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Mula</span>
+                  <Label htmlFor="proposal-period-start" className="text-xs font-normal text-muted-foreground">
+                    {tp.periodStart}
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-3 w-3" />
-                        {editPeriodStart ? format(editPeriodStart, 'dd/MM/yyyy') : 'Tarikh'}
+                      <Button
+                        id="proposal-period-start"
+                        variant="outline"
+                        size="sm"
+                        className="w-36 justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="h-3 w-3" />
+                        {editPeriodStart ? format(editPeriodStart, 'dd/MM/yyyy') : tp.pickDate}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -233,14 +239,21 @@ export default function ProposedTrainings() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <span className="hidden sm:inline text-muted-foreground pb-1">—</span>
+                <span aria-hidden="true" className="hidden pb-1 text-muted-foreground sm:inline">—</span>
                 <div className="space-y-1">
-                  <span className="text-xs text-muted-foreground">Akhir</span>
+                  <Label htmlFor="proposal-period-end" className="text-xs font-normal text-muted-foreground">
+                    {tp.periodEnd}
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-[140px] justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-3 w-3" />
-                        {editPeriodEnd ? format(editPeriodEnd, 'dd/MM/yyyy') : 'Tarikh'}
+                      <Button
+                        id="proposal-period-end"
+                        variant="outline"
+                        size="sm"
+                        className="w-36 justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="h-3 w-3" />
+                        {editPeriodEnd ? format(editPeriodEnd, 'dd/MM/yyyy') : tp.pickDate}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -259,8 +272,8 @@ export default function ProposedTrainings() {
                     onClick={handleSavePeriod}
                     disabled={updateSetting.isPending}
                   >
-                    <Save className="h-3 w-3 mr-1" />
-                    {updateSetting.isPending ? 'Menyimpan...' : 'Simpan'}
+                    <Save className="h-3 w-3" />
+                    {updateSetting.isPending ? t.common.saving : t.common.save}
                   </Button>
                 )}
               </div>
@@ -269,79 +282,71 @@ export default function ProposedTrainings() {
         </Card>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-              <Send className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProposals}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Entertained</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{entertainedCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Year</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{selectedYear}</div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label={tp.statTotal}
+            value={isLoading ? <Skeleton className="h-8 w-12" /> : totalProposals}
+            icon={Send}
+            tone="primary"
+          />
+          <StatCard
+            label={tp.statConsidered}
+            value={isLoading ? <Skeleton className="h-8 w-12" /> : entertainedCount}
+            icon={CheckCircle2}
+            tone="success"
+            hint={tp.statConsideredHint}
+          />
+          <StatCard label={t.common.year} value={selectedYear} icon={Calendar} tone="muted" />
         </div>
 
         {/* Proposals Table */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle>Submitted Proposals</CardTitle>
-            <CardDescription>
-              Check the box to mark a proposal as entertained
-            </CardDescription>
+            <CardTitle>{tp.listTitle}</CardTitle>
+            <CardDescription>{tp.listDescription}</CardDescription>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : proposals?.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No proposals submitted for {selectedYear}</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Proposal 1</TableHead>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Proposal 2</TableHead>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead className="w-10"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {proposals?.map((proposal) => (
+          {isLoading ? (
+            <div className="space-y-2 px-6 pb-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full" />
+              ))}
+            </div>
+          ) : proposals?.length === 0 ? (
+            <EmptyState
+              compact
+              icon={Send}
+              title={tp.emptyTitle(selectedYear)}
+              description={tp.emptyDescription}
+              className="border-t"
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{tp.colEmployee}</TableHead>
+                  <TableHead>{tp.colProposal1}</TableHead>
+                  <TableHead className="w-10">
+                    <span className="sr-only">{tp.colConsidered}</span>
+                  </TableHead>
+                  <TableHead>{tp.colProposal2}</TableHead>
+                  <TableHead className="w-10">
+                    <span className="sr-only">{tp.colConsidered}</span>
+                  </TableHead>
+                  <TableHead>{tp.colSubmitted}</TableHead>
+                  <TableHead className="w-10 text-right">
+                    <span className="sr-only">{t.common.actions}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {proposals?.map((proposal) => {
+                  const staffName: string = (proposal.profiles as any)?.name || '—';
+
+                  return (
                     <TableRow key={proposal.id}>
-                      <TableCell className="font-medium">
-                        {(proposal.profiles as any)?.name || '-'}
-                      </TableCell>
+                      <TableCell className="font-medium">{staffName}</TableCell>
                       <TableCell>
-                        {proposal.proposal_1 || (
-                          <span className="text-muted-foreground italic">-</span>
-                        )}
+                        {proposal.proposal_1 || <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         {proposal.proposal_1 && (
@@ -350,13 +355,12 @@ export default function ProposedTrainings() {
                             onCheckedChange={() =>
                               handleToggleEntertained(proposal.id, 1, proposal.proposal_1_entertained || false)
                             }
+                            aria-label={tp.markConsidered(1, staffName)}
                           />
                         )}
                       </TableCell>
                       <TableCell>
-                        {proposal.proposal_2 || (
-                          <span className="text-muted-foreground italic">-</span>
-                        )}
+                        {proposal.proposal_2 || <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         {proposal.proposal_2 && (
@@ -365,46 +369,49 @@ export default function ProposedTrainings() {
                             onCheckedChange={() =>
                               handleToggleEntertained(proposal.id, 2, proposal.proposal_2_entertained || false)
                             }
+                            aria-label={tp.markConsidered(2, staffName)}
                           />
                         )}
                       </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {formatMalaysianDate(proposal.created_at)}
-                        </span>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatMalaysianDate(proposal.created_at)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                              aria-label={tp.deleteProposal(staffName)}
+                              title={tp.deleteProposal(staffName)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Proposal</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this proposal from {(proposal.profiles as any)?.name}? This action cannot be undone.
-                              </AlertDialogDescription>
+                              <AlertDialogTitle>{tp.deleteTitle}</AlertDialogTitle>
+                              <AlertDialogDescription>{tp.deleteDescription(staffName)}</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => deleteProposal.mutate(proposal.id)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                Delete
+                                {t.common.delete}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </Card>
       </div>
     </AdminLayout>

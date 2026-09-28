@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getYearBounds, isWithinBounds } from '@/lib/dateUtils';
 
@@ -146,6 +146,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
 
   return useQuery({
     queryKey: ['employee-dashboard-stats', userId, selectedYear],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const yearBounds = getYearBounds(selectedYear);
 

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { parseDateSafe, getYearBounds } from '@/lib/dateUtils';
@@ -19,17 +19,19 @@ export interface MonthlyTrend {
 }
 
 export interface EvaluationSummary {
-  q1: number; // Average scores for each question
+  q1: number; // Average score (1–3) for each scored question
   q2: number;
   q3: number;
   q4: number;
   q5: number;
-  q6: number;
-  q7: number;
-  q8: number;
-  q9: number;
+  overall: number; // Average across every scored answer
   totalResponses: number;
 }
+
+// Scored questions on the training-evaluation form. Since Dec 2025 (e62d572) the form is
+// q1–q5 rated plus a free-text q6; the old 9-question form was retired, so only q1–q5
+// are comparable across years.
+const SCORED_QUESTIONS = ['q1', 'q2', 'q3', 'q4', 'q5'] as const;
 
 export interface LeaderboardEntry {
   rank: number;
@@ -69,6 +71,8 @@ export function useEnhancedAdminDashboard(year?: number) {
 
   return useQuery({
     queryKey: ['enhanced-admin-dashboard', selectedYear],
+    // Keep the previous year on screen while a newly selected year loads
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<EnhancedDashboardStats> => {
       const { start: startOfYear, end: endOfYear } = getYearBounds(selectedYear);
 
@@ -192,13 +196,12 @@ export function useEnhancedAdminDashboard(year?: number) {
       let evaluationSummary: EvaluationSummary | null = null;
       if (evaluations && evaluations.length > 0) {
         const scoreMap: Record<string, number> = { 'LEMAH': 1, 'SEDERHANA': 2, 'BAGUS': 3 };
-        const totals: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0, q7: 0, q8: 0, q9: 0 };
-        const counts: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0, q7: 0, q8: 0, q9: 0 };
+        const totals: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 };
+        const counts: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 };
 
         evaluations.forEach((e: any) => {
           const answers = e.answers || {};
-          for (let i = 1; i <= 9; i++) {
-            const key = `q${i}`;
+          for (const key of SCORED_QUESTIONS) {
             const value = answers[key];
             if (value && scoreMap[value]) {
               totals[key] += scoreMap[value];
@@ -207,16 +210,18 @@ export function useEnhancedAdminDashboard(year?: number) {
           }
         });
 
+        const average = (total: number, count: number) =>
+          count > 0 ? Math.round((total / count) * 100) / 100 : 0;
+        const allTotal = SCORED_QUESTIONS.reduce((sum, key) => sum + totals[key], 0);
+        const allCount = SCORED_QUESTIONS.reduce((sum, key) => sum + counts[key], 0);
+
         evaluationSummary = {
-          q1: counts.q1 > 0 ? Math.round((totals.q1 / counts.q1) * 100) / 100 : 0,
-          q2: counts.q2 > 0 ? Math.round((totals.q2 / counts.q2) * 100) / 100 : 0,
-          q3: counts.q3 > 0 ? Math.round((totals.q3 / counts.q3) * 100) / 100 : 0,
-          q4: counts.q4 > 0 ? Math.round((totals.q4 / counts.q4) * 100) / 100 : 0,
-          q5: counts.q5 > 0 ? Math.round((totals.q5 / counts.q5) * 100) / 100 : 0,
-          q6: counts.q6 > 0 ? Math.round((totals.q6 / counts.q6) * 100) / 100 : 0,
-          q7: counts.q7 > 0 ? Math.round((totals.q7 / counts.q7) * 100) / 100 : 0,
-          q8: counts.q8 > 0 ? Math.round((totals.q8 / counts.q8) * 100) / 100 : 0,
-          q9: counts.q9 > 0 ? Math.round((totals.q9 / counts.q9) * 100) / 100 : 0,
+          q1: average(totals.q1, counts.q1),
+          q2: average(totals.q2, counts.q2),
+          q3: average(totals.q3, counts.q3),
+          q4: average(totals.q4, counts.q4),
+          q5: average(totals.q5, counts.q5),
+          overall: average(allTotal, allCount),
           totalResponses: evaluations.length,
         };
       }

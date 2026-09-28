@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -26,17 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import {
-  ChevronLeft,
   Plus,
-  Calendar,
   CalendarIcon,
+  CalendarClock,
   Users,
   AlertCircle,
+  AlertTriangle,
   Eye,
   CheckCircle2,
   Clock,
@@ -49,6 +53,7 @@ import {
   useAnnualEvaluationStatsByYear,
 } from '@/hooks/useAnnualEvaluations';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -61,6 +66,9 @@ const AVAILABLE_YEARS = Array.from({ length: currentYear - 2024 }, (_, i) => cur
 export default function AnnualEvaluations() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const ta = t.adminStaff.annualCycles;
+  const statusLabels = t.status.annualEvaluation;
   const { data: cycles, isLoading, error } = useAnnualEvaluationCycles();
   const { data: staffWithoutSupervisors } = useStaffWithoutSupervisors();
   const createCycle = useCreateAnnualEvaluationCycle();
@@ -76,17 +84,19 @@ export default function AnnualEvaluations() {
   const effectiveStatsYear = statsYear ?? latestCycleYear;
   const { data: evalStats } = useAnnualEvaluationStatsByYear(effectiveStatsYear);
 
-  const handleCreateCycle = async () => {
+  const handleCreateCycle = () => {
     if (!user?.userId) return;
 
-    await createCycle.mutateAsync({
-      year: selectedYear,
-      createdBy: user.userId,
-      startDate: createStartDate ? format(createStartDate, 'yyyy-MM-dd') : undefined,
-      endDate: createEndDate ? format(createEndDate, 'yyyy-MM-dd') : undefined,
-    });
-
-    setShowCreateDialog(false);
+    // The hook toasts failures (e.g. staff without a supervisor); keep the dialog open then.
+    createCycle.mutate(
+      {
+        year: selectedYear,
+        createdBy: user.userId,
+        startDate: createStartDate ? format(createStartDate, 'yyyy-MM-dd') : undefined,
+        endDate: createEndDate ? format(createEndDate, 'yyyy-MM-dd') : undefined,
+      },
+      { onSuccess: () => setShowCreateDialog(false) }
+    );
   };
 
   // Update default dates when selected year changes
@@ -103,74 +113,70 @@ export default function AnnualEvaluations() {
   const existingYears = new Set(cycles?.map((c) => c.year) || []);
   const availableYearsToCreate = AVAILABLE_YEARS.filter((y) => !existingYears.has(y));
 
+  const header = (
+    <PageHeader
+      title={ta.title}
+      description={ta.description}
+      actions={
+        <Button
+          onClick={() => setShowCreateDialog(true)}
+          disabled={availableYearsToCreate.length === 0 || hasStaffWithoutSupervisors}
+        >
+          <Plus className="h-4 w-4" />
+          {ta.create}
+        </Button>
+      }
+    />
+  );
+
   if (error) {
     return (
       <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan data: {error.message}</AlertDescription>
-        </Alert>
+        {header}
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
 
+  const total = evalStats?.total || 0;
+  const staffSubmitted = evalStats?.staffSubmitted || 0;
+  const completed = evalStats?.completed || 0;
+  const completedPercent = evalStats?.total ? Math.round(((evalStats.completed || 0) / evalStats.total) * 100) : 0;
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Penilaian Tahunan</h1>
-              <p className="text-muted-foreground">
-                Urus kitaran penilaian kompetensi tahunan kakitangan
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            disabled={availableYearsToCreate.length === 0 || hasStaffWithoutSupervisors}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Hantar Penilaian Baru
-          </Button>
-        </div>
+      {header}
 
+      <div className="space-y-6">
         {/* Warning if staff without supervisors */}
         {hasStaffWithoutSupervisors && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+          <Alert className="border-warning/30 bg-warning-soft text-warning-soft-foreground [&>svg]:text-warning-soft-foreground">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>{ta.noSupervisorTitle(staffWithoutSupervisors?.length || 0)}</AlertTitle>
             <AlertDescription>
-              <strong>{staffWithoutSupervisors?.length} kakitangan</strong> belum ada penyelia.
-              Sila tetapkan penyelia untuk semua kakitangan sebelum menghantar penilaian tahunan.
-              <Button
-                variant="link"
-                className="ml-2 p-0 h-auto"
-                onClick={() => navigate('/admin/users')}
+              {ta.noSupervisorDescription}{' '}
+              <Link
+                to="/admin/users"
+                className="font-medium underline underline-offset-4 hover:no-underline"
               >
-                Lihat senarai kakitangan →
-              </Button>
+                {ta.viewStaffList}
+              </Link>
             </AlertDescription>
           </Alert>
         )}
 
         {/* Stats Cards */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-muted-foreground">Statistik Tahun:</span>
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Label htmlFor="stats-year" className="text-sm font-medium text-muted-foreground">
+              {ta.statsYear}
+            </Label>
             <Select
               value={effectiveStatsYear.toString()}
               onValueChange={(value) => setStatsYear(parseInt(value))}
             >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue placeholder="Tahun" />
+              <SelectTrigger id="stats-year" className="w-28">
+                <SelectValue placeholder={t.common.year} />
               </SelectTrigger>
               <SelectContent>
                 {AVAILABLE_YEARS.map((year) => (
@@ -181,140 +187,108 @@ export default function AnnualEvaluations() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Jumlah Kakitangan</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{evalStats?.total || 0}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Menunggu Kakitangan</CardTitle>
-                <Clock className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {(evalStats?.total || 0) - (evalStats?.staffSubmitted || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {evalStats?.staffSubmitted || 0} / {evalStats?.total || 0} dijawab
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Menunggu Penyelia</CardTitle>
-                <UserCheck className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {(evalStats?.staffSubmitted || 0) - (evalStats?.completed || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {evalStats?.completed || 0} / {evalStats?.staffSubmitted || 0} disemak
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Selesai</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {evalStats?.completed || 0}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">
-                    ({evalStats?.total ? Math.round(((evalStats.completed || 0) / evalStats.total) * 100) : 0}%)
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard label={ta.statTotalStaff} value={total} icon={Users} tone="primary" />
+            <StatCard
+              label={statusLabels.pending_staff}
+              value={total - staffSubmitted}
+              icon={Clock}
+              tone="warning"
+              hint={ta.answered(staffSubmitted, total)}
+            />
+            <StatCard
+              label={statusLabels.pending_supervisor}
+              value={staffSubmitted - completed}
+              icon={UserCheck}
+              tone="info"
+              hint={ta.reviewed(completed, staffSubmitted)}
+            />
+            <StatCard
+              label={statusLabels.completed}
+              value={completed}
+              icon={CheckCircle2}
+              tone="success"
+              hint={ta.completedShare(completedPercent)}
+            />
           </div>
-        </div>
+        </section>
 
         {/* Cycles Table */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle>Senarai Kitaran Penilaian</CardTitle>
-            <CardDescription>
-              Klik pada kitaran untuk melihat kemajuan penilaian kakitangan
-            </CardDescription>
+            <CardTitle>{ta.listTitle}</CardTitle>
+            <CardDescription>{ta.listDescription}</CardDescription>
           </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : cycles?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Tiada kitaran penilaian. Klik butang "Hantar Penilaian" untuk memulakan.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tahun</TableHead>
-                    <TableHead>Tempoh</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Tarikh Dicipta</TableHead>
-                    <TableHead className="text-right">Tindakan</TableHead>
+          {isLoading ? (
+            <div className="space-y-2 px-6 pb-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-11 w-full" />
+              ))}
+            </div>
+          ) : cycles?.length === 0 ? (
+            <EmptyState
+              compact
+              icon={CalendarClock}
+              title={ta.emptyTitle}
+              description={ta.emptyDescription}
+              className="border-t"
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t.common.year}</TableHead>
+                  <TableHead>{ta.colPeriod}</TableHead>
+                  <TableHead>{t.common.status}</TableHead>
+                  <TableHead>{ta.colCreated}</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">{t.common.actions}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cycles?.map((cycle) => (
+                  <TableRow
+                    key={cycle.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/dashboard/annual-evaluations/${cycle.id}`)}
+                  >
+                    <TableCell>
+                      <Link
+                        to={`/dashboard/annual-evaluations/${cycle.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium tabular-nums hover:text-primary hover:underline underline-offset-4"
+                      >
+                        {cycle.year}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatMalaysianDate(cycle.start_date)} – {formatMalaysianDate(cycle.end_date)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge kind="cycle" status={cycle.status} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{formatMalaysianDate(cycle.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/annual-evaluations/${cycle.id}`);
+                        }}
+                        aria-label={ta.viewCycle(cycle.year)}
+                        title={ta.viewCycle(cycle.year)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cycles?.map((cycle) => (
-                    <TableRow
-                      key={cycle.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/dashboard/annual-evaluations/${cycle.id}`)}
-                    >
-                      <TableCell className="font-medium">{cycle.year}</TableCell>
-                      <TableCell>
-                        {formatMalaysianDate(cycle.start_date)} - {formatMalaysianDate(cycle.end_date)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={cycle.status === 'active' ? 'default' : 'secondary'}
-                          className={cycle.status === 'active' ? 'bg-green-100 text-green-800' : ''}
-                        >
-                          {cycle.status === 'active' ? (
-                            <>
-                              <Clock className="h-3 w-3 mr-1" />
-                              Aktif
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Ditutup
-                            </>
-                          )}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatMalaysianDate(cycle.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/dashboard/annual-evaluations/${cycle.id}`);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Lihat
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Card>
       </div>
 
@@ -322,21 +296,19 @@ export default function AnnualEvaluations() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hantar Penilaian Tahunan</DialogTitle>
-            <DialogDescription>
-              Pilih tahun penilaian dan hantar kepada semua kakitangan aktif.
-            </DialogDescription>
+            <DialogTitle>{ta.dialogTitle}</DialogTitle>
+            <DialogDescription>{ta.dialogDescription}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="year">Tahun Penilaian</Label>
+              <Label htmlFor="year">{ta.yearLabel}</Label>
               <Select
                 value={selectedYear.toString()}
                 onValueChange={handleYearChange}
               >
                 <SelectTrigger id="year">
-                  <SelectValue placeholder="Pilih tahun" />
+                  <SelectValue placeholder={ta.yearPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableYearsToCreate.map((year) => (
@@ -349,12 +321,12 @@ export default function AnnualEvaluations() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tarikh Mula</Label>
+              <Label htmlFor="create-start-date">{ta.startDate}</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {createStartDate ? format(createStartDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                  <Button id="create-start-date" variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="h-4 w-4" />
+                    {createStartDate ? format(createStartDate, 'dd/MM/yyyy') : ta.pickDate}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -369,12 +341,12 @@ export default function AnnualEvaluations() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tarikh Akhir</Label>
+              <Label htmlFor="create-end-date">{ta.endDate}</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {createEndDate ? format(createEndDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
+                  <Button id="create-end-date" variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="h-4 w-4" />
+                    {createEndDate ? format(createEndDate, 'dd/MM/yyyy') : ta.pickDate}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -390,18 +362,16 @@ export default function AnnualEvaluations() {
 
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Pastikan semua kakitangan telah ditetapkan penyelia sebelum menghantar penilaian.
-              </AlertDescription>
+              <AlertDescription>{ta.supervisorReminder}</AlertDescription>
             </Alert>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Batal
+              {t.common.cancel}
             </Button>
             <Button onClick={handleCreateCycle} disabled={createCycle.isPending || availableYearsToCreate.length === 0}>
-              {createCycle.isPending ? 'Menghantar...' : `Hantar Penilaian ${selectedYear}`}
+              {createCycle.isPending ? t.common.submitting : ta.send(selectedYear)}
             </Button>
           </DialogFooter>
         </DialogContent>

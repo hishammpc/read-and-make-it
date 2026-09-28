@@ -1,13 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useCreateUser } from '@/hooks/useUsers';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
 import { UserForm, UserFormValues } from '@/components/users/UserForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 
 export default function UserCreate() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tf = t.adminStaff.userForm;
   const createUser = useCreateUser();
 
   const handleSubmit = async (values: UserFormValues) => {
@@ -26,36 +28,25 @@ export default function UserCreate() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/admin/users')}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create User</h1>
-          <p className="text-muted-foreground">
-            Add a new user to the system
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={tf.createTitle}
+        description={tf.createDescription}
+        backTo="/admin/users"
+        backLabel={tf.backToUsers}
+      />
 
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader>
-          <CardTitle>User Information</CardTitle>
+          <CardTitle>{tf.infoTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <UserForm
             onSubmit={handleSubmit}
             isLoading={createUser.isPending}
-            submitLabel="Create User"
+            submitLabel={tf.createSubmit}
           />
         </CardContent>
       </Card>
-      </div>
     </AdminLayout>
   );
 }

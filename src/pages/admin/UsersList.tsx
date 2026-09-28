@@ -1,7 +1,13 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUsersWithTrainingHours } from '@/hooks/useUsers';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,31 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Edit, AlertCircle, Clock } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-
-const MONTHS = [
-  { value: '1', label: 'Januari' },
-  { value: '2', label: 'Februari' },
-  { value: '3', label: 'Mac' },
-  { value: '4', label: 'April' },
-  { value: '5', label: 'Mei' },
-  { value: '6', label: 'Jun' },
-  { value: '7', label: 'Julai' },
-  { value: '8', label: 'Ogos' },
-  { value: '9', label: 'September' },
-  { value: '10', label: 'Oktober' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'Disember' },
-];
+import { Plus, Search, Pencil, Clock, Users } from 'lucide-react';
 
 // Extended years from 2023 to 2035
 const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 
 export default function UsersList() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tu = t.adminStaff.users;
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [fromMonth, setFromMonth] = useState('');
@@ -64,7 +56,8 @@ export default function UsersList() {
       );
     }
 
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    // Copy first: without a search, `filtered` is the React Query cache array itself
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   }, [users, searchQuery]);
 
   // Calculate total training hours
@@ -73,179 +66,217 @@ export default function UsersList() {
     return users.reduce((sum, user) => sum + (user.training_hours || 0), 0);
   }, [users]);
 
+  const hasFromMonth = !!fromMonth && fromMonth !== 'all';
+  const hasToMonth = !!toMonth && toMonth !== 'all';
+  const monthOptions = t.common.months.map((label, index) => ({ value: String(index + 1), label }));
+  const hoursPeriod =
+    hasFromMonth || hasToMonth
+      ? tu.monthRange(
+          hasFromMonth ? t.common.months[parseInt(fromMonth) - 1] : t.common.months[0],
+          hasToMonth ? t.common.months[parseInt(toMonth) - 1] : t.common.months[11],
+          selectedYear
+        )
+      : tu.fullYear(selectedYear);
+
+  const header = (
+    <PageHeader
+      title={tu.title}
+      description={tu.description}
+      actions={
+        <Button onClick={() => navigate('/admin/users/create')}>
+          <Plus className="h-4 w-4" />
+          {tu.create}
+        </Button>
+      }
+    />
+  );
+
   if (error) {
     return (
       <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to load users: {error.message}
-          </AlertDescription>
-        </Alert>
+        {header}
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
-            <p className="text-muted-foreground">
-              Manage user profiles and permissions
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-            <div className="p-2 bg-blue-500 rounded-lg">
-              <Clock className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalTrainingHours}h</div>
-              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                Total Hours {selectedYear}
-                {(fromMonth && fromMonth !== 'all') || (toMonth && toMonth !== 'all')
-                  ? ` (${fromMonth && fromMonth !== 'all' ? MONTHS.find(m => m.value === fromMonth)?.label : 'Jan'} - ${toMonth && toMonth !== 'all' ? MONTHS.find(m => m.value === toMonth)?.label : 'Dis'})`
-                  : ''}
-              </div>
-            </div>
-          </div>
-        </div>
-        <Button onClick={() => navigate('/admin/users/create')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
-      </div>
+      {header}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-64"
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label={tu.statUsers}
+            value={isLoading ? <Skeleton className="h-8 w-16" /> : users?.length ?? 0}
+            icon={Users}
+            tone="primary"
+          />
+          <StatCard
+            label={tu.statHours}
+            value={isLoading ? <Skeleton className="h-8 w-20" /> : `${totalTrainingHours} ${t.common.hoursShort}`}
+            icon={Clock}
+            tone="info"
+            hint={hoursPeriod}
           />
         </div>
 
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {YEARS.map((year) => (
-              <SelectItem key={year} value={year}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={tu.searchPlaceholder}
+              aria-label={t.common.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
-        <Select value={fromMonth} onValueChange={setFromMonth}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="From Month" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Months</SelectItem>
-            {MONTHS.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-full sm:w-28" aria-label={t.common.year}>
+              <SelectValue placeholder={t.common.year} />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <span className="text-muted-foreground">to</span>
+          <div className="flex items-center gap-2">
+            <Select value={fromMonth} onValueChange={setFromMonth}>
+              <SelectTrigger className="w-full sm:w-40" aria-label={tu.fromMonth}>
+                <SelectValue placeholder={tu.fromMonth} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tu.allMonths}</SelectItem>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select value={toMonth} onValueChange={setToMonth}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="To Month" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Months</SelectItem>
-            {MONTHS.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+            <span className="text-sm text-muted-foreground">{t.common.to.toLowerCase()}</span>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-bold">Name</TableHead>
-                  <TableHead className="font-bold">Email</TableHead>
-                  <TableHead className="font-bold">Supervisor</TableHead>
-                  <TableHead className="font-bold text-center">Training Hours ({selectedYear})</TableHead>
-                  <TableHead className="font-bold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[150px]" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[200px]" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[120px]" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[60px] mx-auto" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-[60px]" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {searchQuery ? 'No users found matching your search' : 'No users found'}
-                      </p>
+            <Select value={toMonth} onValueChange={setToMonth}>
+              <SelectTrigger className="w-full sm:w-40" aria-label={tu.toMonth}>
+                <SelectValue placeholder={tu.toMonth} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tu.allMonths}</SelectItem>
+                {monthOptions.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t.common.name}</TableHead>
+                <TableHead>{t.common.email}</TableHead>
+                <TableHead>{t.common.supervisor}</TableHead>
+                <TableHead>{t.common.status}</TableHead>
+                <TableHead className="text-right">{tu.colHours(selectedYear)}</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">{t.common.actions}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell colSpan={6}>
+                      <Skeleton className="h-6 w-full" />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.supervisor_name || '-'}</TableCell>
-                      <TableCell className="text-center">{user.training_hours}h</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/admin/users/${user.id}/edit`)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                ))
+              ) : filteredUsers.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="p-0">
+                    {searchQuery ? (
+                      <EmptyState
+                        compact
+                        icon={Search}
+                        title={t.common.noResults}
+                        description={t.common.noResultsHint}
+                        action={
+                          <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
+                            {t.common.clearFilters}
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Users}
+                        title={tu.emptyTitle}
+                        description={tu.emptyDescription}
+                        action={
+                          <Button size="sm" onClick={() => navigate('/admin/users/create')}>
+                            <Plus className="h-4 w-4" />
+                            {tu.create}
+                          </Button>
+                        }
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <Link
+                        to={`/admin/users/${user.id}/edit`}
+                        className="font-medium hover:text-primary hover:underline underline-offset-4"
+                      >
+                        {user.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell>{user.supervisor_name || '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge kind="user" status={user.status} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {user.training_hours} {t.common.hoursShort}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => navigate(`/admin/users/${user.id}/edit`)}
+                        aria-label={tu.editUser(user.name)}
+                        title={tu.editUser(user.name)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
 
-      {!isLoading && filteredUsers.length > 0 && (
-        <p className="text-sm text-muted-foreground text-center">
-          Showing {filteredUsers.length} of {users?.length || 0} users
-        </p>
-      )}
+        {!isLoading && filteredUsers.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {tu.showing(filteredUsers.length, users?.length || 0)}
+          </p>
+        )}
       </div>
     </AdminLayout>
   );

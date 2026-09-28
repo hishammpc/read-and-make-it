@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useCertificates, useDeleteCertificate } from '@/hooks/useCertificates';
 import { usePrograms } from '@/hooks/usePrograms';
 import { useUsers } from '@/hooks/useUsers';
+import { formatMalaysianDate } from '@/lib/dateUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,14 +36,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, Download, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { format } from 'date-fns';
+import { Upload, Search, Trash2, ExternalLink, Award } from 'lucide-react';
 
 export default function Certificates() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tc = t.adminTraining.certificates;
+  const ts = t.adminTraining.shared;
   const { data: certificates, isLoading, error } = useCertificates();
   const { data: programs } = usePrograms();
   const { data: users } = useUsers();
@@ -90,188 +96,217 @@ export default function Certificates() {
     window.open(fileUrl, '_blank');
   };
 
+  const hasActiveFilters = !!searchQuery || programFilter !== 'all' || userFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setProgramFilter('all');
+    setUserFilter('all');
+  };
+
+  const header = (
+    <PageHeader
+      title={tc.title}
+      description={tc.description}
+      actions={
+        <Button onClick={() => navigate('/dashboard/certificates/upload')}>
+          <Upload className="h-4 w-4" />
+          {tc.upload}
+        </Button>
+      }
+    />
+  );
+
   if (error) {
     return (
       <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to load certificates: {error.message}
-          </AlertDescription>
-        </Alert>
+        {header}
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Certificates Management</h1>
-          <p className="text-muted-foreground">
-            Manage and track training certificates
-          </p>
-        </div>
-        <Button onClick={() => navigate('/dashboard/certificates/upload')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Upload Certificate
-        </Button>
-      </div>
+      {header}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search certificates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-
-            <Select value={programFilter} onValueChange={setProgramFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Programs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Programs</SelectItem>
-                {programs?.map((program) => (
-                  <SelectItem key={program.id} value={program.id}>
-                    {program.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={userFilter} onValueChange={setUserFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Users" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Users</SelectItem>
-                {users?.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={tc.searchPlaceholder}
+              aria-label={t.common.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Hours</TableHead>
-                  <TableHead>Issue Date</TableHead>
-                  <TableHead>Uploaded By</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+          <Select value={programFilter} onValueChange={setProgramFilter}>
+            <SelectTrigger className="w-full sm:w-56" aria-label={tc.filterProgram}>
+              <SelectValue placeholder={tc.allPrograms} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc.allPrograms}</SelectItem>
+              {programs?.map((program) => (
+                <SelectItem key={program.id} value={program.id}>
+                  {program.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={userFilter} onValueChange={setUserFilter}>
+            <SelectTrigger className="w-full sm:w-56" aria-label={tc.filterStaff}>
+              <SelectValue placeholder={tc.allStaff} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tc.allStaff}</SelectItem>
+              {users?.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground sm:ml-auto">
+              {t.common.clearFilters}
+            </Button>
+          )}
+        </div>
+
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{tc.colEmployee}</TableHead>
+                <TableHead>{t.common.email}</TableHead>
+                <TableHead>{tc.colProgram}</TableHead>
+                <TableHead className="text-right">{tc.colHours}</TableHead>
+                <TableHead>{tc.colIssued}</TableHead>
+                <TableHead>{tc.colUploadedBy}</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">{t.common.actions}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[180px]" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-4 w-[60px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-4 w-[80px]" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredCertificates.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7} className="p-0">
+                    {hasActiveFilters ? (
+                      <EmptyState
+                        compact
+                        icon={Search}
+                        title={t.common.noResults}
+                        description={t.common.noResultsHint}
+                        action={
+                          <Button variant="outline" size="sm" onClick={clearFilters}>
+                            {t.common.clearFilters}
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Award}
+                        title={tc.emptyTitle}
+                        description={tc.emptyDescription}
+                        action={
+                          <Button size="sm" onClick={() => navigate('/dashboard/certificates/upload')}>
+                            <Upload className="h-4 w-4" />
+                            {tc.upload}
+                          </Button>
+                        }
+                      />
+                    )}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[180px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredCertificates.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {searchQuery || programFilter !== 'all' || userFilter !== 'all'
-                          ? 'No certificates found matching your filters'
-                          : 'No certificates uploaded yet'}
-                      </p>
+              ) : (
+                filteredCertificates.map((certificate: any) => (
+                  <TableRow key={certificate.id}>
+                    <TableCell className="font-medium">
+                      {certificate.profiles?.name || ts.unknown}
+                    </TableCell>
+                    <TableCell>{certificate.profiles?.email || '-'}</TableCell>
+                    <TableCell>{certificate.programs?.title || ts.unknown}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {certificate.programs?.hours || 0} {t.common.hoursShort}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {formatMalaysianDate(certificate.issued_at)}
+                    </TableCell>
+                    <TableCell>{certificate.uploader?.name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleViewCertificate(certificate.file_url)}
+                          aria-label={tc.viewCertificate}
+                          title={tc.viewCertificate}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                          onClick={() => handleDelete(certificate.id)}
+                          aria-label={tc.deleteCertificate}
+                          title={tc.deleteCertificate}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredCertificates.map((certificate: any) => (
-                    <TableRow key={certificate.id}>
-                      <TableCell className="font-medium">
-                        {certificate.profiles?.name || 'Unknown'}
-                      </TableCell>
-                      <TableCell>{certificate.profiles?.email || '-'}</TableCell>
-                      <TableCell>{certificate.programs?.title || 'Unknown'}</TableCell>
-                      <TableCell>{certificate.programs?.hours || 0} hrs</TableCell>
-                      <TableCell>
-                        {format(new Date(certificate.issued_at), 'MMM dd, yyyy')}
-                      </TableCell>
-                      <TableCell>{certificate.uploader?.name || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewCertificate(certificate.file_url)}
-                            title="View/Download Certificate"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(certificate.id)}
-                            title="Delete Certificate"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
 
-      {!isLoading && filteredCertificates.length > 0 && (
-        <p className="text-sm text-muted-foreground text-center">
-          Showing {filteredCertificates.length} of {certificates?.length || 0} certificates
-        </p>
-      )}
+        {!isLoading && filteredCertificates.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {tc.showing(filteredCertificates.length, certificates?.length || 0)}
+          </p>
+        )}
+      </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Certificate</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this certificate? This action cannot be undone
-              and will permanently remove the certificate file from storage.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{tc.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{tc.deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setCertificateToDelete(null)}>
-              Cancel
+              {t.common.cancel}
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {t.common.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
     </AdminLayout>
   );
 }

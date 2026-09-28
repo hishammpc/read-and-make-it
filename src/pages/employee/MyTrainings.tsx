@@ -4,7 +4,12 @@ import { useUserAssignments } from '@/hooks/useAssignments';
 import { useUserEvaluations } from '@/hooks/useEvaluations';
 import { generateCertificate } from '@/lib/certificateGenerator';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,9 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Clock, CheckCircle2, AlertCircle, Download, FileText } from 'lucide-react';
+import { Search, AlertCircle, Download, FileText, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import { addLogoToPDF } from '@/lib/pdfUtils';
 
@@ -35,6 +39,8 @@ const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 export default function MyTrainings() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tm = t.employee.myTrainings;
   const { data: assignments, isLoading: assignmentsLoading } = useUserAssignments(user?.userId || '');
   const { data: evaluations, isLoading: evaluationsLoading } = useUserEvaluations(user?.userId || '');
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,32 +186,47 @@ export default function MyTrainings() {
     doc.save(`latihan-saya-${selectedYear}.pdf`);
   };
 
+  const assignmentsList = filteredAssignments();
+  const hasSearch = !!searchQuery;
+
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading trainings...</p>
-          </div>
-        </div>
+        <PageSkeleton variant="table" />
       </EmployeeLayout>
     );
   }
 
-  const assignmentsList = filteredAssignments();
-
   return (
     <EmployeeLayout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Trainings</h1>
+      <PageHeader
+        title={tm.title}
+        description={tm.description}
+        actions={
+          <Button variant="outline" onClick={handleDownloadPDF} disabled={assignmentsList.length === 0}>
+            <FileText className="h-4 w-4" />
+            {t.common.downloadPdf}
+          </Button>
+        }
+      />
 
-        {/* Filters and Actions */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Year Filter */}
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={tm.searchPlaceholder}
+              aria-label={t.common.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Tahun" />
+            <SelectTrigger className="w-full sm:w-28" aria-label={t.common.year}>
+              <SelectValue placeholder={t.common.year} />
             </SelectTrigger>
             <SelectContent>
               {YEARS.map((year) => (
@@ -216,126 +237,112 @@ export default function MyTrainings() {
             </SelectContent>
           </Select>
 
-          {/* Search Bar */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari program..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Download PDF Button */}
-          <Button
-            variant="outline"
-            onClick={handleDownloadPDF}
-            disabled={assignmentsList.length === 0}
-            className="gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            Muat Turun PDF
-          </Button>
-
-          <span className="text-sm text-muted-foreground">
-            {assignmentsList.length} program{assignmentsList.length !== 1 ? '' : ''}
-          </span>
+          {hasSearch && (
+            <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="text-muted-foreground sm:ml-auto">
+              {t.common.clearFilters}
+            </Button>
+          )}
         </div>
 
-        {/* Trainings Table */}
-        <Card className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-bold">Program Title</TableHead>
-                <TableHead className="font-bold">Start Date</TableHead>
-                <TableHead className="font-bold">End Date</TableHead>
-                <TableHead className="font-bold">Hours</TableHead>
-                <TableHead className="font-bold">Evaluation</TableHead>
-                <TableHead className="font-bold">Certificate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assignmentsList.length === 0 ? (
+        {/* Trainings table */}
+        <Card className="overflow-hidden">
+          {assignmentsList.length === 0 ? (
+            hasSearch ? (
+              <EmptyState
+                compact
+                icon={Search}
+                title={t.common.noResults}
+                description={t.common.noResultsHint}
+                action={
+                  <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
+                    {t.common.clearFilters}
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                compact
+                icon={BookOpen}
+                title={tm.emptyTitle}
+                description={tm.emptyDescription(selectedYear)}
+              />
+            )
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No trainings assigned
-                  </TableCell>
+                  <TableHead>{tm.colProgram}</TableHead>
+                  <TableHead>{tm.colStart}</TableHead>
+                  <TableHead>{tm.colEnd}</TableHead>
+                  <TableHead className="text-right">{tm.colHours}</TableHead>
+                  <TableHead>{tm.colEvaluation}</TableHead>
+                  <TableHead>{tm.colCertificate}</TableHead>
                 </TableRow>
-              ) : (
-                assignmentsList.map((assignment: any) => {
+              </TableHeader>
+              <TableBody>
+                {assignmentsList.map((assignment: any) => {
                   const isEvaluated = evaluatedProgramIds.has(assignment.program_id);
+                  const requiresEvaluation = !!assignment.programs?.notify_for_evaluation;
+                  const title = assignment.programs?.title || '';
 
                   return (
                     <TableRow key={assignment.id}>
-                      <TableCell className="font-medium">
-                        {assignment.programs?.title}
+                      <TableCell className="max-w-sm font-medium">{title}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatMalaysianDate(assignment.programs?.start_date_time)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatMalaysianDate(assignment.programs?.end_date_time)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">
+                        {assignment.programs?.hours} {t.common.hoursShort}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(assignment.programs?.start_date_time), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(assignment.programs?.end_date_time), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          {assignment.programs?.hours} hrs
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {!assignment.programs?.notify_for_evaluation ? (
-                          <span className="text-sm text-muted-foreground">-</span>
+                        {!requiresEvaluation ? (
+                          <ToneBadge tone="muted">{t.common.notRequired}</ToneBadge>
                         ) : isEvaluated ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="text-sm font-medium">Selesai</span>
-                          </div>
+                          <ToneBadge tone="success" dot>
+                            {tm.evaluated}
+                          </ToneBadge>
                         ) : (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-orange-600 border-orange-300 hover:bg-orange-50"
                             onClick={() => navigate(`/dashboard/my-evaluations/${assignment.program_id}/submit`)}
+                            aria-label={tm.answerFor(title)}
                           >
-                            <AlertCircle className="h-4 w-4 mr-1" />
-                            Jawab
+                            <AlertCircle className="h-4 w-4 text-warning" />
+                            {tm.answer}
                           </Button>
                         )}
                       </TableCell>
                       <TableCell>
-                        {!assignment.programs?.notify_for_evaluation ? (
-                          <span className="text-sm text-muted-foreground">N/A</span>
-                        ) : isEvaluated ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-green-600 border-green-300 hover:bg-green-50"
-                            onClick={() => handleDownloadCertificate(assignment)}
-                          >
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </Button>
+                        {!requiresEvaluation ? (
+                          <span className="text-muted-foreground">—</span>
                         ) : (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
-                            disabled
+                            disabled={!isEvaluated}
+                            onClick={isEvaluated ? () => handleDownloadCertificate(assignment) : undefined}
+                            aria-label={tm.downloadCertificateFor(title)}
                           >
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
+                            <Download className="h-4 w-4" />
+                            {t.common.download}
                           </Button>
                         )}
                       </TableCell>
                     </TableRow>
                   );
-                })
-              )}
-            </TableBody>
-          </Table>
+                })}
+              </TableBody>
+            </Table>
+          )}
         </Card>
+
+        {assignmentsList.length > 0 && (
+          <p className="text-sm text-muted-foreground">{tm.count(assignmentsList.length)}</p>
+        )}
       </div>
     </EmployeeLayout>
   );

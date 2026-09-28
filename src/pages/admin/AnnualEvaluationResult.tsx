@@ -1,6 +1,10 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -10,10 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, AlertCircle, User, UserCheck } from 'lucide-react';
+import { FileQuestion, User, UserCheck } from 'lucide-react';
 import {
   RadarChart,
   PolarGrid,
@@ -26,18 +27,71 @@ import {
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { getRatingLevelTone, getRatingPercentageTone, toneClasses, type StatusTone } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   SCORE_MAP,
-  RATING_LABELS,
   calculateTotalScore,
   calculatePercentage,
   getRatingLabel,
 } from '@/lib/annualEvaluationQuestions';
 
+/** One side of the score summary (self-assessment or supervisor). */
+function ScoreSummaryCard({
+  title,
+  icon: Icon,
+  identityTone,
+  total,
+  percentage,
+  submittedAt,
+  submittedLabel,
+}: {
+  title: string;
+  icon: typeof User;
+  identityTone: StatusTone;
+  total: number;
+  percentage: number;
+  submittedAt: string | null | undefined;
+  submittedLabel: (date: string) => string;
+}) {
+  const rating = getRatingLabel(percentage);
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-2">
+          <Icon className={cn('h-5 w-5', toneClasses[identityTone].text)} />
+          <CardTitle className="text-base">{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-3xl font-semibold tabular-nums tracking-tight">
+              {total}
+              <span className="text-lg font-normal text-muted-foreground">/100</span>
+            </p>
+            <p className="text-sm tabular-nums text-muted-foreground">{percentage}%</p>
+          </div>
+          {/* Rating words are official BM — not translated. */}
+          <ToneBadge tone={getRatingPercentageTone(percentage)} className="px-3 py-1 text-sm">
+            {rating.label}
+          </ToneBadge>
+        </div>
+        {submittedAt && (
+          <p className="mt-4 text-sm text-muted-foreground">{submittedLabel(formatMalaysianDate(submittedAt))}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AnnualEvaluationResult() {
-  const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tr = t.adminStaff.annualResult;
   const { cycleId, userId } = useParams<{ cycleId: string; userId: string }>();
 
   // Fetch evaluation data
@@ -62,13 +116,15 @@ export default function AnnualEvaluationResult() {
     enabled: !!cycleId && !!userId,
   });
 
+  const backTo = `/dashboard/annual-evaluations/${cycleId}`;
+
+  const fallbackHeader = <PageHeader title={tr.title} backTo={backTo} backLabel={tr.backToCycle} />;
+
   if (error) {
     return (
       <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan data: {(error as Error).message}</AlertDescription>
-        </Alert>
+        {fallbackHeader}
+        <ErrorState message={(error as Error).message} />
       </AdminLayout>
     );
   }
@@ -76,13 +132,7 @@ export default function AnnualEvaluationResult() {
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-96" />
-            <Skeleton className="h-96" />
-          </div>
-        </div>
+        <PageSkeleton variant="detail" />
       </AdminLayout>
     );
   }
@@ -90,10 +140,8 @@ export default function AnnualEvaluationResult() {
   if (!evaluation) {
     return (
       <AdminLayout>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Penilaian tidak dijumpai.</AlertDescription>
-        </Alert>
+        {fallbackHeader}
+        <EmptyState icon={FileQuestion} title={tr.notFoundTitle} description={tr.notFoundDescription} />
       </AdminLayout>
     );
   }
@@ -106,9 +154,6 @@ export default function AnnualEvaluationResult() {
   const supervisorTotal = calculateTotalScore(supervisorAnswers);
   const supervisorPercentage = calculatePercentage(supervisorAnswers);
 
-  const staffRating = getRatingLabel(staffPercentage);
-  const supervisorRating = getRatingLabel(supervisorPercentage);
-
   // Prepare radar chart data (using tahap 1-5 instead of scores 2-10)
   const radarData = ANNUAL_EVALUATION_QUESTIONS.map((q) => ({
     subject: q.shortLabel,
@@ -120,134 +165,67 @@ export default function AnnualEvaluationResult() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/dashboard/annual-evaluations/${cycleId}`)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Keputusan Penilaian
-            </h1>
-            <p className="text-muted-foreground">
-              Penilaian Tahunan {(evaluation.cycle as any)?.year}
-            </p>
-          </div>
-        </div>
+      <PageHeader
+        title={tr.title}
+        description={tr.description((evaluation.cycle as any)?.year ?? '')}
+        backTo={backTo}
+        backLabel={tr.backToCycle}
+      />
 
+      <div className="space-y-6">
         {/* Staff Info Card */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <User className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Kakitangan</p>
-                  <p className="text-lg font-semibold">{(evaluation.profiles as any)?.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(evaluation.profiles as any)?.position || '-'}
-                  </p>
-                </div>
+          <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
+            <div className="flex items-start gap-4">
+              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', toneClasses.info.soft)}>
+                <User className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">{tr.staff}</p>
+                <p className="text-lg font-semibold">{(evaluation.profiles as any)?.name}</p>
+                <p className="text-sm text-muted-foreground">{(evaluation.profiles as any)?.position || '—'}</p>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <UserCheck className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Penyelia</p>
-                  <p className="text-lg font-semibold">{(evaluation.supervisor as any)?.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(evaluation.supervisor as any)?.email}
-                  </p>
-                </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', toneClasses.success.soft)}>
+                <UserCheck className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">{t.common.supervisor}</p>
+                <p className="text-lg font-semibold">{(evaluation.supervisor as any)?.name}</p>
+                <p className="break-words text-sm text-muted-foreground">{(evaluation.supervisor as any)?.email}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Score Summary */}
+        {/* Score Summary — identity colours match the chart legend (staff blue, supervisor green) */}
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="border-blue-200">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
-                <CardTitle>Penilaian Kendiri (Kakitangan)</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-blue-600">{staffTotal}/100</p>
-                  <p className="text-lg text-muted-foreground">{staffPercentage}%</p>
-                </div>
-                <Badge
-                  className={`text-lg px-4 py-2 ${
-                    staffRating.color === 'green' ? 'bg-green-100 text-green-800' :
-                    staffRating.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                    staffRating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                    staffRating.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                    'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {staffRating.label}
-                </Badge>
-              </div>
-              {evaluation.staff_submitted_at && (
-                <p className="text-sm text-muted-foreground mt-4">
-                  Dihantar: {formatMalaysianDate(evaluation.staff_submitted_at)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-200">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-green-600" />
-                <CardTitle>Penilaian Penyelia</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-green-600">{supervisorTotal}/100</p>
-                  <p className="text-lg text-muted-foreground">{supervisorPercentage}%</p>
-                </div>
-                <Badge
-                  className={`text-lg px-4 py-2 ${
-                    supervisorRating.color === 'green' ? 'bg-green-100 text-green-800' :
-                    supervisorRating.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                    supervisorRating.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                    supervisorRating.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                    'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {supervisorRating.label}
-                </Badge>
-              </div>
-              {evaluation.supervisor_submitted_at && (
-                <p className="text-sm text-muted-foreground mt-4">
-                  Dihantar: {formatMalaysianDate(evaluation.supervisor_submitted_at)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <ScoreSummaryCard
+            title={tr.selfAssessment}
+            icon={User}
+            identityTone="info"
+            total={staffTotal}
+            percentage={staffPercentage}
+            submittedAt={evaluation.staff_submitted_at}
+            submittedLabel={tr.submittedOn}
+          />
+          <ScoreSummaryCard
+            title={tr.supervisorAssessment}
+            icon={UserCheck}
+            identityTone="success"
+            total={supervisorTotal}
+            percentage={supervisorPercentage}
+            submittedAt={evaluation.supervisor_submitted_at}
+            submittedLabel={tr.submittedOn}
+          />
         </div>
 
-        {/* Spider Chart */}
+        {/* Spider Chart — chart colours unchanged until the phase-4 chart rework */}
         <Card>
           <CardHeader>
-            <CardTitle>Carta Spider Web - Perbandingan Kompetensi</CardTitle>
-            <CardDescription>
-              Perbandingan antara penilaian kendiri (biru) dan penilaian penyelia (hijau)
-            </CardDescription>
+            <CardTitle>{tr.chartTitle}</CardTitle>
+            <CardDescription>{tr.chartDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[500px]">
@@ -266,7 +244,7 @@ export default function AnnualEvaluationResult() {
                     tickCount={6}
                   />
                   <Radar
-                    name="Kakitangan"
+                    name={tr.chartStaff}
                     dataKey="staff"
                     stroke="#3b82f6"
                     fill="#3b82f6"
@@ -274,7 +252,7 @@ export default function AnnualEvaluationResult() {
                     strokeWidth={2}
                   />
                   <Radar
-                    name="Penyelia"
+                    name={tr.chartSupervisor}
                     dataKey="supervisor"
                     stroke="#22c55e"
                     fill="#22c55e"
@@ -285,11 +263,11 @@ export default function AnnualEvaluationResult() {
                     content={({ payload, label }) => {
                       if (payload && payload.length > 0) {
                         return (
-                          <div className="bg-white p-3 border rounded-lg shadow-lg">
-                            <p className="font-semibold text-sm mb-2">{label}</p>
+                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg">
+                            <p className="mb-2 text-sm font-semibold">{label}</p>
                             {payload.map((entry: any, index: number) => (
                               <p key={index} className="text-sm" style={{ color: entry.color }}>
-                                {entry.name}: Tahap {entry.value}
+                                {entry.name}: {tr.level(entry.value)}
                               </p>
                             ))}
                           </div>
@@ -306,71 +284,55 @@ export default function AnnualEvaluationResult() {
         </Card>
 
         {/* Detailed Breakdown */}
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle>Pecahan Markah Terperinci</CardTitle>
-            <CardDescription>
-              Perbandingan markah setiap soalan antara kakitangan dan penyelia
-            </CardDescription>
+            <CardTitle>{tr.breakdownTitle}</CardTitle>
+            <CardDescription>{tr.breakdownDescription}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">#</TableHead>
-                  <TableHead>Kompetensi</TableHead>
-                  <TableHead className="text-center">Kakitangan</TableHead>
-                  <TableHead className="text-center">Penyelia</TableHead>
-                  <TableHead className="text-center">Perbezaan</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ANNUAL_EVALUATION_QUESTIONS.map((q, index) => {
-                  const staffScore = SCORE_MAP[staffAnswers[q.id]] || 0;
-                  const supervisorScore = SCORE_MAP[supervisorAnswers[q.id]] || 0;
-                  const difference = supervisorScore - staffScore;
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 text-right">#</TableHead>
+                <TableHead>{tr.colCompetency}</TableHead>
+                <TableHead className="text-right">{tr.staff}</TableHead>
+                <TableHead className="text-right">{t.common.supervisor}</TableHead>
+                <TableHead className="text-right">{tr.colDifference}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ANNUAL_EVALUATION_QUESTIONS.map((q, index) => {
+                const staffScore = SCORE_MAP[staffAnswers[q.id]] || 0;
+                const supervisorScore = SCORE_MAP[supervisorAnswers[q.id]] || 0;
+                const difference = supervisorScore - staffScore;
+                const differenceTone: StatusTone = difference > 0 ? 'success' : difference < 0 ? 'danger' : 'muted';
 
-                  return (
-                    <TableRow key={q.id}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{q.shortLabel}</p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {q.question}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                          {staffScore}/10
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="bg-green-50 text-green-700">
-                          {supervisorScore}/10
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span
-                          className={`font-medium ${
-                            difference > 0
-                              ? 'text-green-600'
-                              : difference < 0
-                              ? 'text-red-600'
-                              : 'text-gray-500'
-                          }`}
-                        >
-                          {difference > 0 ? '+' : ''}
-                          {difference}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
+                return (
+                  <TableRow key={q.id}>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{index + 1}</TableCell>
+                    <TableCell>
+                      {/* Question text is official BM content — not translated. */}
+                      <p className="font-medium">{q.shortLabel}</p>
+                      <p className="line-clamp-2 text-xs text-muted-foreground">{q.question}</p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ToneBadge tone={getRatingLevelTone(staffAnswers[q.id])} className="tabular-nums">
+                        {staffScore}/10
+                      </ToneBadge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ToneBadge tone={getRatingLevelTone(supervisorAnswers[q.id])} className="tabular-nums">
+                        {supervisorScore}/10
+                      </ToneBadge>
+                    </TableCell>
+                    <TableCell className={cn('text-right font-medium tabular-nums', toneClasses[differenceTone].text)}>
+                      {difference > 0 ? '+' : ''}
+                      {difference}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </Card>
       </div>
     </AdminLayout>

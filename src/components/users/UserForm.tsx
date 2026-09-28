@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -13,13 +15,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
 
-const userFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  position: z.string().optional(),
-});
+// Built per language so validation messages follow the UI language.
+const makeUserFormSchema = (messages: { nameMin: string; emailInvalid: string }) =>
+  z.object({
+    name: z.string().min(2, messages.nameMin),
+    email: z.string().email(messages.emailInvalid),
+    position: z.string().optional(),
+  });
 
-export type UserFormValues = z.infer<typeof userFormSchema>;
+export type UserFormValues = z.infer<ReturnType<typeof makeUserFormSchema>>;
 
 interface UserFormProps {
   defaultValues?: Partial<UserFormValues>;
@@ -32,8 +36,12 @@ export function UserForm({
   defaultValues,
   onSubmit,
   isLoading = false,
-  submitLabel = 'Submit',
+  submitLabel,
 }: UserFormProps) {
+  const { t } = useLanguage();
+  const tf = t.adminStaff.userForm;
+  const userFormSchema = useMemo(() => makeUserFormSchema(tf), [tf]);
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -52,9 +60,9 @@ export function UserForm({
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Full Name</FormLabel>
+                <FormLabel>{tf.nameLabel}</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} />
+                  <Input placeholder={tf.namePlaceholder} autoComplete="name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -66,11 +74,12 @@ export function UserForm({
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{tf.emailLabel}</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="john.doe@example.com"
+                    placeholder={tf.emailPlaceholder}
+                    autoComplete="email"
                     {...field}
                   />
                 </FormControl>
@@ -84,9 +93,9 @@ export function UserForm({
             name="position"
             render={({ field }) => (
               <FormItem className="md:col-span-2">
-                <FormLabel>Position</FormLabel>
+                <FormLabel>{tf.positionLabel}</FormLabel>
                 <FormControl>
-                  <Input placeholder="Software Engineer" {...field} />
+                  <Input placeholder={tf.positionPlaceholder} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -94,10 +103,10 @@ export function UserForm({
           />
         </div>
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-2">
           <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {submitLabel}
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isLoading ? t.common.saving : submitLabel ?? t.common.submit}
           </Button>
         </div>
       </form>

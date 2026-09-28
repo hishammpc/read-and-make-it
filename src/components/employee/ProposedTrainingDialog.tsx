@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export default function ProposedTrainingDialog({
   onOpenChange,
 }: ProposedTrainingDialogProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tp = t.dashboard.proposal;
   const { proposalYear } = useProposalPeriod();
   const { data: existingProposal, isLoading } = useMyProposedTraining(
     user?.userId || '',
@@ -70,30 +73,23 @@ export default function ProposedTrainingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Propose Training for {proposalYear}</DialogTitle>
-          <DialogDescription>
-            Submit your training proposals for the upcoming year. You can suggest up to 2 trainings.
-          </DialogDescription>
-          <p className="text-sm text-muted-foreground italic mt-1">
-            Sila cadangkan 2 latihan yang dirasakan dapat menyumbang kepada peningkatan kecekapan tugasan anda.
-          </p>
+          <DialogTitle>{tp.title(proposalYear)}</DialogTitle>
+          <DialogDescription>{tp.description}</DialogDescription>
         </DialogHeader>
 
         {existingProposal && (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700">
-              You have already submitted a proposal. You can update it below.
-            </AlertDescription>
+          <Alert className="border-success/30 bg-success-soft text-success-soft-foreground [&>svg]:text-success-soft-foreground">
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertDescription>{tp.alreadySubmitted}</AlertDescription>
           </Alert>
         )}
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="proposal1">Training Proposal 1</Label>
+            <Label htmlFor="proposal1">{tp.proposal1}</Label>
             <Input
               id="proposal1"
-              placeholder="e.g., Advanced Excel Training"
+              placeholder={tp.placeholder1}
               value={proposal1}
               onChange={(e) => setProposal1(e.target.value)}
               disabled={isLoading}
@@ -101,10 +97,10 @@ export default function ProposedTrainingDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="proposal2">Training Proposal 2 (Optional)</Label>
+            <Label htmlFor="proposal2">{tp.proposal2}</Label>
             <Input
               id="proposal2"
-              placeholder="e.g., Leadership Skills Workshop"
+              placeholder={tp.placeholder2}
               value={proposal2}
               onChange={(e) => setProposal2(e.target.value)}
               disabled={isLoading}
@@ -114,14 +110,14 @@ export default function ProposedTrainingDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!hasContent || submitProposal.isPending || isLoading}
           >
-            <Send className="h-4 w-4 mr-2" />
-            {submitProposal.isPending ? 'Menghantar...' : 'Hantar'}
+            <Send className="h-4 w-4" />
+            {submitProposal.isPending ? t.common.submitting : t.common.submit}
           </Button>
         </DialogFooter>
       </DialogContent>

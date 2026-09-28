@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getYearBounds } from '@/lib/dateUtils';
@@ -24,6 +24,7 @@ export function useLeaderboard(currentUserId: string, year?: number) {
 
   return useQuery({
     queryKey: ['leaderboard', currentUserId, selectedYear],
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<LeaderboardData> => {
       const { start: startOfYear, end: endOfYear } = getYearBounds(selectedYear);
 

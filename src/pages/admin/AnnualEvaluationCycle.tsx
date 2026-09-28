@@ -1,6 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,6 +27,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,12 +44,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import {
-  ChevronLeft,
   AlertCircle,
+  CalendarX,
   Eye,
   CheckCircle2,
   Clock,
@@ -45,15 +59,31 @@ import {
   CalendarIcon,
 } from 'lucide-react';
 import { useAnnualEvaluationCycle, useCloseEvaluationCycle, useResetAnnualEvaluation, useUpdateCycleDates, AnnualEvaluation } from '@/hooks/useAnnualEvaluations';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { toneClasses } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { format, parseISO } from 'date-fns';
-import { calculateTotalScore, calculatePercentage, SCORE_MAP } from '@/lib/annualEvaluationQuestions';
+import { calculateTotalScore, calculatePercentage } from '@/lib/annualEvaluationQuestions';
+
+type StatusFilter = 'all' | 'pending_staff' | 'pending_supervisor' | 'completed';
+
+/** Ring shown on the stat card whose status is the active table filter (literal for Tailwind). */
+const ACTIVE_FILTER_RING: Record<StatusFilter, string> = {
+  all: 'ring-2 ring-primary',
+  pending_staff: 'ring-2 ring-warning',
+  pending_supervisor: 'ring-2 ring-info',
+  completed: 'ring-2 ring-success',
+};
 
 export default function AnnualEvaluationCycle() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const tc = t.adminStaff.annualCycle;
+  const statusLabels = t.status.annualEvaluation;
   const { cycleId } = useParams<{ cycleId: string }>();
   const { data, isLoading, error } = useAnnualEvaluationCycle(cycleId || '');
   const closeCycle = useCloseEvaluationCycle();
@@ -64,6 +94,9 @@ export default function AnnualEvaluationCycle() {
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editStartDate, setEditStartDate] = useState<Date | undefined>();
   const [editEndDate, setEditEndDate] = useState<Date | undefined>();
+
+  // Close-cycle confirmation state
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   // Reset dialog state
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -108,23 +141,37 @@ export default function AnnualEvaluationCycle() {
   const getResetDescription = () => {
     switch (resetType) {
       case 'staff':
-        return 'Ini akan memadamkan jawapan kakitangan dan mengembalikan status kepada "Menunggu Kakitangan".';
+        return tc.resetDescStaff(statusLabels.pending_staff);
       case 'supervisor':
-        return 'Ini akan memadamkan jawapan penyelia dan mengembalikan status kepada "Menunggu Penyelia".';
+        return tc.resetDescSupervisor(statusLabels.pending_supervisor);
       case 'full':
-        return 'Ini akan memadamkan semua jawapan (kakitangan & penyelia) dan mengembalikan status kepada "Menunggu Kakitangan".';
+        return tc.resetDescFull(statusLabels.pending_staff);
       default:
         return '';
     }
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+  };
+
+  const openResult = (evaluation: AnnualEvaluation) =>
+    navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
+
+  const fallbackHeader = (
+    <PageHeader
+      title={t.adminStaff.annualCycles.title}
+      backTo="/dashboard/annual-evaluations"
+      backLabel={tc.backToCycles}
+    />
+  );
+
   if (error) {
     return (
       <AdminLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Ralat memuatkan data: {error.message}</AlertDescription>
-        </Alert>
+        {fallbackHeader}
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
@@ -132,15 +179,7 @@ export default function AnnualEvaluationCycle() {
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <Skeleton className="h-10 w-1/3" />
-          <div className="grid gap-4 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-          <Skeleton className="h-96" />
-        </div>
+        <PageSkeleton variant="table" />
       </AdminLayout>
     );
   }
@@ -148,10 +187,8 @@ export default function AnnualEvaluationCycle() {
   if (!data) {
     return (
       <AdminLayout>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Kitaran penilaian tidak dijumpai.</AlertDescription>
-        </Alert>
+        {fallbackHeader}
+        <EmptyState icon={CalendarX} title={tc.notFoundTitle} description={tc.notFoundDescription} />
       </AdminLayout>
     );
   }
@@ -166,57 +203,19 @@ export default function AnnualEvaluationCycle() {
   const staffSubmitted = pendingSupervisor + completed;
   const progressPercentage = totalStaff > 0 ? Math.round((completed / totalStaff) * 100) : 0;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending_staff':
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-            <Clock className="h-3 w-3 mr-1" />
-            Menunggu Kakitangan
-          </Badge>
-        );
-      case 'pending_supervisor':
-        return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-            <UserCheck className="h-3 w-3 mr-1" />
-            Menunggu Penyelia
-          </Badge>
-        );
-      case 'completed':
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            Selesai
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
+  const hasActiveFilters = !!searchQuery.trim() || statusFilter !== 'all';
+  const activeRing = (filter: StatusFilter) => (statusFilter === filter ? ACTIVE_FILTER_RING[filter] : undefined);
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/annual-evaluations')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Penilaian Tahunan {cycle.year}
-              </h1>
-              <p className="text-muted-foreground">
-                {formatMalaysianDate(cycle.start_date)} - {formatMalaysianDate(cycle.end_date)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+      <PageHeader
+        title={tc.title(cycle.year)}
+        description={`${formatMalaysianDate(cycle.start_date)} – ${formatMalaysianDate(cycle.end_date)}`}
+        backTo="/dashboard/annual-evaluations"
+        backLabel={tc.backToCycles}
+        actions={
+          <>
+            <StatusBadge kind="cycle" status={cycle.status} />
             {cycle.status === 'active' && (
               <Button
                 variant="outline"
@@ -226,342 +225,372 @@ export default function AnnualEvaluationCycle() {
                   setDateDialogOpen(true);
                 }}
               >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Tetapkan Tarikh
+                <CalendarIcon className="h-4 w-4" />
+                {tc.setDates}
               </Button>
             )}
             {cycle.status === 'active' && (
               <Button
                 variant="outline"
-                onClick={() => closeCycle.mutate(cycle.id)}
+                onClick={() => setCloseDialogOpen(true)}
                 disabled={closeCycle.isPending}
               >
-                <Lock className="h-4 w-4 mr-2" />
-                Tutup Kitaran
+                <Lock className="h-4 w-4" />
+                {tc.closeCycle}
               </Button>
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'all' ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => setStatusFilter(statusFilter === 'all' ? 'all' : 'all')}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Jumlah Kakitangan</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalStaff}</div>
-            </CardContent>
-          </Card>
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'pending_staff' ? 'ring-2 ring-yellow-500' : ''}`}
+      <div className="space-y-6">
+        {/* Stats Cards — each one also filters the table below */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label={tc.statTotalStaff}
+            value={totalStaff}
+            icon={Users}
+            tone="primary"
+            onClick={() => setStatusFilter('all')}
+            className={activeRing('all')}
+          />
+          <StatCard
+            label={statusLabels.pending_staff}
+            value={pendingStaff}
+            icon={Clock}
+            tone="warning"
+            hint={tc.answered(staffSubmitted, totalStaff)}
             onClick={() => setStatusFilter(statusFilter === 'pending_staff' ? 'all' : 'pending_staff')}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Menunggu Kakitangan</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{pendingStaff}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {staffSubmitted} / {totalStaff} dijawab
-              </p>
-            </CardContent>
-          </Card>
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'pending_supervisor' ? 'ring-2 ring-blue-500' : ''}`}
+            className={activeRing('pending_staff')}
+          />
+          <StatCard
+            label={statusLabels.pending_supervisor}
+            value={pendingSupervisor}
+            icon={UserCheck}
+            tone="info"
+            hint={tc.reviewed(completed, staffSubmitted)}
             onClick={() => setStatusFilter(statusFilter === 'pending_supervisor' ? 'all' : 'pending_supervisor')}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Menunggu Penyelia</CardTitle>
-              <UserCheck className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{pendingSupervisor}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {completed} / {staffSubmitted} disemak
-              </p>
-            </CardContent>
-          </Card>
-          <Card
-            className={`cursor-pointer transition-all hover:shadow-md ${statusFilter === 'completed' ? 'ring-2 ring-green-500' : ''}`}
+            className={activeRing('pending_supervisor')}
+          />
+          <StatCard
+            label={statusLabels.completed}
+            value={completed}
+            icon={CheckCircle2}
+            tone="success"
+            hint={tc.completedShare(progressPercentage)}
             onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Selesai</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {completed}
-                <span className="text-sm font-normal text-muted-foreground ml-1">
-                  ({progressPercentage}%)
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            className={activeRing('completed')}
+          />
         </div>
 
         {/* Progress Bar */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Kemajuan Keseluruhan</span>
-                <span className="font-medium">{progressPercentage}%</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {completed} daripada {totalStaff} penilaian telah selesai
-              </p>
+          <CardContent className="space-y-2 pt-6">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{tc.progressTitle}</span>
+              <span className="font-medium tabular-nums">{progressPercentage}%</span>
             </div>
+            <Progress
+              value={progressPercentage}
+              className="h-2"
+              aria-label={tc.progressTitle}
+            />
+            <p className="text-xs text-muted-foreground">{tc.progressHint(completed, totalStaff)}</p>
           </CardContent>
         </Card>
 
         {/* Evaluations Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Senarai Kakitangan</CardTitle>
-                <CardDescription>
-                  Klik pada kakitangan yang telah selesai untuk melihat keputusan penilaian
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Semua Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="pending_staff">Menunggu Kakitangan</SelectItem>
-                    <SelectItem value="pending_supervisor">Menunggu Penyelia</SelectItem>
-                    <SelectItem value="completed">Selesai</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="relative w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari nama..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+        <Card className="overflow-hidden">
+          <CardHeader className="gap-4 space-y-0 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle>{tc.listTitle}</CardTitle>
+              <CardDescription>{tc.listDescription}</CardDescription>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-52" aria-label={tc.statusFilter}>
+                  <SelectValue placeholder={tc.allStatuses} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{tc.allStatuses}</SelectItem>
+                  <SelectItem value="pending_staff">{statusLabels.pending_staff}</SelectItem>
+                  <SelectItem value="pending_supervisor">{statusLabels.pending_supervisor}</SelectItem>
+                  <SelectItem value="completed">{statusLabels.completed}</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder={tc.searchPlaceholder}
+                  aria-label={t.common.search}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Jawatan</TableHead>
-                  <TableHead>Penyelia</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Markah Penyelia</TableHead>
-                  <TableHead className="text-right">Tindakan</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t.common.name}</TableHead>
+                <TableHead>{t.common.position}</TableHead>
+                <TableHead>{t.common.supervisor}</TableHead>
+                <TableHead>{t.common.status}</TableHead>
+                <TableHead className="text-right">{tc.colScore}</TableHead>
+                <TableHead className="text-right">
+                  <span className="sr-only">{t.common.actions}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredEvaluations.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="p-0">
+                    {hasActiveFilters ? (
+                      <EmptyState
+                        compact
+                        icon={Search}
+                        title={t.common.noResults}
+                        description={t.common.noResultsHint}
+                        action={
+                          <Button variant="outline" size="sm" onClick={clearFilters}>
+                            {t.common.clearFilters}
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState compact icon={Users} title={tc.emptyTitle} description={tc.emptyDescription} />
+                    )}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEvaluations.map((evaluation) => {
+              ) : (
+                filteredEvaluations.map((evaluation) => {
                   const supervisorScore = evaluation.supervisor_answers
                     ? calculateTotalScore(evaluation.supervisor_answers as Record<string, number>)
                     : null;
                   const supervisorPercentage = evaluation.supervisor_answers
                     ? calculatePercentage(evaluation.supervisor_answers as Record<string, number>)
                     : null;
+                  const isCompleted = evaluation.status === 'completed';
+                  const staffName: string = (evaluation.profiles as any)?.name || '—';
 
                   return (
                     <TableRow
                       key={evaluation.id}
-                      className={evaluation.status === 'completed' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                      className={isCompleted ? 'cursor-pointer' : undefined}
                       onClick={() => {
-                        if (evaluation.status === 'completed') {
-                          navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
-                        }
+                        if (isCompleted) openResult(evaluation);
                       }}
                     >
-                      <TableCell className="font-medium">
-                        {(evaluation.profiles as any)?.name || '-'}
-                      </TableCell>
                       <TableCell>
-                        {(evaluation.profiles as any)?.position || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {(evaluation.supervisor as any)?.name || '-'}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(evaluation.status)}</TableCell>
-                      <TableCell>
-                        {supervisorScore !== null ? (
-                          <span className="font-medium">
-                            {supervisorScore}/100 ({supervisorPercentage}%)
-                          </span>
+                        {isCompleted ? (
+                          <Link
+                            to={`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium hover:text-primary hover:underline underline-offset-4"
+                          >
+                            {staffName}
+                          </Link>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="font-medium">{staffName}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{(evaluation.profiles as any)?.position || '—'}</TableCell>
+                      <TableCell>{(evaluation.supervisor as any)?.name || '—'}</TableCell>
+                      <TableCell>
+                        <StatusBadge kind="annualEvaluation" status={evaluation.status} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">
+                        {supervisorScore !== null ? (
+                          <>
+                            <span className="font-medium">{supervisorScore}/100</span>{' '}
+                            <span className="text-muted-foreground">({supervisorPercentage}%)</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {evaluation.status === 'completed' && (
+                          {isCompleted && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className="h-8 w-8"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
+                                openResult(evaluation);
                               }}
+                              aria-label={tc.viewResult(staffName)}
+                              title={tc.viewResult(staffName)}
                             >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Lihat
+                              <Eye className="h-4 w-4" />
                             </Button>
                           )}
                           {evaluation.status !== 'pending_staff' && cycle.status === 'active' && (
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className={cn(
+                                'h-8 w-8 hover:bg-warning-soft hover:text-warning-soft-foreground',
+                                toneClasses.warning.text
+                              )}
                               onClick={(e) => handleResetClick(evaluation, e)}
-                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                              aria-label={tc.resetAction(staffName)}
+                              title={tc.resetAction(staffName)}
                             >
-                              <RotateCcw className="h-4 w-4 mr-1" />
-                              Reset
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
                   );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
+                })
+              )}
+            </TableBody>
+          </Table>
         </Card>
-        {/* Reset Confirmation Dialog */}
-        <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reset Penilaian</DialogTitle>
-              <DialogDescription>
-                Reset penilaian untuk <strong>{(selectedEvaluation?.profiles as any)?.name}</strong>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Jenis Reset</label>
-                <Select value={resetType} onValueChange={(value) => setResetType(value as 'staff' | 'supervisor' | 'full')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full">Reset Penuh (Kakitangan & Penyelia)</SelectItem>
-                    {/* Partial resets only make sense from one status each (see useResetAnnualEvaluation) */}
-                    {selectedEvaluation?.status === 'pending_supervisor' && (
-                      <SelectItem value="staff">Reset Kakitangan Sahaja</SelectItem>
-                    )}
-                    {selectedEvaluation?.status === 'completed' && (
-                      <SelectItem value="supervisor">Reset Penyelia Sahaja</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{getResetDescription()}</AlertDescription>
-              </Alert>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleResetConfirm}
-                disabled={resetEvaluation.isPending}
-              >
-                {resetEvaluation.isPending ? 'Mereset...' : 'Sahkan Reset'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Set Dates Dialog */}
-        <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tetapkan Tarikh Kitaran</DialogTitle>
-              <DialogDescription>
-                Tetapkan tarikh mula dan akhir untuk kitaran penilaian {cycle.year}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Tarikh Mula</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {editStartDate ? format(editStartDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={editStartDate}
-                      onSelect={setEditStartDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="space-y-2">
-                <Label>Tarikh Akhir</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {editEndDate ? format(editEndDate, 'dd/MM/yyyy') : 'Pilih tarikh'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={editEndDate}
-                      onSelect={setEditEndDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDateDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button
-                onClick={() => {
-                  if (!editStartDate || !editEndDate) return;
-                  updateCycleDates.mutate(
-                    {
-                      cycleId: cycle.id,
-                      startDate: format(editStartDate, 'yyyy-MM-dd'),
-                      endDate: format(editEndDate, 'yyyy-MM-dd'),
-                    },
-                    { onSuccess: () => setDateDialogOpen(false) }
-                  );
-                }}
-                disabled={!editStartDate || !editEndDate || updateCycleDates.isPending}
-              >
-                {updateCycleDates.isPending ? 'Menyimpan...' : 'Simpan'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* Close Cycle Confirmation */}
+      <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tc.closeTitle(cycle.year)}</AlertDialogTitle>
+            <AlertDialogDescription>{tc.closeDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => closeCycle.mutate(cycle.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tc.closeCycle}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tc.resetTitle}</DialogTitle>
+            <DialogDescription>
+              {tc.resetFor((selectedEvaluation?.profiles as any)?.name ?? '')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-type">{tc.resetTypeLabel}</Label>
+              <Select value={resetType} onValueChange={(value) => setResetType(value as 'staff' | 'supervisor' | 'full')}>
+                <SelectTrigger id="reset-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">{tc.resetFull}</SelectItem>
+                  {/* Partial resets only make sense from one status each (see useResetAnnualEvaluation) */}
+                  {selectedEvaluation?.status === 'pending_supervisor' && (
+                    <SelectItem value="staff">{tc.resetStaff}</SelectItem>
+                  )}
+                  {selectedEvaluation?.status === 'completed' && (
+                    <SelectItem value="supervisor">{tc.resetSupervisor}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{getResetDescription()}</AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleResetConfirm}
+              disabled={resetEvaluation.isPending}
+            >
+              {resetEvaluation.isPending ? tc.resetting : tc.confirmReset}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set Dates Dialog */}
+      <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tc.datesTitle}</DialogTitle>
+            <DialogDescription>{tc.datesDescription(cycle.year)}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="cycle-start-date">{tc.startDate}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button id="cycle-start-date" variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="h-4 w-4" />
+                    {editStartDate ? format(editStartDate, 'dd/MM/yyyy') : tc.pickDate}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editStartDate}
+                    onSelect={setEditStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cycle-end-date">{tc.endDate}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button id="cycle-end-date" variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="h-4 w-4" />
+                    {editEndDate ? format(editEndDate, 'dd/MM/yyyy') : tc.pickDate}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editEndDate}
+                    onSelect={setEditEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateDialogOpen(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button
+              onClick={() => {
+                if (!editStartDate || !editEndDate) return;
+                updateCycleDates.mutate(
+                  {
+                    cycleId: cycle.id,
+                    startDate: format(editStartDate, 'yyyy-MM-dd'),
+                    endDate: format(editEndDate, 'yyyy-MM-dd'),
+                  },
+                  { onSuccess: () => setDateDialogOpen(false) }
+                );
+              }}
+              disabled={!editStartDate || !editEndDate || updateCycleDates.isPending}
+            >
+              {updateCycleDates.isPending ? t.common.saving : t.common.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

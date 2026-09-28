@@ -1,9 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { usePrograms } from '@/hooks/usePrograms';
 import { useProgramAssignments, useUpdateAssignmentStatus } from '@/hooks/useAssignments';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { toneClasses } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,8 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AttendanceState {
@@ -32,8 +36,10 @@ interface AttendanceState {
 }
 
 export default function Attendance() {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const ta = t.adminTraining.attendance;
+  const ts = t.adminTraining.shared;
   const { toast } = useToast();
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
   const [attendanceState, setAttendanceState] = useState<AttendanceState>({});
@@ -63,8 +69,8 @@ export default function Attendance() {
   const handleSaveAttendance = async (assignmentId: string) => {
     if (!user?.userId) {
       toast({
-        title: 'Error',
-        description: 'User not authenticated',
+        title: t.common.errorTitle,
+        description: ta.notAuthenticated,
         variant: 'destructive',
       });
       return;
@@ -108,8 +114,8 @@ export default function Attendance() {
 
     if (unprocessedAssignments.length === 0) {
       toast({
-        title: 'Info',
-        description: 'All employees are already marked as attended',
+        title: ta.infoTitle,
+        description: ta.allAlreadyAttended,
       });
       return;
     }
@@ -134,31 +140,18 @@ export default function Attendance() {
       setAttendanceState({});
 
       toast({
-        title: 'Success',
-        description: `Marked ${unprocessedAssignments.length} employee(s) as attended`,
+        title: t.common.success,
+        description: ta.markedAttended(unprocessedAssignments.length),
       });
     } catch (error) {
       console.error('Error during bulk update:', error);
       toast({
-        title: 'Error',
-        description: 'Some updates failed. Please try again.',
+        title: t.common.errorTitle,
+        description: ta.bulkFailed,
         variant: 'destructive',
       });
     } finally {
       setUpdatingIds(new Set());
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Attended':
-        return 'default';
-      case 'Assigned':
-        return 'secondary';
-      case 'No-Show':
-        return 'destructive';
-      default:
-        return 'outline';
     }
   };
 
@@ -170,37 +163,22 @@ export default function Attendance() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Attendance Management</h1>
-              <p className="text-muted-foreground">Mark attendance for assigned employees</p>
-            </div>
-          </div>
-        </div>
+      <PageHeader title={ta.title} description={ta.description} backTo="/dashboard" />
 
+      <div className="space-y-6">
         {/* Program Selection Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Program</CardTitle>
-            <CardDescription>Choose a program to view and mark attendance</CardDescription>
+            <CardTitle>{ta.selectProgram}</CardTitle>
+            <CardDescription>{ta.selectProgramDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             {programsLoading ? (
               <Skeleton className="h-10 w-full" />
             ) : (
               <Select value={selectedProgramId} onValueChange={handleProgramChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a program..." />
+                <SelectTrigger className="w-full" aria-label={ta.selectProgram}>
+                  <SelectValue placeholder={ta.selectProgramPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {programs && programs.length > 0 ? (
@@ -211,7 +189,7 @@ export default function Attendance() {
                     ))
                   ) : (
                     <SelectItem value="no-programs" disabled>
-                      No programs available
+                      {ta.noPrograms}
                     </SelectItem>
                   )}
                 </SelectContent>
@@ -224,57 +202,62 @@ export default function Attendance() {
         {selectedProgramId && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1.5">
                   <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Assigned Employees
+                    <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    {ts.assignedStaff}
                   </CardTitle>
-                  <CardDescription>
-                    {assignments?.length || 0} employee(s) assigned to this program
-                  </CardDescription>
+                  <CardDescription>{ts.assignedCount(assignments?.length || 0)}</CardDescription>
                 </div>
                 <Button
                   onClick={handleMarkAllAsAttended}
                   disabled={!assignments || assignments.length === 0 || updatingIds.size > 0}
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Mark All as Attended
+                  <CheckCircle className="h-4 w-4" />
+                  {ta.markAllAttended}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               {assignmentsLoading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-11 w-full" />
+                  <Skeleton className="h-11 w-full" />
+                  <Skeleton className="h-11 w-full" />
                 </div>
               ) : !assignments || assignments.length === 0 ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No employees assigned to this program yet.
-                  </p>
-                </div>
+                <EmptyState
+                  compact
+                  icon={Users}
+                  title={ts.noAssignedTitle}
+                  description={ts.noAssignedDescription}
+                />
               ) : (
                 <>
                   {hasUnsavedChanges && (
-                    <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                        You have unsaved changes. Click "Save" to update attendance.
-                      </p>
+                    <div
+                      role="status"
+                      className={cn(
+                        'mb-4 flex items-start gap-3 rounded-lg border border-warning/30 p-4 text-sm',
+                        toneClasses.warning.soft
+                      )}
+                    >
+                      <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p>{ta.unsavedChanges}</p>
                     </div>
                   )}
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Current Status</TableHead>
-                        <TableHead>Mark Attendance</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t.common.name}</TableHead>
+                        <TableHead>{t.common.email}</TableHead>
+                        <TableHead>{t.common.department}</TableHead>
+                        <TableHead>{ta.colCurrentStatus}</TableHead>
+                        <TableHead>{ta.colMarkAttendance}</TableHead>
+                        <TableHead className="text-right">
+                          <span className="sr-only">{t.common.actions}</span>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -286,14 +269,12 @@ export default function Attendance() {
                         return (
                           <TableRow key={assignment.id}>
                             <TableCell className="font-medium">
-                              {assignment.profiles?.name || 'Unknown'}
+                              {assignment.profiles?.name || ts.unknown}
                             </TableCell>
                             <TableCell>{assignment.profiles?.email || '-'}</TableCell>
                             <TableCell>{assignment.profiles?.department || '-'}</TableCell>
                             <TableCell>
-                              <Badge variant={getStatusBadgeVariant(displayStatus)}>
-                                {displayStatus}
-                              </Badge>
+                              <StatusBadge kind="assignment" status={displayStatus} />
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -305,9 +286,11 @@ export default function Attendance() {
                                 />
                                 <label
                                   htmlFor={`attendance-${assignment.id}`}
-                                  className="text-sm font-medium cursor-pointer select-none"
+                                  className="cursor-pointer select-none text-sm font-medium"
                                 >
-                                  {displayStatus === 'Attended' ? 'Attended' : 'No-Show'}
+                                  {displayStatus === 'Attended'
+                                    ? t.status.assignment.Attended
+                                    : t.status.assignment['No-Show']}
                                 </label>
                               </div>
                             </TableCell>
@@ -318,7 +301,7 @@ export default function Attendance() {
                                   onClick={() => handleSaveAttendance(assignment.id)}
                                   disabled={isUpdating}
                                 >
-                                  {isUpdating ? 'Saving...' : 'Save'}
+                                  {isUpdating ? t.common.saving : t.common.save}
                                 </Button>
                               )}
                             </TableCell>

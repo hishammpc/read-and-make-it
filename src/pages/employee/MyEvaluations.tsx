@@ -1,9 +1,14 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserAssignments } from '@/hooks/useAssignments';
 import { useUserEvaluations } from '@/hooks/useEvaluations';
+import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
+import { EmptyState } from '@/components/common/EmptyState';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -17,10 +22,13 @@ import {
 import { FileCheck, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { formatMalaysianDate } from '@/lib/dateUtils';
 
 export default function MyEvaluations() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const te = t.employee.myEvaluations;
   const { data: assignments, isLoading: assignmentsLoading } = useUserAssignments(user?.userId || '');
   const { data: evaluations, isLoading: evaluationsLoading } = useUserEvaluations(user?.userId || '');
 
@@ -43,109 +51,70 @@ export default function MyEvaluations() {
   if (isLoading) {
     return (
       <EmployeeLayout>
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading evaluations...</p>
-          </div>
-        </div>
+        <PageSkeleton variant="table" />
       </EmployeeLayout>
     );
   }
 
+  const completedCount = evaluations?.length || 0;
+
   return (
     <EmployeeLayout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Evaluations</h1>
+      <PageHeader title={te.title} description={te.description} />
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pending Evaluations
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingEvaluations.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Programs awaiting your feedback
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Completed Evaluations
-              </CardTitle>
-              <FileCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{evaluations?.length || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                Feedback submitted
-              </p>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <StatCard
+            label={te.pending}
+            value={pendingEvaluations.length}
+            icon={Clock}
+            tone={pendingEvaluations.length > 0 ? 'warning' : 'muted'}
+            hint={te.pendingHint}
+          />
+          <StatCard
+            label={te.completed}
+            value={completedCount}
+            icon={FileCheck}
+            tone="success"
+            hint={te.completedHint}
+          />
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="pending" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="pending">
-              Pending ({pendingEvaluations.length})
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed ({evaluations?.length || 0})
-            </TabsTrigger>
+            <TabsTrigger value="pending">{te.tabPending(pendingEvaluations.length)}</TabsTrigger>
+            <TabsTrigger value="completed">{te.tabCompleted(completedCount)}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
             {pendingEvaluations.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <FileCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    No pending evaluations. Great job keeping up with your feedback!
-                  </p>
-                </CardContent>
-              </Card>
+              <EmptyState icon={FileCheck} title={te.pendingEmptyTitle} description={te.pendingEmptyDescription} />
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {pendingEvaluations.map((assignment: any) => (
-                  <Card key={assignment.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <h3 className="text-lg font-semibold">
-                              {assignment.programs?.title}
-                            </h3>
-                            <Badge variant="outline">{assignment.programs?.category}</Badge>
+                  <Card key={assignment.id}>
+                    <CardContent className="p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold">{assignment.programs?.title}</h3>
+                            {assignment.programs?.category && (
+                              <Badge variant="outline">{assignment.programs.category}</Badge>
+                            )}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              <span>{assignment.programs?.hours} hours</span>
-                            </div>
-                            <span>
-                              {format(
-                                new Date(assignment.programs?.start_date_time),
-                                'MMM dd, yyyy'
-                              )}
+                              {t.employee.shared.hours(assignment.programs?.hours || 0)}
                             </span>
+                            <span>{formatMalaysianDate(assignment.programs?.start_date_time)}</span>
                           </div>
                         </div>
                         <Button
                           className="w-full sm:w-auto"
-                          onClick={() =>
-                            navigate(
-                              `/dashboard/my-evaluations/${assignment.program_id}/submit`
-                            )
-                          }
+                          onClick={() => navigate(`/dashboard/my-evaluations/${assignment.program_id}/submit`)}
                         >
-                          Complete Evaluation
+                          {te.start}
                         </Button>
                       </div>
                     </CardContent>
@@ -156,48 +125,54 @@ export default function MyEvaluations() {
           </TabsContent>
 
           <TabsContent value="completed">
-            <Card className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Program Title</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Submitted Date</TableHead>
-                    <TableHead>Program Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {!evaluations || evaluations.length === 0 ? (
+            <Card className="overflow-hidden">
+              {!evaluations || evaluations.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={FileCheck}
+                  title={te.completedEmptyTitle}
+                  description={te.completedEmptyDescription}
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No completed evaluations yet
-                      </TableCell>
+                      <TableHead>{te.colProgram}</TableHead>
+                      <TableHead>{te.colCategory}</TableHead>
+                      <TableHead>{te.colSubmitted}</TableHead>
+                      <TableHead>{te.colProgramDate}</TableHead>
                     </TableRow>
-                  ) : (
-                    evaluations.map((evaluation: any) => (
+                  </TableHeader>
+                  <TableBody>
+                    {evaluations.map((evaluation: any) => (
                       <TableRow key={evaluation.id}>
-                        <TableCell className="font-medium">
-                          {evaluation.programs?.title}
-                        </TableCell>
+                        <TableCell className="max-w-sm font-medium">{evaluation.programs?.title}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{evaluation.programs?.category || 'N/A'}</Badge>
+                          {evaluation.programs?.category ? (
+                            <Badge variant="outline">{evaluation.programs.category}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
-                        <TableCell>
-                          {format(new Date(evaluation.submitted_at), 'MMM dd, yyyy h:mm a')}
+                        <TableCell className="whitespace-nowrap">
+                          {formatMalaysianDate(evaluation.submitted_at)}
+                          <span className="text-muted-foreground">
+                            {', '}
+                            {format(new Date(evaluation.submitted_at), 'h:mm a')}
+                          </span>
                         </TableCell>
-                        <TableCell>
-                          {evaluation.programs?.start_date_time
-                            ? format(
-                                new Date(evaluation.programs.start_date_time),
-                                'MMM dd, yyyy'
-                              )
-                            : 'N/A'}
+                        <TableCell className="whitespace-nowrap">
+                          {evaluation.programs?.start_date_time ? (
+                            formatMalaysianDate(evaluation.programs.start_date_time)
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </Card>
           </TabsContent>
         </Tabs>

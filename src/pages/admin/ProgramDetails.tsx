@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
@@ -6,10 +6,17 @@ import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignmen
 import { useProgramEvaluationDetails } from '@/hooks/useEvaluations';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateTime } from '@/lib/dateUtils';
+import { getTrainingRatingTone, toneClasses } from '@/lib/status';
+import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -30,20 +37,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  ArrowLeft,
-  Edit,
+  Pencil,
   Trash2,
   UserPlus,
   Clock,
   MapPin,
   Calendar,
-  AlertCircle,
   Users,
   X,
   ClipboardCheck,
   MessageSquare,
   CheckCircle2,
   MinusCircle,
+  SearchX,
+  Tag,
 } from 'lucide-react';
 import {
   RadarChart,
@@ -55,8 +62,35 @@ import {
   Tooltip,
 } from 'recharts';
 
+/** One label/value pair in the program information grid. */
+function InfoItem({
+  icon: Icon,
+  label,
+  children,
+  className,
+}: {
+  icon: typeof Clock;
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1.5', className)}>
+      <dt className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+        {label}
+      </dt>
+      <dd className="text-sm font-medium">{children}</dd>
+    </div>
+  );
+}
+
 export default function ProgramDetails() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+  const td = t.adminTraining.programDetails;
+  const ts = t.adminTraining.shared;
+  const tp = t.adminTraining.programs;
   const { id } = useParams<{ id: string }>();
   const { data: program, isLoading, error } = useProgram(id!);
   const { data: assignments, isLoading: assignmentsLoading } = useProgramAssignments(id!);
@@ -106,30 +140,8 @@ export default function ProgramDetails() {
   if (error) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Program Details</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="w-5 h-5" />
-                <div>
-                  <h3 className="font-semibold">Error Loading Program</h3>
-                  <p className="text-sm text-muted-foreground">{error.message}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <PageHeader title={td.title} backTo="/dashboard/programs" />
+        <ErrorState message={error.message} />
       </AdminLayout>
     );
   }
@@ -137,31 +149,7 @@ export default function ProgramDetails() {
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div>
-                <Skeleton className="h-9 w-64 mb-2" />
-                <Skeleton className="h-5 w-48" />
-              </div>
-            </div>
-            <Skeleton className="h-10 w-32" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </CardContent>
-          </Card>
-        </div>
+        <PageSkeleton variant="detail" />
       </AdminLayout>
     );
   }
@@ -169,321 +157,287 @@ export default function ProgramDetails() {
   if (!program) {
     return (
       <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
+        <PageHeader title={td.title} backTo="/dashboard/programs" />
+        <EmptyState
+          icon={SearchX}
+          title={ts.programNotFoundTitle}
+          description={ts.programNotFoundDescription}
+          action={
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/programs')}>
+              {ts.backToPrograms}
             </Button>
-            <h1 className="text-3xl font-bold tracking-tight">Program Details</h1>
-          </div>
-
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-muted-foreground">Program not found.</p>
-            </CardContent>
-          </Card>
-        </div>
+          }
+        />
       </AdminLayout>
     );
   }
 
+  const trainingType = program.training_type || 'Local';
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/dashboard/programs')}
-            >
-              <ArrowLeft className="w-4 h-4" />
+      <PageHeader
+        title={program.title}
+        description={td.title}
+        backTo="/dashboard/programs"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => navigate(`/dashboard/programs/${id}/edit`)}>
+              <Pencil className="h-4 w-4" />
+              {t.common.edit}
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{program.title}</h1>
-              <p className="text-muted-foreground">Program Details</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/dashboard/programs/${id}/edit`)}
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
+            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              {t.common.delete}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <div className="space-y-6">
         {/* Program Information */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Program Information</CardTitle>
-              <div className="text-right">
-                <div className="text-3xl font-bold">{assignments?.length || 0}</div>
-                <div className="text-sm text-muted-foreground">Assigned Employees</div>
-              </div>
-            </div>
+            <CardTitle>{td.infoTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground">Training Type</div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={program.training_type === 'International' ? 'default' : 'outline'}>
-                    {program.training_type || 'Local'}
-                  </Badge>
-                </div>
-              </div>
+            <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <InfoItem icon={Tag} label={td.trainingType}>
+                <ToneBadge tone={trainingType === 'International' ? 'info' : 'muted'}>
+                  {t.adminTraining.programForm.trainingTypes[trainingType] ?? trainingType}
+                </ToneBadge>
+              </InfoItem>
 
               {program.training_type === 'International' && program.location && (
-                <div className="space-y-2 md:col-span-3">
-                  <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Location
-                  </div>
-                  <div className="text-sm">{program.location}</div>
-                </div>
+                <InfoItem icon={MapPin} label={td.location} className="sm:col-span-2 lg:col-span-3">
+                  {program.location}
+                </InfoItem>
               )}
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Start Date & Time
-                </div>
-                <div className="text-sm">{formatDateTime(program.start_date_time)}</div>
-              </div>
+              <InfoItem icon={Calendar} label={td.start}>
+                {formatDateTime(program.start_date_time)}
+              </InfoItem>
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  End Date & Time
-                </div>
-                <div className="text-sm">{formatDateTime(program.end_date_time)}</div>
-              </div>
+              <InfoItem icon={Calendar} label={td.end}>
+                {formatDateTime(program.end_date_time)}
+              </InfoItem>
 
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Duration
-                </div>
-                <div className="text-sm">{program.hours} hours</div>
-              </div>
-            </div>
+              <InfoItem icon={Clock} label={td.duration}>
+                <span className="tabular-nums">{program.hours}</span> {t.common.hours}
+              </InfoItem>
+
+              <InfoItem icon={Users} label={td.participants}>
+                <span className="tabular-nums">{assignments?.length || 0}</span>
+              </InfoItem>
+            </dl>
           </CardContent>
         </Card>
 
         {/* Evaluation Summary with Radar Chart */}
         {program.notify_for_evaluation && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardCheck className="w-5 h-5" />
-                  Evaluation Summary
-                </CardTitle>
-                <CardDescription>
-                  {evaluationDetails?.totalResponses || 0} of {evaluationDetails?.totalAssigned || 0} responses received
-                </CardDescription>
-              </div>
-              {evaluationDetails && evaluationDetails.totalResponses > 0 && (
-                <Badge
-                  className={
-                    evaluationDetails.averageRating === 'BAGUS'
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : evaluationDetails.averageRating === 'SEDERHANA'
-                        ? 'bg-yellow-500 hover:bg-yellow-600'
-                        : evaluationDetails.averageRating === 'LEMAH'
-                          ? 'bg-red-500 hover:bg-red-600'
-                          : ''
-                  }
-                >
-                  {evaluationDetails.averageRating} ({evaluationDetails.averageScore.toFixed(2)}/3.00)
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {evaluationLoading ? (
-              <div className="flex justify-center py-8">
-                <Skeleton className="h-64 w-64 rounded-full" />
-              </div>
-            ) : !evaluationDetails || evaluationDetails.totalResponses === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No evaluations submitted yet.
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Radar Chart */}
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart
-                      data={evaluationDetails.questionScores.map(q => ({
-                        subject: q.shortLabel,
-                        score: q.avgScore,
-                        fullMark: 3,
-                      }))}
-                    >
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                      <PolarRadiusAxis angle={90} domain={[0, 3]} tick={{ fontSize: 10 }} />
-                      <Tooltip
-                        formatter={(value: number) => [value.toFixed(2), 'Score']}
-                      />
-                      <Radar
-                        name="Score"
-                        dataKey="score"
-                        stroke="#22c55e"
-                        fill="#22c55e"
-                        fillOpacity={0.5}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1.5">
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    {td.evaluationSummary}
+                  </CardTitle>
+                  <CardDescription>
+                    {td.responsesReceived(evaluationDetails?.totalResponses || 0, evaluationDetails?.totalAssigned || 0)}
+                  </CardDescription>
                 </div>
-
-                {/* Question Breakdown */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Question Breakdown</h4>
-                  {evaluationDetails.questionScores.map((q, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="truncate pr-4">{q.question}</span>
-                        <span className="font-semibold shrink-0">{q.avgScore.toFixed(2)}</span>
-                      </div>
-                      <div className="flex gap-1 h-2">
-                        <div
-                          className="bg-green-500 rounded-l"
-                          style={{ width: `${(q.bagusCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
-                          title={`BAGUS: ${q.bagusCount}`}
-                        />
-                        <div
-                          className="bg-yellow-500"
-                          style={{ width: `${(q.sederhanaCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
-                          title={`SEDERHANA: ${q.sederhanaCount}`}
-                        />
-                        <div
-                          className="bg-red-500 rounded-r"
-                          style={{ width: `${(q.lemahCount / (q.bagusCount + q.sederhanaCount + q.lemahCount || 1)) * 100}%` }}
-                          title={`LEMAH: ${q.lemahCount}`}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span className="text-green-600">BAGUS: {q.bagusCount}</span>
-                        <span className="text-yellow-600">SEDERHANA: {q.sederhanaCount}</span>
-                        <span className="text-red-600">LEMAH: {q.lemahCount}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Comments Section */}
-                {evaluationDetails.comments.length > 0 && (
-                  <div className="md:col-span-2 border-t pt-4">
-                    <h4 className="font-semibold text-sm text-muted-foreground flex items-center gap-2 mb-3">
-                      <MessageSquare className="w-4 h-4" />
-                      Comments & Suggestions ({evaluationDetails.comments.length})
-                    </h4>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {evaluationDetails.comments.map((comment, idx) => (
-                        <div key={idx} className="p-3 bg-muted/50 rounded-lg text-sm">
-                          {comment}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                {evaluationDetails && evaluationDetails.totalResponses > 0 && (
+                  <ToneBadge tone={getTrainingRatingTone(evaluationDetails.averageRating)} className="self-start">
+                    {evaluationDetails.averageRating} ({evaluationDetails.averageScore.toFixed(2)}/3.00)
+                  </ToneBadge>
                 )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              {evaluationLoading ? (
+                <div className="flex justify-center py-8">
+                  <Skeleton className="h-64 w-64 rounded-full" />
+                </div>
+              ) : !evaluationDetails || evaluationDetails.totalResponses === 0 ? (
+                <EmptyState
+                  compact
+                  icon={ClipboardCheck}
+                  title={td.noEvaluationsTitle}
+                  description={td.noEvaluationsDescription}
+                />
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Radar Chart */}
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart
+                        data={evaluationDetails.questionScores.map(q => ({
+                          subject: q.shortLabel,
+                          score: q.avgScore,
+                          fullMark: 3,
+                        }))}
+                      >
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                        <PolarRadiusAxis angle={90} domain={[0, 3]} tick={{ fontSize: 10 }} />
+                        <Tooltip
+                          formatter={(value: number) => [value.toFixed(2), td.score]}
+                        />
+                        <Radar
+                          name={td.score}
+                          dataKey="score"
+                          stroke="#22c55e"
+                          fill="#22c55e"
+                          fillOpacity={0.5}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Question Breakdown */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-muted-foreground">{td.questionBreakdown}</h4>
+                    {evaluationDetails.questionScores.map((q, idx) => {
+                      const total = q.bagusCount + q.sederhanaCount + q.lemahCount || 1;
+                      const segments = [
+                        { rating: 'BAGUS', count: q.bagusCount, className: 'rounded-l' },
+                        { rating: 'SEDERHANA', count: q.sederhanaCount, className: '' },
+                        { rating: 'LEMAH', count: q.lemahCount, className: 'rounded-r' },
+                      ];
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="truncate pr-4">{q.question}</span>
+                            <span className="shrink-0 font-semibold tabular-nums">{q.avgScore.toFixed(2)}</span>
+                          </div>
+                          <div className="flex h-2 gap-1">
+                            {segments.map((s) => (
+                              <div
+                                key={s.rating}
+                                className={cn(toneClasses[getTrainingRatingTone(s.rating)].solid, s.className)}
+                                style={{ width: `${(s.count / total) * 100}%` }}
+                                title={`${s.rating}: ${s.count}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            {segments.map((s) => (
+                              <span key={s.rating} className={toneClasses[getTrainingRatingTone(s.rating)].text}>
+                                {s.rating}: {s.count}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Comments Section */}
+                  {evaluationDetails.comments.length > 0 && (
+                    <div className="border-t pt-4 md:col-span-2">
+                      <h4 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                        {td.comments(evaluationDetails.comments.length)}
+                      </h4>
+                      <div className="max-h-40 space-y-2 overflow-y-auto">
+                        {evaluationDetails.comments.map((comment, idx) => (
+                          <div key={idx} className="rounded-lg bg-muted/50 p-3 text-sm">
+                            {comment}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Assigned Employees */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1.5">
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Assigned Employees
+                  <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  {ts.assignedStaff}
                 </CardTitle>
-                <CardDescription>
-                  {assignments?.length || 0} employee(s) assigned to this program
-                </CardDescription>
+                <CardDescription>{ts.assignedCount(assignments?.length || 0)}</CardDescription>
               </div>
               <Button onClick={() => navigate(`/dashboard/programs/${id}/assign`)}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Assign Users
+                <UserPlus className="h-4 w-4" />
+                {td.assignStaff}
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             {assignmentsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
+                <Skeleton className="h-11 w-full" />
               </div>
             ) : !assignments || assignments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No employees assigned to this program yet.
-              </div>
+              <EmptyState
+                compact
+                icon={Users}
+                title={ts.noAssignedTitle}
+                description={ts.noAssignedDescription}
+                action={
+                  <Button size="sm" onClick={() => navigate(`/dashboard/programs/${id}/assign`)}>
+                    <UserPlus className="h-4 w-4" />
+                    {td.assignStaff}
+                  </Button>
+                }
+              />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Email</TableHead>
-                    {program.notify_for_evaluation && <TableHead>Penilaian</TableHead>}
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t.common.name}</TableHead>
+                    <TableHead>{t.common.position}</TableHead>
+                    <TableHead>{t.common.email}</TableHead>
+                    {program.notify_for_evaluation && <TableHead>{td.colEvaluation}</TableHead>}
+                    <TableHead className="text-right">
+                      <span className="sr-only">{t.common.actions}</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {assignments.map((assignment: any) => (
                     <TableRow key={assignment.id}>
                       <TableCell className="font-medium">
-                        {assignment.profiles?.name || 'Unknown'}
+                        {assignment.profiles?.name || ts.unknown}
                       </TableCell>
                       <TableCell>{assignment.profiles?.position || '-'}</TableCell>
                       <TableCell>{assignment.profiles?.email || '-'}</TableCell>
                       {program.notify_for_evaluation && (
-                      <TableCell>
-                        {programEvaluations?.has(assignment.profiles?.id) ? (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Selesai
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            <MinusCircle className="w-3 h-3 mr-1" />
-                            Belum
-                          </Badge>
-                        )}
-                      </TableCell>
+                        <TableCell>
+                          {programEvaluations?.has(assignment.profiles?.id) ? (
+                            <ToneBadge tone="success">
+                              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                              {td.evaluationSubmitted}
+                            </ToneBadge>
+                          ) : (
+                            <ToneBadge tone="muted">
+                              <MinusCircle className="h-3 w-3" aria-hidden="true" />
+                              {td.evaluationPending}
+                            </ToneBadge>
+                          )}
+                        </TableCell>
                       )}
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
                           onClick={() => handleRemoveAssignment(assignment.id)}
-                          title="Remove assignment"
+                          aria-label={ts.removeAssignment}
+                          title={ts.removeAssignment}
                         >
-                          <X className="w-4 h-4 text-destructive" />
+                          <X className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -493,26 +447,22 @@ export default function ProgramDetails() {
             )}
           </CardContent>
         </Card>
-
       </div>
 
       {/* Delete Program Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Program</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this program? This action cannot be undone.
-              All associated assignments and data will be permanently removed.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{tp.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{tp.deleteDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Program
+              {tp.deleteProgram}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -522,19 +472,16 @@ export default function ProgramDetails() {
       <AlertDialog open={removeAssignmentDialogOpen} onOpenChange={setRemoveAssignmentDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this employee from the program?
-              This will delete their assignment record.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{ts.removeTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{ts.removeDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmRemoveAssignment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove Assignment
+              {ts.removeConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

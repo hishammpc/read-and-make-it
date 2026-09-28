@@ -1,20 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useBulkImportUsers, BulkImportResult } from '@/hooks/useBulkImport';
 import { downloadErrorReport } from '@/lib/csvParser';
+import { toneClasses } from '@/lib/status';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { StatCard } from '@/components/common/StatCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  ArrowLeft,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Upload,
   FileSpreadsheet,
   CheckCircle2,
+  RefreshCw,
   XCircle,
   AlertCircle,
+  Info,
   Loader2,
   Download,
 } from 'lucide-react';
@@ -22,6 +38,8 @@ import {
 export default function BulkUserImport() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const tb = t.adminStaff.bulkImport;
   const bulkImport = useBulkImportUsers();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -34,7 +52,7 @@ export default function BulkUserImport() {
         setSelectedFile(file);
         setImportResult(null);
       } else {
-        alert('Please select a CSV file');
+        toast.error(tb.invalidFile);
         e.target.value = '';
       }
     }
@@ -65,63 +83,55 @@ export default function BulkUserImport() {
     setImportResult(null);
   };
 
+  // CSV column names are part of the file format — they stay as-is in every language.
+  const csvColumns = [
+    { name: 'NAMA', hint: tb.colNameHint },
+    { name: 'EMEL', hint: tb.colEmailHint },
+    { name: 'JAWATAN', hint: tb.colPositionHint },
+  ];
+
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/admin/users')}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Bulk User Import</h1>
-            <p className="text-muted-foreground">
-              Import multiple users from CSV file
-            </p>
-          </div>
-        </div>
+      <PageHeader
+        title={tb.title}
+        description={tb.description}
+        backTo="/admin/users"
+        backLabel={t.adminStaff.userForm.backToUsers}
+      />
 
+      <div className="max-w-4xl space-y-6">
         {/* Instructions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              CSV Format Requirements
+              <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+              {tb.formatTitle}
             </CardTitle>
-            <CardDescription>
-              Your CSV file should have the following columns
-            </CardDescription>
+            <CardDescription>{tb.formatDescription}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <div className="font-semibold text-sm mb-1">NAMA</div>
-                  <div className="text-sm text-muted-foreground">Full name (required)</div>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {csvColumns.map((column) => (
+                <div key={column.name} className="rounded-lg border p-4">
+                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm font-semibold">
+                    {column.name}
+                  </code>
+                  <p className="mt-2 text-sm text-muted-foreground">{column.hint}</p>
                 </div>
-                <div className="p-4 border rounded-lg">
-                  <div className="font-semibold text-sm mb-1">EMEL</div>
-                  <div className="text-sm text-muted-foreground">Email address (required)</div>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <div className="font-semibold text-sm mb-1">JAWATAN</div>
-                  <div className="text-sm text-muted-foreground">Position (optional)</div>
-                </div>
-              </div>
-
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Note:</strong> The first 2 rows will be skipped (headers).
-                  All imported users will be assigned the "employee" role.
-                  Duplicate emails will update existing user records.
-                </AlertDescription>
-              </Alert>
+              ))}
             </div>
+
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>{tb.noteTitle}</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc space-y-1 pl-4">
+                  <li>{tb.noteSkipRows}</li>
+                  <li>{tb.noteRole}</li>
+                  <li>{tb.noteDuplicates}</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
 
@@ -130,25 +140,25 @@ export default function BulkUserImport() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload CSV File
+                <Upload className="h-5 w-5 text-muted-foreground" />
+                {tb.uploadTitle}
               </CardTitle>
-              <CardDescription>
-                Select your CSV file to import users
-              </CardDescription>
+              <CardDescription>{tb.uploadDescription}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="bulk-import-file">{tb.fileLabel}</Label>
                 <Input
+                  id="bulk-import-file"
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}
                   disabled={bulkImport.isPending}
                 />
                 {selectedFile && (
-                  <div className="text-sm text-muted-foreground">
-                    Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {tb.selectedFile(selectedFile.name, (selectedFile.size / 1024).toFixed(2))}
+                  </p>
                 )}
               </div>
 
@@ -160,13 +170,13 @@ export default function BulkUserImport() {
               >
                 {bulkImport.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Importing Users...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {tb.importing}
                   </>
                 ) : (
                   <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Import Users
+                    <Upload className="h-4 w-4" />
+                    {tb.import}
                   </>
                 )}
               </Button>
@@ -180,108 +190,82 @@ export default function BulkUserImport() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {importResult.failed === 0 ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <CheckCircle2 className={cn('h-5 w-5', toneClasses.success.text)} />
                 ) : (
-                  <AlertCircle className="w-5 h-5 text-yellow-500" />
+                  <AlertCircle className={cn('h-5 w-5', toneClasses.warning.text)} />
                 )}
-                Import Results
+                {tb.resultsTitle}
               </CardTitle>
-              <CardDescription>
-                Import completed for {selectedFile?.name}
-              </CardDescription>
+              <CardDescription>{tb.resultsDescription(selectedFile?.name ?? '')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Summary Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <div className="font-semibold text-green-900 dark:text-green-100">Created</div>
-                  </div>
-                  <div className="text-3xl font-bold text-green-700 dark:text-green-300">
-                    {importResult.created}
-                  </div>
-                  <div className="text-sm text-green-600 dark:text-green-400">New users</div>
-                </div>
-
-                <div className="p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <div className="font-semibold text-blue-900 dark:text-blue-100">Updated</div>
-                  </div>
-                  <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-                    {importResult.updated}
-                  </div>
-                  <div className="text-sm text-blue-600 dark:text-blue-400">Existing users</div>
-                </div>
-
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  label={tb.created}
+                  value={importResult.created}
+                  icon={CheckCircle2}
+                  tone="success"
+                  hint={tb.createdHint}
+                />
+                <StatCard
+                  label={tb.updated}
+                  value={importResult.updated}
+                  icon={RefreshCw}
+                  tone="info"
+                  hint={tb.updatedHint}
+                />
                 {importResult.failed > 0 && (
-                  <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                      <div className="font-semibold text-red-900 dark:text-red-100">Failed</div>
-                    </div>
-                    <div className="text-3xl font-bold text-red-700 dark:text-red-300">
-                      {importResult.failed}
-                    </div>
-                    <div className="text-sm text-red-600 dark:text-red-400">Errors</div>
-                  </div>
+                  <StatCard
+                    label={tb.failed}
+                    value={importResult.failed}
+                    icon={XCircle}
+                    tone="danger"
+                    hint={tb.failedHint}
+                  />
                 )}
               </div>
 
               {/* Error Details */}
               {importResult.errors.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">Error Details</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownloadErrors}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download Error Report
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="font-semibold">{tb.errorDetails}</h3>
+                    <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
+                      <Download className="h-4 w-4" />
+                      {tb.downloadErrors}
                     </Button>
                   </div>
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted sticky top-0">
-                          <tr>
-                            <th className="px-4 py-2 text-left">Row</th>
-                            <th className="px-4 py-2 text-left">Email</th>
-                            <th className="px-4 py-2 text-left">Error</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importResult.errors.map((error, index) => (
-                            <tr key={index} className="border-t">
-                              <td className="px-4 py-2">{error.row}</td>
-                              <td className="px-4 py-2">{error.email}</td>
-                              <td className="px-4 py-2 text-red-600">{error.error}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  <div className="max-h-64 overflow-y-auto rounded-lg border">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-muted">
+                        <TableRow>
+                          <TableHead className="w-20 text-right">{tb.colRow}</TableHead>
+                          <TableHead>{t.common.email}</TableHead>
+                          <TableHead>{tb.colError}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importResult.errors.map((error, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="text-right tabular-nums">{error.row}</TableCell>
+                            <TableCell>{error.email}</TableCell>
+                            <TableCell className={toneClasses.danger.text}>{error.error}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Import Another File
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={handleReset} variant="outline" className="flex-1">
+                  {tb.importAnother}
                 </Button>
-                <Button
-                  onClick={() => navigate('/admin/users')}
-                  className="flex-1"
-                >
-                  View All Users
+                <Button onClick={() => navigate('/admin/users')} className="flex-1">
+                  {tb.viewUsers}
                 </Button>
               </div>
             </CardContent>

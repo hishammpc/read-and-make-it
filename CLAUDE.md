@@ -200,22 +200,29 @@ getRatingLabel(percentage)       // Cemerlang, Bagus, etc.
 ## UI Patterns
 
 ### Layouts
-- `AdminLayout` - PIN-protected, sidebar navigation, mobile menu
-- `EmployeeLayout` - Dynamic menu (shows supervisor items if applicable)
+- `AppShell` (`components/layout/AppShell.tsx`) — shared frame: fixed sidebar (stays put on scroll), sticky top bar with BM/EN switch, theme switch and user menu, mobile drawer. Takes `sections: NavSection[]`.
+- `AdminLayout` — PIN gate, then `AppShell` with admin nav. `EmployeeLayout` — `AppShell` with staff nav; "Penilaian kakitangan" only when `useIsSupervisor`.
+- `AuthLayout` — split-screen frame for `/auth` and `/admin/login`.
 
-### Common Components
-- Cards with stats and KPIs
-- Tables with search/filter
-- Dialogs for confirmations
-- Toast notifications (Sonner)
-- Progress indicators (circular and linear)
+### Shared components (`components/common/`) — use these, don't hand-roll
+- `PageHeader` (title, description, actions, `backTo`) — the only page-title pattern
+- `StatCard` (label, value, icon, tone, hint, onClick) — every KPI tile
+- `StatusBadge kind=… status=…` / `ToneBadge tone=…` — every coloured label
+- `EmptyState` (compact inside cards/tables), `PageSkeleton` (dashboard/table/form/detail), `ErrorState`
+
+### Colour
+- Tokens only: `success` / `warning` / `info` / `destructive` each with `-soft` + `-soft-foreground`, plus `primary`, `muted`, `accent` (neutral hover). No raw Tailwind palette classes or hex in pages — they break dark mode.
+- Status → tone lives in `lib/status.ts` (`getStatusTone`, `getRatingLevelTone`, `getRatingPercentageTone`, `getComplianceTone`, `getTrainingScoreTone`, `getTrainingRatingTone`, `toneClasses`). Annual 5-level scale is diverging: danger, warning, muted, info, success.
+- Theme defaults to light until every page is dark-safe; switch offers Light/Dark/System.
+- Font: Plus Jakarta Sans (self-hosted, `@fontsource-variable`).
 
 ## Localization
 
-- **Primary language**: Malay (Bahasa Malaysia)
-- Malaysian date formatting
-- Status messages in Malay
-- Form labels bilingual
+- **Dual language, BM default** — `useLanguage()` → `t` (typed dictionary). `i18n/ms.ts` holds `common`, `status`, shell/auth strings; page strings live in `i18n/sections/{dashboard,adminTraining,adminStaff,employee}.ts`. `en` is typed against `ms`, so a missing key fails the typecheck.
+- Choice persisted in localStorage `mylearning_language`; sets `<html lang>`.
+- **Stays BM only (official content):** annual-evaluation questions/categories and rating words, BAGUS/SEDERHANA/LEMAH, PDF output, certificates, CSV exports.
+- Auth library returns `AuthErrorCode`s; UI translates via `t.auth.errors[code]`.
+- Malaysian date formatting (`formatMalaysianDate`) is BM regardless of language.
 
 ## Development Commands
 

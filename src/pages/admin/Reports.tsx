@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadCSV } from '@/lib/csvUtils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { formatMalaysianDate, getMonthRangeBounds } from '@/lib/dateUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -23,21 +27,21 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Download,
   FileText,
   Users,
   BookOpen,
   Plane,
-  AlertCircle,
-  ChevronLeft,
   FileSpreadsheet,
+  Loader2,
+  SearchX,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import { addLogoToPDF } from '@/lib/pdfUtils';
 
+// Used by the PDF date-range line (official output, BM regardless of UI language).
 const MONTHS = [
   { value: '1', label: 'Januari' },
   { value: '2', label: 'Februari' },
@@ -62,9 +66,13 @@ interface ReportData {
   [key: string]: any;
 }
 
+/** Columns rendered right-aligned in the on-screen table. */
+const NUMERIC_COLUMNS = ['hours', 'participants', 'total_hours'];
+
 export default function Reports() {
-  const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
+  const tr = t.adminStaff.reports;
   const currentYear = new Date().getFullYear();
 
   const [activeReport, setActiveReport] = useState<ReportType>('training-hours-user');
@@ -76,27 +84,23 @@ export default function Reports() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
 
+  // `title` feeds the PDF heading and export filenames, so it stays fixed; the UI
+  // shows the translated `tr.types[id]` instead.
   const reportTypes = [
     {
       id: 'training-hours-user' as ReportType,
       title: 'Training Hours by Users',
       icon: Users,
-      description: 'View training hours for each employee',
-      color: 'text-blue-600',
     },
     {
       id: 'program-list' as ReportType,
       title: 'Program List',
       icon: BookOpen,
-      description: 'Overview of all training programs',
-      color: 'text-orange-600',
     },
     {
       id: 'program-overseas' as ReportType,
       title: 'Program Overseas',
       icon: Plane,
-      description: 'List of international training programs',
-      color: 'text-purple-600',
     },
   ];
 
@@ -127,14 +131,14 @@ export default function Reports() {
       setReportData(data);
       setHasGenerated(true);
       toast({
-        title: 'Success',
-        description: 'Report generated successfully',
+        title: t.common.success,
+        description: tr.generated,
       });
     } catch (error) {
       console.error('Error generating report:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to generate report',
+        title: t.common.errorTitle,
+        description: tr.generateFailed,
         variant: 'destructive',
       });
     } finally {
@@ -296,8 +300,8 @@ export default function Reports() {
   const handleDownloadCSV = () => {
     if (reportData.length === 0) {
       toast({
-        title: 'No Data',
-        description: 'Please generate a report first',
+        title: t.common.noData,
+        description: tr.generateFirst,
         variant: 'destructive',
       });
       return;
@@ -309,16 +313,16 @@ export default function Reports() {
     downloadCSV(reportData, filename);
 
     toast({
-      title: 'Success',
-      description: 'Report downloaded successfully',
+      title: t.common.success,
+      description: tr.csvDownloaded,
     });
   };
 
   const handleDownloadPDF = async () => {
     if (reportData.length === 0) {
       toast({
-        title: 'No Data',
-        description: 'Please generate a report first',
+        title: t.common.noData,
+        description: tr.generateFirst,
         variant: 'destructive',
       });
       return;
@@ -471,68 +475,57 @@ export default function Reports() {
     doc.save(filename);
 
     toast({
-      title: 'Success',
-      description: 'PDF report downloaded successfully',
+      title: t.common.success,
+      description: tr.pdfDownloaded,
     });
   };
 
   const renderReportTable = () => {
     if (!hasGenerated) {
       return (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Configure filters and click "Generate Report" to view data
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          compact
+          icon={FileText}
+          title={tr.promptTitle}
+          description={tr.promptDescription}
+          className="rounded-lg border border-dashed"
+        />
       );
     }
 
     if (reportData.length === 0) {
       return (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No data found for the selected filters
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          compact
+          icon={SearchX}
+          title={t.common.noData}
+          description={tr.noDataDescription}
+          className="rounded-lg border border-dashed"
+        />
       );
     }
 
     const headers = Object.keys(reportData[0]);
-    const headerLabels: Record<string, string> = {
-      name: 'Name',
-      program: 'Program',
-      hours: 'Hours',
-      start_date: 'Start Date',
-      end_date: 'End Date',
-      evaluation: 'Evaluation',
-      title: 'Title',
-      participants: 'Participants',
-      total_hours: 'Total Hours',
-      position: 'Position',
-      location: 'Location',
-    };
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Total Records: <span className="font-semibold">{reportData.length}</span>
+            <span className="font-semibold tabular-nums text-foreground">{tr.totalRecords(reportData.length)}</span>
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={handleDownloadCSV} variant="outline">
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Download CSV
+              <FileSpreadsheet className="h-4 w-4" />
+              {t.common.downloadCsv}
             </Button>
             <Button onClick={handleDownloadPDF} variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Download PDF
+              <Download className="h-4 w-4" />
+              {t.common.downloadPdf}
             </Button>
           </div>
         </div>
 
-        <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <div className="max-h-[500px] overflow-auto">
             <Table>
               <TableHeader>
@@ -555,8 +548,11 @@ export default function Reports() {
                       else widthClass = 'w-[13%] min-w-[90px]';
                     }
                     return (
-                      <TableHead key={header} className={`font-bold whitespace-nowrap ${widthClass}`}>
-                        {headerLabels[header] || header.replace(/_/g, ' ').toUpperCase()}
+                      <TableHead
+                        key={header}
+                        className={`whitespace-nowrap ${NUMERIC_COLUMNS.includes(header) ? 'text-right' : ''} ${widthClass}`}
+                      >
+                        {tr.columns[header] || header.replace(/_/g, ' ').toUpperCase()}
                       </TableHead>
                     );
                   })}
@@ -568,11 +564,25 @@ export default function Reports() {
                     {headers.map((header) => {
                       // Allow text wrap for title/program columns
                       const allowWrap = ['title', 'program'].includes(header);
+                      const isNumeric = NUMERIC_COLUMNS.includes(header);
+                      const value = row[header];
+
+                      if (header === 'evaluation' && (value === 'Selesai' || value === 'Belum')) {
+                        return (
+                          <TableCell key={header} className="whitespace-nowrap">
+                            <ToneBadge tone={value === 'Selesai' ? 'success' : 'warning'}>
+                              {value === 'Selesai' ? tr.evaluationDone : tr.evaluationPending}
+                            </ToneBadge>
+                          </TableCell>
+                        );
+                      }
+
                       return (
-                        <TableCell key={header} className={allowWrap ? '' : 'whitespace-nowrap'}>
-                          {row[header] !== null && row[header] !== undefined
-                            ? row[header].toString()
-                            : 'N/A'}
+                        <TableCell
+                          key={header}
+                          className={`${allowWrap ? '' : 'whitespace-nowrap'} ${isNumeric ? 'text-right tabular-nums' : ''}`}
+                        >
+                          {value !== null && value !== undefined ? value.toString() : 'N/A'}
                         </TableCell>
                       );
                     })}
@@ -588,14 +598,15 @@ export default function Reports() {
 
   const renderFilters = () => {
     const isOverseas = activeReport === 'program-overseas';
+    const monthOptions = t.common.months.map((label, index) => ({ value: String(index + 1), label }));
 
     return (
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="space-y-2">
-          <label className="text-sm font-medium">{isOverseas ? 'Dari tahun' : 'Year'}</label>
+          <Label htmlFor="report-year">{isOverseas ? tr.fromYear : t.common.year}</Label>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Year" />
+            <SelectTrigger id="report-year" className="w-full sm:w-32">
+              <SelectValue placeholder={t.common.year} />
             </SelectTrigger>
             <SelectContent>
               {YEARS.map((year) => (
@@ -608,35 +619,32 @@ export default function Reports() {
         </div>
 
         {isOverseas ? (
-          <>
-            <span className="text-muted-foreground pb-2">sehingga</span>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Hingga tahun</label>
-              <Select value={toYear} onValueChange={setToYear}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEARS.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
+          <div className="space-y-2">
+            <Label htmlFor="report-to-year">{tr.toYear}</Label>
+            <Select value={toYear} onValueChange={setToYear}>
+              <SelectTrigger id="report-to-year" className="w-full sm:w-32">
+                <SelectValue placeholder={t.common.year} />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         ) : (
           <>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Dari bulan</label>
+              <Label htmlFor="report-from-month">{tr.fromMonth}</Label>
               <Select value={fromMonth} onValueChange={setFromMonth}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Dari bulan" />
+                <SelectTrigger id="report-from-month" className="w-full sm:w-40">
+                  <SelectValue placeholder={tr.fromMonth} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Bulan</SelectItem>
-                  {MONTHS.map((month) => (
+                  <SelectItem value="all">{tr.allMonths}</SelectItem>
+                  {monthOptions.map((month) => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}
                     </SelectItem>
@@ -645,17 +653,15 @@ export default function Reports() {
               </Select>
             </div>
 
-            <span className="text-muted-foreground pb-2">sehingga</span>
-
             <div className="space-y-2">
-              <label className="text-sm font-medium">Hingga bulan</label>
+              <Label htmlFor="report-to-month">{tr.toMonth}</Label>
               <Select value={toMonth} onValueChange={setToMonth}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Hingga bulan" />
+                <SelectTrigger id="report-to-month" className="w-full sm:w-40">
+                  <SelectValue placeholder={tr.toMonth} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Semua Bulan</SelectItem>
-                  {MONTHS.map((month) => (
+                  <SelectItem value="all">{tr.allMonths}</SelectItem>
+                  {monthOptions.map((month) => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}
                     </SelectItem>
@@ -666,16 +672,16 @@ export default function Reports() {
           </>
         )}
 
-        <Button
-          onClick={generateReport}
-          disabled={isGenerating}
-        >
+        <Button onClick={generateReport} disabled={isGenerating} className="sm:ml-auto">
           {isGenerating ? (
-            <>Generating...</>
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {tr.generating}
+            </>
           ) : (
             <>
-              <FileText className="mr-2 h-4 w-4" />
-              Generate Report
+              <FileText className="h-4 w-4" />
+              {tr.generate}
             </>
           )}
         </Button>
@@ -685,76 +691,60 @@ export default function Reports() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/dashboard')}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-3xl font-bold tracking-tight">Reports Generation</h1>
-            </div>
-            <p className="text-muted-foreground">
-              Generate and export training reports
-            </p>
-          </div>
-        </div>
+      <PageHeader title={tr.title} description={tr.description} />
 
-        <Tabs value={activeReport} onValueChange={(value) => {
+      <Tabs
+        value={activeReport}
+        onValueChange={(value) => {
           setActiveReport(value as ReportType);
           setHasGenerated(false);
           setReportData([]);
-        }}>
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            {reportTypes.map((report) => {
-              const Icon = report.icon;
-              return (
-                <TabsTrigger
-                  key={report.id}
-                  value={report.id}
-                  className="flex flex-col items-center gap-2 py-3"
-                >
-                  <Icon className={`h-5 w-5 ${report.color}`} />
-                  <span className="text-xs text-center leading-tight">
-                    {report.title}
-                  </span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-
+        }}
+        className="space-y-6"
+      >
+        <TabsList className="grid h-auto w-full grid-cols-3">
           {reportTypes.map((report) => {
             const Icon = report.icon;
             return (
-              <TabsContent key={report.id} value={report.id} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-start gap-4">
-                      <div className={`p-3 rounded-lg bg-muted`}>
-                        <Icon className={`h-6 w-6 ${report.color}`} />
-                      </div>
-                      <div className="flex-1">
-                        <CardTitle>{report.title}</CardTitle>
-                        <CardDescription className="mt-1.5">
-                          {report.description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {renderFilters()}
-                    {renderReportTable()}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+              <TabsTrigger
+                key={report.id}
+                value={report.id}
+                className="flex flex-col items-center gap-1.5 py-2.5 sm:flex-row sm:justify-center sm:gap-2"
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="whitespace-normal text-center text-xs leading-tight sm:text-sm">
+                  {tr.types[report.id].title}
+                </span>
+              </TabsTrigger>
             );
           })}
-        </Tabs>
-      </div>
+        </TabsList>
+
+        {reportTypes.map((report) => {
+          const Icon = report.icon;
+          return (
+            <TabsContent key={report.id} value={report.id} className="mt-0 space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle>{tr.types[report.id].title}</CardTitle>
+                      <CardDescription className="mt-1">{tr.types[report.id].description}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {renderFilters()}
+                  {renderReportTable()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          );
+        })}
+      </Tabs>
     </AdminLayout>
   );
 }
