@@ -104,14 +104,16 @@ Vite doesn't typecheck, so all of these ship.
 "MPC ink & red": near-black ink for primary actions, MPC red used sparingly (brand mark, active-nav marker, key highlight), cool neutral greys, proper semantic tokens (success / warning / info / danger). Plus Jakarta Sans (SEA-designed geometric sans, pairs with the MPC wordmark), tabular numbers. Calm, dense-but-breathing internal-tool look — no grain, parallax, glass or stock imagery (wrong for a government LMS).
 
 ## Phases (verify each: build + tsc + Hazman eyeballs on dev server)
-- [ ] **P1 Foundation (global, low risk)** — font; colour tokens + status tokens in `index.css`/tailwind; light by default (dark off until P5); `index.html` title/meta/`lang="ms"`; delete `App.css`; button/card/input polish (transitions, press feedback, focus rings, radius scale); `tabular-nums` utility.
+- [x] **P1 Foundation (global, low risk)** — font; colour tokens + status tokens in `index.css`/tailwind; light by default (dark off until P5); `index.html` title/meta/`lang="ms"`; delete `App.css`; button/card/input polish (transitions, press feedback, focus rings, radius scale); `tabular-nums` utility.
 - [ ] **P2 Shell** — one shared `AppShell` for Admin + Employee layouts (grouped nav, red active marker, user menu with sign-out, `<Link>` logo, mobile drawer); login, admin login and PIN screens redesigned.
 - [ ] **P3 Shared components** — `PageHeader`, `StatCard`, `StatusBadge` (single source for every status → colour/label), `EmptyState`, `LoadingState`; roll out dashboards first, then lists, then forms. Replace `alert()`.
 - [ ] **P4 Charts + a11y** — one `RadarScoreChart` on theme tokens (load dataviz skill first); progress/compliance colours from tokens; aria-labels, keyboard-accessible rows/cards, label `htmlFor`, mobile-stacking headers/filters.
 - [ ] **P5 (optional)** — language standardisation pass; re-enable dark mode properly with a visible toggle.
 
-## Decisions for Hazman
-- Brand direction ink + MPC red? (vs refined blue)
-- Font Plus Jakarta Sans, self-hosted via `@fontsource-variable/plus-jakarta-sans` (new dependency; no Google CDN call from government networks)?
-- Language: standardise to Malay everywhere? (admin currently English)
-- Dark mode: lock to light now (fixes OS-dark users immediately)?
+## Decisions (Hazman, 2026-09-28)
+- Brand: **not MPC** → refined, calmer blue on cool neutral greys (keeps continuity).
+- Font: Plus Jakarta Sans, self-hosted (no objection).
+- Language: **dual BM/EN, BM default**, switch in header. Official content (evaluation questions, PDFs, certificates, CSV exports) stays BM.
+- Dark mode: **wanted** → proper tokens + Light/Dark/System switch. Default light until every page is converted, then consider System.
+
+Phase changes: i18n infrastructure + switch lands in P2 (shell); pages are translated as they are restyled in P3/P4. P5 = flip default to System once all pages are dark-safe.

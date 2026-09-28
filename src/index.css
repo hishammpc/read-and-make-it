@@ -2,89 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
+
+Palette: cool neutral greys (hue ~220, low saturation) with one calm blue accent.
+Status colours are semantic tokens — use bg-success-soft / text-success-soft-foreground
+(and warning / info / destructive) instead of raw Tailwind palette classes, so they
+work in both themes.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --background: 220 20% 98%;
+    --foreground: 222 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222 30% 12%;
 
-    --primary: 211 100% 50%;
+    --primary: 222 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 17% 95%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 16% 94%;
+    --secondary-foreground: 222 30% 12%;
 
-    --muted: 210 17% 95%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 16% 95%;
+    --muted-foreground: 220 9% 44%;
 
-    --accent: 211 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    /* Hover / selected surface for ghost buttons, menu items and clickable rows */
+    --accent: 220 16% 94%;
+    --accent-foreground: 222 30% 12%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 86% 97%;
+    --destructive-soft-foreground: 0 65% 38%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 211 100% 50%;
+    --success: 152 60% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 150 50% 94%;
+    --success-soft-foreground: 152 65% 24%;
 
-    --radius: 0.75rem;
+    --warning: 32 90% 44%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 40 90% 94%;
+    --warning-soft-foreground: 28 80% 30%;
+
+    --info: 199 80% 38%;
+    --info-foreground: 0 0% 100%;
+    --info-soft: 200 70% 95%;
+    --info-soft-foreground: 200 80% 28%;
+
+    --border: 220 14% 90%;
+    --input: 220 14% 87%;
+    --ring: 222 70% 50%;
+
+    --radius: 0.625rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-foreground: 222 30% 12%;
+    --sidebar-primary: 222 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 17% 95%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-accent: 220 16% 95%;
+    --sidebar-accent-foreground: 222 30% 12%;
+    --sidebar-border: 220 14% 90%;
+    --sidebar-ring: 222 70% 50%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* Surfaces get lighter as they rise: page < card < popover */
+    --background: 222 24% 8%;
+    --foreground: 220 15% 92%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 210 40% 98%;
+    --card: 222 20% 11%;
+    --card-foreground: 220 15% 92%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 222 20% 13%;
+    --popover-foreground: 220 15% 92%;
 
-    --primary: 211 100% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 80% 62%;
+    --primary-foreground: 222 40% 8%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 222 16% 17%;
+    --secondary-foreground: 220 15% 92%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 222 16% 15%;
+    --muted-foreground: 220 10% 64%;
 
-    --accent: 211 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 222 16% 17%;
+    --accent-foreground: 220 15% 92%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 45% 16%;
+    --destructive-soft-foreground: 0 80% 76%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 211 100% 50%;
+    --success: 152 50% 45%;
+    --success-foreground: 222 40% 8%;
+    --success-soft: 152 40% 14%;
+    --success-soft-foreground: 150 55% 70%;
 
-    --sidebar-background: 224 71% 4%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 211 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 211 100% 50%;
+    --warning: 36 85% 55%;
+    --warning-foreground: 222 40% 8%;
+    --warning-soft: 36 55% 14%;
+    --warning-soft-foreground: 40 85% 70%;
+
+    --info: 199 75% 55%;
+    --info-foreground: 222 40% 8%;
+    --info-soft: 200 50% 15%;
+    --info-soft-foreground: 199 80% 72%;
+
+    --border: 222 14% 19%;
+    --input: 222 14% 23%;
+    --ring: 217 80% 62%;
+
+    --sidebar-background: 222 20% 11%;
+    --sidebar-foreground: 220 15% 92%;
+    --sidebar-primary: 217 80% 62%;
+    --sidebar-primary-foreground: 222 40% 8%;
+    --sidebar-accent: 222 16% 17%;
+    --sidebar-accent-foreground: 220 15% 92%;
+    --sidebar-border: 222 14% 19%;
+    --sidebar-ring: 217 80% 62%;
   }
 }
 
@@ -93,8 +134,44 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+
+  /* Figures line up in every table column */
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.18);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

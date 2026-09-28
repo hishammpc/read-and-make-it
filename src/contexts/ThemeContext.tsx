@@ -15,9 +15,10 @@ const THEME_KEY = 'mylearning_theme';
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem(THEME_KEY) as Theme) || 'system';
+      // Light until every page is dark-safe; users can still pick dark/system once the switch ships.
+      return (localStorage.getItem(THEME_KEY) as Theme) || 'light';
     }
-    return 'system';
+    return 'light';
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
