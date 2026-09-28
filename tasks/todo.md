@@ -140,3 +140,26 @@ Phase changes: i18n infrastructure + switch lands in P2 (shell); pages are trans
 - **Deleted**: `components/certificates/CertificateUpload.tsx`, `lib/calculations.ts`, `pages/Index.tsx`, `components/NavLink.tsx`, `EvaluationQuestionRenderer.tsx`, `useUpdateUserRole`, `isProposalPeriodOpen`, `useAdminDashboardStats`, `@keyframes pulse-glow`, dead Evaluations feedback dialog. Kept `useDeactivateUser` (needed for a missing "deactivate leaver" feature).
 - **Verified**: build ✅, tsc 112 (per-file identical), lint errors 159 → 148, 39 changed modules compile in dev, component-swap check vs HEAD clean. Not seen rendered by me.
 - **Not done / by design**: MyAnnualEvaluation "closed cycle, pending_staff" empty page can't occur with the current pending query (it includes every cycle) — handle together with B9. Test/preview pages still have hex colours (A9 pending).
+
+---
+
+# Where we stopped — 2026-09-28
+
+**State:** 5 commits on local `main`, NOT pushed (`a3c9bcd` Batch 1 → `f807576` UI phase 4). Pushing = one Netlify deploy.
+
+**Paused because:** the database belongs to MPC (project `ecoxrleadphtiaoxaswl`), not Hazman. Meeting them to request access.
+- Ask for: an invite of Hazman's Supabase account to their org with the **Developer** role (no secrets exchanged; revocable). Fallbacks: personal access token (broad) or DB password (CLI only). Never the `service_role` key; never paste tokens into chat.
+
+**Before pushing (5 min, read-only, on `npm run dev` — the local dev server already talks to the live DB):**
+1. Admin dashboard loads; overdue panel shows or is empty (browser console must not show "Overdue evaluations query failed").
+2. Log out/in as a staff email containing `_` or `.`, and as an admin.
+3. Training Evaluations page shows response counts; annual result pages show radar + score cards.
+Writes (attendance, certificate upload, submissions) only on a test program/account.
+
+**Tell MPC after the push:** UI defaults to BM (EN switch in the top bar); admins with an old saved login may need to log out/in once.
+
+**Next, in order:**
+1. Push (after the checks above).
+2. Batch 2 once access exists: regenerate `types.ts` + `tsc --noEmit` in build (C1); catch-up migration from the live schema (C2); unique `lower(email)` + one-role-per-user after a read-only duplicate check (C3 — writes to prod, needs Hazman's OK on the SQL).
+3. UI phase 5: theme default → System (every page is dark-safe now; test/preview pages excepted).
+4. Open questions for Hazman: A6 (are `VITE_SUPABASE_*` set in Netlify env? then untrack `.env`), A9 (keep the no-login `/certificate-test`, `/annual-evaluation-test`, `/preview/evaluation`?), decisions D1–D4 (compliance maths, evaluation eligibility, attendance flow, email-OTP + RLS).
