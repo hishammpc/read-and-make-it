@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface StaffWithSupervisor {
   id: string;
@@ -86,6 +87,7 @@ export function usePotentialSupervisors(excludeUserId?: string) {
 export function useUpdateSupervisor() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -133,13 +135,13 @@ export function useUpdateSupervisor() {
       queryClient.invalidateQueries({ queryKey: ['supervisee-evaluations'] });
       queryClient.invalidateQueries({ queryKey: ['my-pending-annual-evaluations'] });
       toast({
-        title: 'Berjaya',
-        description: 'Penyelia telah dikemaskini',
+        title: t.common.success,
+        description: t.toasts.supervisorUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

@@ -13,13 +13,15 @@ interface StatCardProps {
   hint?: ReactNode;
   /** Makes the whole card a button (keyboard accessible). */
   onClick?: () => void;
+  /** For cards that act as filter toggles: rings the card in its tone and sets aria-pressed. */
+  active?: boolean;
   /** Extra content under the hint, e.g. a progress bar. */
   children?: ReactNode;
   className?: string;
 }
 
-/** The one KPI card. Numbers use tabular figures so columns of cards line up. */
-export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, onClick, children, className }: StatCardProps) {
+/** The one KPI card. Values keep proportional figures (tabular-nums is for table columns). */
+export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, onClick, active, children, className }: StatCardProps) {
   const content = (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -30,7 +32,7 @@ export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, onC
           </span>
         )}
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
       {children && <div className="mt-3">{children}</div>}
     </>
@@ -43,9 +45,11 @@ export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, onC
       <button
         type="button"
         onClick={onClick}
+        aria-pressed={active}
         className={cn(
           base,
           'w-full transition-[box-shadow,border-color] hover:border-foreground/15 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          active && toneClasses[tone].ring,
           className
         )}
       >

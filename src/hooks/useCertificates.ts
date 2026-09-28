@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface Certificate {
   id: string;
@@ -74,7 +75,6 @@ export function useProgramCertificates(programId: string) {
 
 export function useUploadCertificate() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async ({
@@ -122,24 +122,15 @@ export function useUploadCertificate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
-      toast({
-        title: 'Success',
-        description: 'Certificate uploaded successfully',
-      });
     },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
+    // No toasts here: the upload page loops over many staff and shows one summary + per-row results.
   });
 }
 
 export function useDeleteCertificate() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -169,13 +160,13 @@ export function useDeleteCertificate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates'] });
       toast({
-        title: 'Success',
-        description: 'Certificate deleted successfully',
+        title: t.common.success,
+        description: t.toasts.certificateDeleted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

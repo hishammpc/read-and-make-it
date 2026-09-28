@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getMonthRangeBounds } from '@/lib/dateUtils';
 
@@ -138,6 +139,7 @@ export function useUser(id: string) {
 export function useCreateUser() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (input: Omit<CreateUserInput, 'password'>) => {
@@ -176,13 +178,13 @@ export function useCreateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
-        title: 'Success',
-        description: 'User created successfully',
+        title: t.common.success,
+        description: t.toasts.userCreated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -193,6 +195,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateUserInput }) => {
@@ -210,52 +213,13 @@ export function useUpdateUser() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['users', variables.id] });
       toast({
-        title: 'Success',
-        description: 'User updated successfully',
+        title: t.common.success,
+        description: t.toasts.userUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-export function useUpdateUserRole() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'employee' }) => {
-      // First, delete existing role
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      // Then insert new role
-      const { data, error } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast({
-        title: 'Success',
-        description: 'User role updated successfully',
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -266,6 +230,7 @@ export function useUpdateUserRole() {
 export function useDeactivateUser() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -282,13 +247,13 @@ export function useDeactivateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
-        title: 'Success',
-        description: 'User deactivated successfully',
+        title: t.common.success,
+        description: t.toasts.userDeactivated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

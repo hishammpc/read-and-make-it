@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface ProgramAssignment {
   id: string;
@@ -74,6 +75,7 @@ export function useUserAssignments(userId: string) {
 export function useAssignUsersToProgram() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ programId, userIds }: { programId: string; userIds: string[] }) => {
@@ -95,13 +97,13 @@ export function useAssignUsersToProgram() {
       queryClient.invalidateQueries({ queryKey: ['program-assignments', variables.programId] });
       queryClient.invalidateQueries({ queryKey: ['programs-with-stats'] });
       toast({
-        title: 'Success',
-        description: 'Users assigned to program successfully',
+        title: t.common.success,
+        description: t.toasts.usersAssigned,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -112,6 +114,7 @@ export function useAssignUsersToProgram() {
 export function useUpdateAssignmentStatus() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -144,13 +147,13 @@ export function useUpdateAssignmentStatus() {
       queryClient.invalidateQueries({ queryKey: ['program-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['user-assignments'] });
       toast({
-        title: 'Success',
-        description: 'Assignment status updated successfully',
+        title: t.common.success,
+        description: t.toasts.attendanceUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -161,6 +164,7 @@ export function useUpdateAssignmentStatus() {
 export function useRemoveAssignment() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (assignmentId: string) => {
@@ -176,13 +180,13 @@ export function useRemoveAssignment() {
       queryClient.invalidateQueries({ queryKey: ['user-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['programs-with-stats'] });
       toast({
-        title: 'Success',
-        description: 'Assignment removed successfully',
+        title: t.common.success,
+        description: t.toasts.assignmentRemoved,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

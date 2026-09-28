@@ -61,6 +61,12 @@ work in both themes.
 
     --radius: 0.625rem;
 
+    /* Chart series (categorical, fixed order) + chrome. Validated with the dataviz
+       validator against the card surface: CVD ΔE 28.9, contrast ≥ 3:1. */
+    --chart-1: 222 70% 50%;
+    --chart-2: 17 82% 56%;
+    --chart-grid: 220 14% 91%;
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 30% 12%;
     --sidebar-primary: 222 70% 50%;
@@ -118,6 +124,11 @@ work in both themes.
     --input: 222 14% 23%;
     --ring: 217 80% 62%;
 
+    /* Dark steps of the same hues, validated against the dark card (CVD ΔE 27.7) */
+    --chart-1: 217 80% 62%;
+    --chart-2: 17 70% 50%;
+    --chart-grid: 222 14% 19%;
+
     --sidebar-background: 222 20% 11%;
     --sidebar-foreground: 220 15% 92%;
     --sidebar-primary: 217 80% 62%;
@@ -172,17 +183,5 @@ work in both themes.
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
-  }
-}
-
-/* Pulse glow animation for pending items */
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(251, 146, 60, 0.5), 0 0 10px rgba(251, 146, 60, 0.3);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(251, 146, 60, 0.8), 0 0 25px rgba(251, 146, 60, 0.5);
-    transform: scale(1.02);
   }
 }

@@ -107,7 +107,7 @@ Vite doesn't typecheck, so all of these ship.
 - [x] **P1 Foundation (global, low risk)** — font; colour tokens + status tokens in `index.css`/tailwind; light by default (dark off until P5); `index.html` title/meta/`lang="ms"`; delete `App.css`; button/card/input polish (transitions, press feedback, focus rings, radius scale); `tabular-nums` utility.
 - [x] **P2 Shell** — one shared `AppShell` for Admin + Employee layouts (grouped nav, red active marker, user menu with sign-out, `<Link>` logo, mobile drawer); login, admin login and PIN screens redesigned.
 - [x] **P3 Shared components** — `PageHeader`, `StatCard`, `StatusBadge` (single source for every status → colour/label), `EmptyState`, `LoadingState`; roll out dashboards first, then lists, then forms. Replace `alert()`.
-- [ ] **P4 Charts + a11y** — one `RadarScoreChart` on theme tokens (load dataviz skill first); progress/compliance colours from tokens; aria-labels, keyboard-accessible rows/cards, label `htmlFor`, mobile-stacking headers/filters.
+- [x] **P4 Charts + a11y** — one `RadarScoreChart` on theme tokens (load dataviz skill first); progress/compliance colours from tokens; aria-labels, keyboard-accessible rows/cards, label `htmlFor`, mobile-stacking headers/filters.
 - [ ] **P5 (optional)** — language standardisation pass; re-enable dark mode properly with a visible toggle.
 
 ## Decisions (Hazman, 2026-09-28)
@@ -131,3 +131,12 @@ Phase changes: i18n infrastructure + switch lands in P2 (shell); pages are trans
 - Promote local copies to shared: `ScoreCard` (3 files), `Callout` / notice banner (dashboard, MyAnnualEvaluation, Attendance, CertificateUpload), 5-level rating option (2 files); StatCard `active`/`aria-pressed` for filter toggles; `t.common.unknown`.
 - Delete unused `@keyframes pulse-glow`, `components/certificates/CertificateUpload.tsx`, `lib/calculations.ts`.
 - Translate hook toasts.
+
+## Review — UI phase 4 (2026-09-28)
+- **Charts** (dataviz skill): one `charts/RadarScoreChart` replaces 4 copied radars + the ProgramDetails radar (kept as radar — client feature). Series = categorical slots on new `--chart-1/2` tokens (blue + orange; validator PASS both modes vs card surfaces, CVD ΔE 28.9 light / 27.7 dark); status green no longer used as a series. Solid hairline grid, muted ticks, 8px points with surface ring, legend for 2 series, themed `ChartTooltipBox`. Admin line chart: no dashed grid, no single-series legend, themed tooltip. StatCard values dropped `tabular-nums` (anti-pattern on large standalone numbers).
+- **Shared components**: `Callout` (tinted/plain) + `Notice`, `ScoreCard`, `LevelRadioGroup`; StatCard `active` (tone ring + aria-pressed); `toneClasses[t].ring`. Replaced 3 ScoreCard copies, 2 Callouts, 2 banners, 2 rating pickers.
+- **Toasts** in 10 hooks translated (`t.toasts`, `t.common.success/errorTitle`), incl. thrown messages; bulk import uses a `NoValidUsersError` class. Certificate upload hook no longer toasts per staff member (page shows one summary).
+- **Fixes**: evaluation form program query `maybeSingle` + ErrorState (no 3× retry before "not found"); "Upload another" remounts the file input; staff dashboard shows the supervisor's name under "check your supervisor's name".
+- **Deleted**: `components/certificates/CertificateUpload.tsx`, `lib/calculations.ts`, `pages/Index.tsx`, `components/NavLink.tsx`, `EvaluationQuestionRenderer.tsx`, `useUpdateUserRole`, `isProposalPeriodOpen`, `useAdminDashboardStats`, `@keyframes pulse-glow`, dead Evaluations feedback dialog. Kept `useDeactivateUser` (needed for a missing "deactivate leaver" feature).
+- **Verified**: build ✅, tsc 112 (per-file identical), lint errors 159 → 148, 39 changed modules compile in dev, component-swap check vs HEAD clean. Not seen rendered by me.
+- **Not done / by design**: MyAnnualEvaluation "closed cycle, pending_staff" empty page can't occur with the current pending query (it includes every cycle) — handle together with B9. Test/preview pages still have hex colours (A9 pending).

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface ProposedTraining {
   id: string;
@@ -23,13 +24,6 @@ export interface ProposedTraining {
     department: string | null;
     position: string | null;
   };
-}
-
-// Check if proposal period is open (Dec 1 - Feb 28)
-export function isProposalPeriodOpen(): boolean {
-  const now = new Date();
-  const month = now.getMonth(); // 0-indexed (0=Jan, 1=Feb, 11=Dec)
-  return month === 11 || month === 0 || month === 1;
 }
 
 // Get the year for which proposals are being made
@@ -66,6 +60,7 @@ export function useMyProposedTraining(userId: string, year?: number) {
 export function useSubmitProposedTraining() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -103,13 +98,13 @@ export function useSubmitProposedTraining() {
       queryClient.invalidateQueries({ queryKey: ['my-proposed-training', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['proposed-trainings-list'] });
       toast({
-        title: 'Success',
-        description: 'Your training proposal has been submitted',
+        title: t.common.success,
+        description: t.toasts.proposalSubmitted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -141,6 +136,7 @@ export function useProposedTrainingsList(year: number) {
 export function useDeleteProposedTraining() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (proposalId: string) => {
@@ -154,13 +150,13 @@ export function useDeleteProposedTraining() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proposed-trainings-list'] });
       toast({
-        title: 'Deleted',
-        description: 'Proposal has been deleted',
+        title: t.common.success,
+        description: t.toasts.proposalDeleted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -172,6 +168,7 @@ export function useDeleteProposedTraining() {
 export function useMarkAsEntertained() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -209,13 +206,13 @@ export function useMarkAsEntertained() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proposed-trainings-list'] });
       toast({
-        title: 'Updated',
-        description: 'Proposal status updated',
+        title: t.common.success,
+        description: t.toasts.proposalStatusUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

@@ -1,6 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { Callout } from '@/components/common/Callout';
 import {
   Select,
   SelectContent,
@@ -57,57 +57,6 @@ function AttentionDot({ className }: { className?: string }) {
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-60" />
       <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
     </span>
-  );
-}
-
-type CalloutTone = 'warning' | 'info' | 'primary';
-
-const CALLOUT_STYLES: Record<CalloutTone, { card: string; chip: string; body: string }> = {
-  warning: {
-    card: 'border-warning/30 bg-warning-soft text-warning-soft-foreground',
-    chip: toneClasses.warning.solid,
-    body: '',
-  },
-  info: {
-    card: 'border-info/30 bg-info-soft text-info-soft-foreground',
-    chip: toneClasses.info.solid,
-    body: '',
-  },
-  primary: {
-    card: 'border-primary/20 bg-primary/5',
-    chip: toneClasses.primary.solid,
-    body: 'text-muted-foreground',
-  },
-};
-
-/** "Something needs you" card at the top of the dashboard. */
-function Callout({
-  tone,
-  icon: Icon,
-  title,
-  children,
-  action,
-}: {
-  tone: CalloutTone;
-  icon: LucideIcon;
-  title: ReactNode;
-  children?: ReactNode;
-  action?: ReactNode;
-}) {
-  const styles = CALLOUT_STYLES[tone];
-  return (
-    <Card className={styles.card}>
-      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', styles.chip)}>
-          <Icon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-semibold">{title}</p>
-          {children && <div className={cn('space-y-1 text-sm', styles.body)}>{children}</div>}
-        </div>
-        {action && <div className="shrink-0">{action}</div>}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -210,6 +159,14 @@ export default function EmployeeDashboard() {
               <AttentionDot />
               {ts.annualEval.checkSupervisor}
             </p>
+            {/* undefined = still loading; null = no supervisor set */}
+            {supervisor !== undefined && (
+              <p>
+                {supervisor?.name
+                  ? ts.annualEval.supervisorName(supervisor.name)
+                  : ts.annualEval.noSupervisor}
+              </p>
+            )}
             <p className="opacity-80">
               {ts.annualEval.period(
                 formatMalaysianDate(pendingCycle?.start_date),

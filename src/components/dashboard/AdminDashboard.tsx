@@ -36,11 +36,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
+import { ChartTooltipBox } from '@/components/charts/ChartTooltipBox';
+import { CHART_GRID_STROKE, CHART_TICK, SERIES_COLORS } from '@/components/charts/chartTheme';
 import { cn } from '@/lib/utils';
 import { formatMalaysianDate } from '@/lib/dateUtils';
-import { toneClasses, getComplianceTone, getTrainingScoreTone } from '@/lib/status';
+import { toneClasses, getTrainingScoreTone } from '@/lib/status';
 
 // Short labels for the scored training-evaluation questions (current form, see
 // EvaluationForm.tsx) — official BM content, not translated.
@@ -172,19 +173,36 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
+                {/* One series: no legend box (the card title names it); solid hairline grid */}
+                <LineChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+                  <CartesianGrid vertical={false} stroke={CHART_GRID_STROKE} />
+                  <XAxis dataKey="month" tick={CHART_TICK} tickLine={false} axisLine={{ stroke: 'hsl(var(--border))' }} />
+                  <YAxis tick={CHART_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip
+                    cursor={{ stroke: 'hsl(var(--border))' }}
+                    content={({ active, payload, label }) =>
+                      active && payload && payload.length > 0 ? (
+                        <ChartTooltipBox
+                          title={label}
+                          rows={[
+                            {
+                              label: td.admin.trendSeries,
+                              value: `${payload[0].value} ${t.common.hoursShort}`,
+                              color: SERIES_COLORS[0],
+                            },
+                          ]}
+                        />
+                      ) : null
+                    }
+                  />
                   <Line
                     type="monotone"
                     dataKey="hours"
                     name={td.admin.trendSeries}
-                    stroke="hsl(var(--primary))"
+                    stroke={SERIES_COLORS[0]}
                     strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))' }}
+                    dot={{ r: 4, strokeWidth: 2, stroke: 'hsl(var(--card))', fill: SERIES_COLORS[0] }}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: 'hsl(var(--card))' }}
                   />
                 </LineChart>
               </ResponsiveContainer>

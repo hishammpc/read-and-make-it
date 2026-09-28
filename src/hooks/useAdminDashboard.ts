@@ -66,6 +66,56 @@ export interface EnhancedDashboardStats {
   availableYears: number[];
 }
 
+/**
+ * Attended seats on evaluation-required programs that ended in the given year,
+ * more than 3 days ago, with no evaluation submitted (oldest first, max 10).
+ */
+async function fetchOverdueEvaluations(startOfYear: string, endOfYear: string) {
+  // Filter in JS after fetching both sides — limiting before the "no evaluation"
+  // filter hid real overdue rows. `profiles:user_id` must be explicit:
+  // program_assignments has two FKs to profiles (user_id, attendance_marked_by),
+  // and an unhinted embed makes PostgREST reject the whole query.
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  // Both are toISOString() output, so string comparison is chronological.
+  const overdueCutoff = threeDaysAgo < endOfYear ? threeDaysAgo : endOfYear;
+  const [attendedAssignments, yearEvaluations] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from('program_assignments')
+        .select(`
+          id, user_id, program_id,
+          programs!inner(id, title, end_date_time, notify_for_evaluation),
+          profiles:user_id(id, name, email)
+        `)
+        .eq('status', 'Attended')
+        .eq('programs.notify_for_evaluation', true)
+        .gte('programs.end_date_time', startOfYear)
+        .lt('programs.end_date_time', overdueCutoff)
+        .order('id')
+        .range(from, to)
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('evaluations')
+        .select('id, user_id, program_id, programs!inner(end_date_time)')
+        .gte('programs.end_date_time', startOfYear)
+        .lt('programs.end_date_time', endOfYear)
+        .order('id')
+        .range(from, to)
+    ),
+  ]);
+
+  const evaluatedSeats = new Set(
+    yearEvaluations.map((e: any) => `${e.user_id}:${e.program_id}`)
+  );
+  return attendedAssignments
+    .filter((a: any) => !evaluatedSeats.has(`${a.user_id}:${a.program_id}`))
+    .sort((a: any, b: any) =>
+      new Date(a.programs.end_date_time).getTime() - new Date(b.programs.end_date_time).getTime()
+    )
+    .slice(0, 10);
+}
+
 export function useEnhancedAdminDashboard(year?: number) {
   const selectedYear = year || new Date().getFullYear();
 
@@ -259,51 +309,14 @@ export function useEnhancedAdminDashboard(year?: number) {
         .limit(5);
 
       // === Overdue Evaluations ===
-      // Attended seats on evaluation-required programs that ended in the selected
-      // year, more than 3 days ago, with no evaluation submitted. Filter in JS after
-      // fetching both sides — limiting before the "no evaluation" filter hid real
-      // overdue rows. `profiles:user_id` must be explicit: program_assignments has
-      // two FKs to profiles (user_id, attendance_marked_by), and an unhinted embed
-      // makes PostgREST reject the whole query.
-      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-      // Both are toISOString() output, so string comparison is chronological.
-      const overdueCutoff = threeDaysAgo < endOfYear ? threeDaysAgo : endOfYear;
-      const [attendedAssignments, yearEvaluations] = await Promise.all([
-        fetchAllRows((from, to) =>
-          supabase
-            .from('program_assignments')
-            .select(`
-              id, user_id, program_id,
-              programs!inner(id, title, end_date_time, notify_for_evaluation),
-              profiles:user_id(id, name, email)
-            `)
-            .eq('status', 'Attended')
-            .eq('programs.notify_for_evaluation', true)
-            .gte('programs.end_date_time', startOfYear)
-            .lt('programs.end_date_time', overdueCutoff)
-            .order('id')
-            .range(from, to)
-        ),
-        fetchAllRows((from, to) =>
-          supabase
-            .from('evaluations')
-            .select('id, user_id, program_id, programs!inner(end_date_time)')
-            .gte('programs.end_date_time', startOfYear)
-            .lt('programs.end_date_time', endOfYear)
-            .order('id')
-            .range(from, to)
-        ),
-      ]);
-
-      const evaluatedSeats = new Set(
-        yearEvaluations.map((e: any) => `${e.user_id}:${e.program_id}`)
-      );
-      const overdueList = attendedAssignments
-        .filter((a: any) => !evaluatedSeats.has(`${a.user_id}:${a.program_id}`))
-        .sort((a: any, b: any) =>
-          new Date(a.programs.end_date_time).getTime() - new Date(b.programs.end_date_time).getTime()
-        )
-        .slice(0, 10);
+      // A secondary panel: if its query fails, log it and show an empty panel
+      // rather than taking down the whole dashboard.
+      let overdueList: any[] = [];
+      try {
+        overdueList = await fetchOverdueEvaluations(startOfYear, endOfYear);
+      } catch (overdueError) {
+        console.error('Overdue evaluations query failed:', overdueError);
+      }
 
       // === Available Years ===
       const allPrograms = await fetchAllRows((from, to) =>

@@ -10,6 +10,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,14 +60,16 @@ export default function EvaluationForm() {
   const tf = t.employee.evaluationForm;
 
   // Fetch program details
-  const { data: program, isLoading: programLoading } = useQuery({
+  const { data: program, isLoading: programLoading, error: programError } = useQuery({
     queryKey: ['program', programId],
     queryFn: async () => {
+      // maybeSingle: a missing program is `null` (shown as "not found" at once), not an
+      // error that React Query retries three times first.
       const { data, error } = await supabase
         .from('programs')
         .select('*')
         .eq('id', programId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -106,6 +109,17 @@ export default function EvaluationForm() {
     return (
       <EmployeeLayout>
         <PageSkeleton variant="form" />
+      </EmployeeLayout>
+    );
+  }
+
+  if (programError) {
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard/my-evaluations" />
+          <ErrorState message={(programError as Error).message} />
+        </div>
       </EmployeeLayout>
     );
   }

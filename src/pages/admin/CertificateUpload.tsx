@@ -10,6 +10,7 @@ import { toneClasses } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
+import { Notice } from '@/components/common/Callout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -44,6 +45,8 @@ export default function CertificateUpload() {
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  // Bumped on reset so the file input remounts and forgets the previous file name
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<{
     userId: string;
@@ -142,21 +145,9 @@ export default function CertificateUpload() {
 
       <div className="max-w-3xl space-y-6">
         {isComplete && (
-          <div
-            role="status"
-            className={cn(
-              'flex items-start gap-3 rounded-xl border p-4 text-sm',
-              failureCount === 0 ? 'border-success/30' : 'border-destructive/30',
-              toneClasses[resultTone].soft
-            )}
-          >
-            {failureCount === 0 ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            )}
-            <p>{tu.complete(successCount, failureCount)}</p>
-          </div>
+          <Notice tone={resultTone} icon={failureCount === 0 ? CheckCircle2 : AlertCircle}>
+            {tu.complete(successCount, failureCount)}
+          </Notice>
         )}
 
         <Card>
@@ -261,6 +252,7 @@ export default function CertificateUpload() {
                 <RequiredMark />
               </Label>
               <Input
+                key={fileInputKey}
                 id="file"
                 type="file"
                 accept=".pdf,application/pdf"
@@ -322,6 +314,7 @@ export default function CertificateUpload() {
                       setSelectedProgram('');
                       setSelectedEmployees([]);
                       setFile(null);
+                      setFileInputKey((k) => k + 1);
                       setUploadResults([]);
                       setUploadProgress(0);
                     }}

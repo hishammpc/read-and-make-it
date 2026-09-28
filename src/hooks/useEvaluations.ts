@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getMonthRangeBounds } from '@/lib/dateUtils';
 
@@ -89,6 +90,7 @@ export function useProgramEvaluationTemplate(programId: string) {
 export function useCreateEvaluationTemplate() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (template: CreateEvaluationTemplateInput) => {
@@ -104,13 +106,13 @@ export function useCreateEvaluationTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evaluation-templates'] });
       toast({
-        title: 'Success',
-        description: 'Evaluation template created successfully',
+        title: t.common.success,
+        description: t.toasts.templateCreated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -121,6 +123,7 @@ export function useCreateEvaluationTemplate() {
 export function useUpdateEvaluationTemplate() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -144,13 +147,13 @@ export function useUpdateEvaluationTemplate() {
       queryClient.invalidateQueries({ queryKey: ['evaluation-templates'] });
       queryClient.invalidateQueries({ queryKey: ['evaluation-templates', variables.id] });
       toast({
-        title: 'Success',
-        description: 'Evaluation template updated successfully',
+        title: t.common.success,
+        description: t.toasts.templateUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -161,6 +164,7 @@ export function useUpdateEvaluationTemplate() {
 export function useDeleteEvaluationTemplate() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -174,13 +178,13 @@ export function useDeleteEvaluationTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evaluation-templates'] });
       toast({
-        title: 'Success',
-        description: 'Evaluation template deleted successfully',
+        title: t.common.success,
+        description: t.toasts.templateDeleted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -231,6 +235,7 @@ export function useUserEvaluations(userId: string) {
 export function useSubmitEvaluation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ userId, evaluation }: { userId: string; evaluation: SubmitEvaluationInput }) => {
@@ -249,13 +254,13 @@ export function useSubmitEvaluation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evaluations'] });
       toast({
-        title: 'Success',
-        description: 'Evaluation submitted successfully',
+        title: t.common.success,
+        description: t.toasts.evaluationSubmitted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

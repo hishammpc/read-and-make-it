@@ -4,16 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ToneBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { LevelRadioGroup } from '@/components/common/LevelRadioGroup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import {
   Info,
   CheckCircle2,
@@ -21,8 +19,6 @@ import {
   SearchX,
 } from 'lucide-react';
 import { useMyAnnualEvaluation, useSubmitStaffEvaluation } from '@/hooks/useAnnualEvaluations';
-import { getRatingLevelTone } from '@/lib/status';
-import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   getQuestionsByCategory,
@@ -178,37 +174,13 @@ export default function AnnualEvaluationForm() {
                     </p>
                   </div>
 
-                  <RadioGroup
-                    value={answers[q.id]?.toString()}
-                    onValueChange={(value) => handleAnswerChange(q.id, parseInt(value))}
-                    aria-labelledby={`${q.id}-label`}
-                    className="space-y-3"
-                  >
-                    {q.levels.map((level) => {
-                      const isSelected = answers[q.id] === level.tahap;
-                      return (
-                        <div
-                          key={level.tahap}
-                          className={cn(
-                            'flex items-start gap-3 rounded-lg border p-4 transition-colors',
-                            isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-accent'
-                          )}
-                        >
-                          <RadioGroupItem
-                            value={level.tahap.toString()}
-                            id={`${q.id}-${level.tahap}`}
-                            className="mt-0.5"
-                          />
-                          <Label htmlFor={`${q.id}-${level.tahap}`} className="flex-1 cursor-pointer font-normal leading-normal">
-                            <span className="mb-1 flex items-center gap-2">
-                              <ToneBadge tone={getRatingLevelTone(level.tahap)}>{ta.level(level.tahap)}</ToneBadge>
-                            </span>
-                            <span className="block text-sm text-muted-foreground">{level.description}</span>
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </RadioGroup>
+                  <LevelRadioGroup
+                    idPrefix={`${q.id}`}
+                    levels={q.levels}
+                    value={answers[q.id]}
+                    onChange={(level) => handleAnswerChange(q.id, level)}
+                    labelledBy={`${q.id}-label`}
+                  />
                 </div>
               ))}
             </CardContent>

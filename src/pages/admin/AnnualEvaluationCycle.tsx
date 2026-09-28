@@ -72,13 +72,6 @@ import { calculateTotalScore, calculatePercentage } from '@/lib/annualEvaluation
 type StatusFilter = 'all' | 'pending_staff' | 'pending_supervisor' | 'completed';
 
 /** Ring shown on the stat card whose status is the active table filter (literal for Tailwind). */
-const ACTIVE_FILTER_RING: Record<StatusFilter, string> = {
-  all: 'ring-2 ring-primary',
-  pending_staff: 'ring-2 ring-warning',
-  pending_supervisor: 'ring-2 ring-info',
-  completed: 'ring-2 ring-success',
-};
-
 export default function AnnualEvaluationCycle() {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -204,8 +197,6 @@ export default function AnnualEvaluationCycle() {
   const progressPercentage = totalStaff > 0 ? Math.round((completed / totalStaff) * 100) : 0;
 
   const hasActiveFilters = !!searchQuery.trim() || statusFilter !== 'all';
-  const activeRing = (filter: StatusFilter) => (statusFilter === filter ? ACTIVE_FILTER_RING[filter] : undefined);
-
   return (
     <AdminLayout>
       <PageHeader
@@ -252,7 +243,7 @@ export default function AnnualEvaluationCycle() {
             icon={Users}
             tone="primary"
             onClick={() => setStatusFilter('all')}
-            className={activeRing('all')}
+            active={statusFilter === 'all'}
           />
           <StatCard
             label={statusLabels.pending_staff}
@@ -261,7 +252,7 @@ export default function AnnualEvaluationCycle() {
             tone="warning"
             hint={tc.answered(staffSubmitted, totalStaff)}
             onClick={() => setStatusFilter(statusFilter === 'pending_staff' ? 'all' : 'pending_staff')}
-            className={activeRing('pending_staff')}
+            active={statusFilter === 'pending_staff'}
           />
           <StatCard
             label={statusLabels.pending_supervisor}
@@ -270,7 +261,7 @@ export default function AnnualEvaluationCycle() {
             tone="info"
             hint={tc.reviewed(completed, staffSubmitted)}
             onClick={() => setStatusFilter(statusFilter === 'pending_supervisor' ? 'all' : 'pending_supervisor')}
-            className={activeRing('pending_supervisor')}
+            active={statusFilter === 'pending_supervisor'}
           />
           <StatCard
             label={statusLabels.completed}
@@ -279,7 +270,7 @@ export default function AnnualEvaluationCycle() {
             tone="success"
             hint={tc.completedShare(progressPercentage)}
             onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
-            className={activeRing('completed')}
+            active={statusFilter === 'completed'}
           />
         </div>
 

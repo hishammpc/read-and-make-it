@@ -3,12 +3,11 @@ import { usePrograms } from '@/hooks/usePrograms';
 import { useProgramAssignments, useUpdateAssignmentStatus } from '@/hooks/useAssignments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { toneClasses } from '@/lib/status';
-import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { Notice } from '@/components/common/Callout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -236,16 +235,9 @@ export default function Attendance() {
               ) : (
                 <>
                   {hasUnsavedChanges && (
-                    <div
-                      role="status"
-                      className={cn(
-                        'mb-4 flex items-start gap-3 rounded-lg border border-warning/30 p-4 text-sm',
-                        toneClasses.warning.soft
-                      )}
-                    >
-                      <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <p>{ta.unsavedChanges}</p>
-                    </div>
+                    <Notice tone="warning" icon={AlertTriangle} className="mb-4">
+                      {ta.unsavedChanges}
+                    </Notice>
                   )}
                   <Table>
                     <TableHeader>

@@ -1,14 +1,13 @@
 import { useParams } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PageHeader } from '@/components/common/PageHeader';
-import { StatCard } from '@/components/common/StatCard';
-import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { ScoreCard } from '@/components/common/ScoreCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -19,26 +18,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SearchX, User, UserCheck } from 'lucide-react';
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-} from 'recharts';
+import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { useAnnualEvaluationResult } from '@/hooks/useAnnualEvaluations';
-import { formatMalaysianDate } from '@/lib/dateUtils';
-import { getRatingLevelTone, getRatingPercentageTone, toneClasses, type StatusTone } from '@/lib/status';
+import { getRatingLevelTone, toneClasses, type StatusTone } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   SCORE_MAP,
   calculateTotalScore,
   calculatePercentage,
-  getRatingLabel,
 } from '@/lib/annualEvaluationQuestions';
 
 export default function SuperviseeEvaluationDetail() {
@@ -168,56 +156,15 @@ export default function SuperviseeEvaluationDetail() {
             </CardHeader>
             <CardContent>
               <div className="h-[350px] sm:h-[500px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis
-                      dataKey="subject"
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                    />
-                    <PolarRadiusAxis
-                      angle={90}
-                      domain={[0, 5]}
-                      tick={{ fontSize: 12, fontWeight: 'bold', fill: '#000000' }}
-                      tickCount={6}
-                    />
-                    <Radar
-                      name={ta.chartStaff}
-                      dataKey="staff"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
-                      fillOpacity={0.3}
-                      strokeWidth={2}
-                    />
-                    <Radar
-                      name={ta.chartSupervisor}
-                      dataKey="supervisor"
-                      stroke="#22c55e"
-                      fill="#22c55e"
-                      fillOpacity={0.3}
-                      strokeWidth={2}
-                    />
-                    <Tooltip
-                      content={({ payload, label }) => {
-                        if (payload && payload.length > 0) {
-                          return (
-                            <div className="bg-white p-3 border rounded-lg shadow-lg">
-                              <p className="font-semibold text-sm mb-2">{label}</p>
-                              {payload.map((entry: any, index: number) => (
-                                <p key={index} className="text-sm" style={{ color: entry.color }}>
-                                  {entry.name}: {ta.level(entry.value)}
-                                </p>
-                              ))}
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <RadarScoreChart
+                  data={radarData}
+                  series={[
+                    { dataKey: 'staff', label: ta.chartStaff },
+                    { dataKey: 'supervisor', label: ta.chartSupervisor },
+                  ]}
+                  max={5}
+                  formatValue={ta.level}
+                />
               </div>
             </CardContent>
           </Card>
@@ -297,50 +244,4 @@ function differenceTone(difference: number): StatusTone {
   if (difference > 0) return 'success';
   if (difference < 0) return 'danger';
   return 'muted';
-}
-
-/** Self / supervisor score summary; shows the pending status until that side has answered. */
-function ScoreCard({
-  label,
-  icon,
-  tone,
-  score,
-  pendingStatus,
-}: {
-  label: string;
-  icon: LucideIcon;
-  tone: StatusTone;
-  score: { total: number; percentage: number; submittedAt?: string | null } | null;
-  pendingStatus?: 'pending_staff' | 'pending_supervisor';
-}) {
-  const { t } = useLanguage();
-
-  if (!score) {
-    return (
-      <StatCard label={label} icon={icon} tone="muted" value="—">
-        {pendingStatus && <StatusBadge kind="annualEvaluation" status={pendingStatus} />}
-      </StatCard>
-    );
-  }
-
-  const rating = getRatingLabel(score.percentage);
-  return (
-    <StatCard
-      label={label}
-      icon={icon}
-      tone={tone}
-      value={
-        <>
-          {score.total}
-          <span className="text-base font-normal text-muted-foreground">/100</span>
-        </>
-      }
-      hint={score.submittedAt ? t.employee.annual.submittedOn(formatMalaysianDate(score.submittedAt)) : undefined}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <ToneBadge tone={getRatingPercentageTone(score.percentage)}>{rating.label}</ToneBadge>
-        <span className="text-sm tabular-nums text-muted-foreground">{score.percentage}%</span>
-      </div>
-    </StatCard>
-  );
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useEvaluationsByProgram, ProgramEvaluationSummary } from '@/hooks/useEvaluations';
+import { useEvaluationsByProgram } from '@/hooks/useEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { getTrainingRatingTone } from '@/lib/status';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -27,12 +27,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Eye, Download, ClipboardCheck, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -67,7 +61,6 @@ export default function Evaluations() {
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [fromMonth, setFromMonth] = useState('');
   const [toMonth, setToMonth] = useState('');
-  const [selectedProgram, setSelectedProgram] = useState<ProgramEvaluationSummary | null>(null);
   const [evalFilter, setEvalFilter] = useState('all');
 
   const navigate = useNavigate();
@@ -407,53 +400,6 @@ export default function Evaluations() {
         )}
       </div>
 
-      {/* Feedback Dialog */}
-      <Dialog open={!!selectedProgram} onOpenChange={() => setSelectedProgram(null)}>
-        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{te.feedbackTitle(selectedProgram?.programTitle ?? '')}</DialogTitle>
-          </DialogHeader>
-          {selectedProgram && (
-            <div className="space-y-6">
-              {/* Summary */}
-              <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted/50 p-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">{te.responses}</div>
-                  <div className="font-semibold tabular-nums">
-                    {selectedProgram.totalResponses}/{selectedProgram.totalAssigned}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">{te.averageRating}</div>
-                  <ToneBadge tone={getTrainingRatingTone(selectedProgram.averageRating)}>
-                    {selectedProgram.averageRating}
-                  </ToneBadge>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">{te.score}</div>
-                  <div className="font-semibold tabular-nums">{selectedProgram.averageScore.toFixed(2)} / 3.00</div>
-                </div>
-              </div>
-
-              {/* Comments */}
-              <div>
-                <h3 className="mb-3 font-semibold">{te.comments(selectedProgram.comments.length)}</h3>
-                {selectedProgram.comments.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedProgram.comments.map((comment, index) => (
-                      <div key={index} className="rounded-lg bg-muted/50 p-3 text-sm">
-                        {comment}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{te.noComments}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </AdminLayout>
   );
 }

@@ -1,14 +1,14 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { PageHeader } from '@/components/common/PageHeader';
-import { StatCard } from '@/components/common/StatCard';
-import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { Callout } from '@/components/common/Callout';
+import { ScoreCard } from '@/components/common/ScoreCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -25,25 +25,13 @@ import {
   UserCheck,
   ChevronRight,
 } from 'lucide-react';
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-} from 'recharts';
+import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { useMyPendingAnnualEvaluations, useMyAllAnnualEvaluations } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
-import { getRatingPercentageTone, toneClasses, type StatusTone } from '@/lib/status';
-import { cn } from '@/lib/utils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   calculateTotalScore,
   calculatePercentage,
-  getRatingLabel,
 } from '@/lib/annualEvaluationQuestions';
 
 export default function MyAnnualEvaluation() {
@@ -115,6 +103,7 @@ export default function MyAnnualEvaluation() {
         {/* Pending evaluation */}
         {hasPending && pendingEval && (
           <Callout
+            variant="plain"
             tone="warning"
             icon={ClipboardCheck}
             title={tm.pendingTitle}
@@ -137,7 +126,7 @@ export default function MyAnnualEvaluation() {
 
         {/* Waiting for supervisor */}
         {isWaitingSupervisor && selectedEvaluation && (
-          <Callout tone="info" icon={Clock} title={tm.waitingTitle} description={tm.waitingDescription}>
+          <Callout variant="plain" tone="info" icon={Clock} title={tm.waitingTitle} description={tm.waitingDescription}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
               <StatusBadge kind="annualEvaluation" status="pending_supervisor" />
               {waitingSupervisorName && (
@@ -168,78 +157,6 @@ export default function MyAnnualEvaluation() {
 }
 
 /** Notice card (pending / waiting) with a tone-coloured icon chip — tokens only, dark-mode safe. */
-function Callout({
-  tone,
-  icon: Icon,
-  title,
-  description,
-  action,
-  children,
-}: {
-  tone: StatusTone;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  action?: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <Card className="p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 gap-4">
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', toneClasses[tone].soft)}>
-            <Icon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 space-y-1">
-            <h2 className="font-semibold">{title}</h2>
-            <p className="text-sm text-muted-foreground">{description}</p>
-            {children && <div className="pt-2">{children}</div>}
-          </div>
-        </div>
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
-    </Card>
-  );
-}
-
-/** Self / supervisor score summary: total out of 100, rating tier and percentage. */
-function ScoreCard({
-  label,
-  icon,
-  tone,
-  total,
-  percentage,
-  hint,
-}: {
-  label: string;
-  icon: LucideIcon;
-  tone: StatusTone;
-  total: number;
-  percentage: number;
-  hint?: string;
-}) {
-  const rating = getRatingLabel(percentage);
-  return (
-    <StatCard
-      label={label}
-      icon={icon}
-      tone={tone}
-      value={
-        <>
-          {total}
-          <span className="text-base font-normal text-muted-foreground">/100</span>
-        </>
-      }
-      hint={hint}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <ToneBadge tone={getRatingPercentageTone(percentage)}>{rating.label}</ToneBadge>
-        <span className="text-sm tabular-nums text-muted-foreground">{percentage}%</span>
-      </div>
-    </StatCard>
-  );
-}
-
 // Component to show completed evaluation with spider chart
 function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
   const { t } = useLanguage();
@@ -272,15 +189,13 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
           label={tm.yourSelfEvaluation}
           icon={User}
           tone="info"
-          total={staffTotal}
-          percentage={staffPercentage}
+          score={{ total: staffTotal, percentage: staffPercentage }}
         />
         <ScoreCard
           label={ta.supervisorEvaluation}
           icon={UserCheck}
           tone="success"
-          total={supervisorTotal}
-          percentage={supervisorPercentage}
+          score={{ total: supervisorTotal, percentage: supervisorPercentage }}
           hint={supervisorName ? tm.by(supervisorName) : undefined}
         />
       </div>
@@ -293,56 +208,15 @@ function CompletedEvaluationView({ evaluation }: { evaluation: any }) {
         </CardHeader>
         <CardContent>
           <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis
-                  dataKey="subject"
-                  tick={{ fontSize: 10 }}
-                  tickLine={false}
-                />
-                <PolarRadiusAxis
-                  angle={90}
-                  domain={[0, 5]}
-                  tick={{ fontSize: 12, fontWeight: 'bold', fill: '#000000' }}
-                  tickCount={6}
-                />
-                <Radar
-                  name={ta.chartSelf}
-                  dataKey="staff"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                />
-                <Radar
-                  name={ta.chartSupervisor}
-                  dataKey="supervisor"
-                  stroke="#22c55e"
-                  fill="#22c55e"
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                />
-                <Tooltip
-                  content={({ payload, label }) => {
-                    if (payload && payload.length > 0) {
-                      return (
-                        <div className="bg-white p-2 border rounded-lg shadow-lg text-sm">
-                          <p className="font-semibold mb-1">{label}</p>
-                          {payload.map((entry: any, index: number) => (
-                            <p key={index} style={{ color: entry.color }}>
-                              {entry.name}: {ta.level(entry.value)}
-                            </p>
-                          ))}
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Legend />
-              </RadarChart>
-            </ResponsiveContainer>
+            <RadarScoreChart
+              data={radarData}
+              series={[
+                { dataKey: 'staff', label: ta.chartSelf },
+                { dataKey: 'supervisor', label: ta.chartSupervisor },
+              ]}
+              max={5}
+              formatValue={ta.level}
+            />
           </div>
         </CardContent>
       </Card>

@@ -15,16 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FileQuestion, User, UserCheck } from 'lucide-react';
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Legend,
-  Tooltip,
-} from 'recharts';
+import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -229,56 +220,15 @@ export default function AnnualEvaluationResult() {
           </CardHeader>
           <CardContent>
             <div className="h-[500px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                  <PolarGrid />
-                  <PolarAngleAxis
-                    dataKey="subject"
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                  />
-                  <PolarRadiusAxis
-                    angle={90}
-                    domain={[0, 5]}
-                    tick={{ fontSize: 12, fontWeight: 'bold', fill: '#000000' }}
-                    tickCount={6}
-                  />
-                  <Radar
-                    name={tr.chartStaff}
-                    dataKey="staff"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
-                  <Radar
-                    name={tr.chartSupervisor}
-                    dataKey="supervisor"
-                    stroke="#22c55e"
-                    fill="#22c55e"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
-                  <Tooltip
-                    content={({ payload, label }) => {
-                      if (payload && payload.length > 0) {
-                        return (
-                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg">
-                            <p className="mb-2 text-sm font-semibold">{label}</p>
-                            {payload.map((entry: any, index: number) => (
-                              <p key={index} className="text-sm" style={{ color: entry.color }}>
-                                {entry.name}: {tr.level(entry.value)}
-                              </p>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend />
-                </RadarChart>
-              </ResponsiveContainer>
+              <RadarScoreChart
+                data={radarData}
+                series={[
+                  { dataKey: 'staff', label: tr.chartStaff },
+                  { dataKey: 'supervisor', label: tr.chartSupervisor },
+                ]}
+                max={5}
+                formatValue={tr.level}
+              />
             </div>
           </CardContent>
         </Card>

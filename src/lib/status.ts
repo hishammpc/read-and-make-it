@@ -5,42 +5,48 @@
 export type StatusTone = 'success' | 'warning' | 'info' | 'danger' | 'muted' | 'primary';
 
 /** Literal class sets per tone (kept literal so Tailwind picks them up). */
-export const toneClasses: Record<StatusTone, { soft: string; solid: string; text: string; bar: string }> = {
+export const toneClasses: Record<StatusTone, { soft: string; solid: string; text: string; bar: string; ring: string }> = {
   success: {
     soft: 'bg-success-soft text-success-soft-foreground',
     solid: 'bg-success text-success-foreground',
     text: 'text-success',
     bar: '[&>div]:bg-success',
+    ring: 'border-success ring-1 ring-success',
   },
   warning: {
     soft: 'bg-warning-soft text-warning-soft-foreground',
     solid: 'bg-warning text-warning-foreground',
     text: 'text-warning',
     bar: '[&>div]:bg-warning',
+    ring: 'border-warning ring-1 ring-warning',
   },
   info: {
     soft: 'bg-info-soft text-info-soft-foreground',
     solid: 'bg-info text-info-foreground',
     text: 'text-info',
     bar: '[&>div]:bg-info',
+    ring: 'border-info ring-1 ring-info',
   },
   danger: {
     soft: 'bg-destructive-soft text-destructive-soft-foreground',
     solid: 'bg-destructive text-destructive-foreground',
     text: 'text-destructive',
     bar: '[&>div]:bg-destructive',
+    ring: 'border-destructive ring-1 ring-destructive',
   },
   muted: {
     soft: 'bg-muted text-muted-foreground',
     solid: 'bg-muted-foreground text-background',
     text: 'text-muted-foreground',
     bar: '[&>div]:bg-muted-foreground',
+    ring: 'border-muted-foreground ring-1 ring-muted-foreground',
   },
   primary: {
     soft: 'bg-primary/10 text-primary',
     solid: 'bg-primary text-primary-foreground',
     text: 'text-primary',
     bar: '[&>div]:bg-primary',
+    ring: 'border-primary ring-1 ring-primary',
   },
 };
 

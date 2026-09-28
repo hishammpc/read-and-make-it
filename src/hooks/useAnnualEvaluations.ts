@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface AnnualEvaluationCycle {
   id: string;
@@ -110,6 +111,7 @@ export function useStaffWithoutSupervisors() {
 export function useCreateAnnualEvaluationCycle() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ year, createdBy, startDate, endDate }: { year: number; createdBy: string; startDate?: string; endDate?: string }) => {
@@ -123,7 +125,7 @@ export function useCreateAnnualEvaluationCycle() {
       if (checkError) throw checkError;
 
       if (staffWithoutSupervisor && staffWithoutSupervisor.length > 0) {
-        throw new Error(`${staffWithoutSupervisor.length} staff belum ada penyelia. Sila tetapkan penyelia untuk semua kakitangan terlebih dahulu.`);
+        throw new Error(t.toasts.staffWithoutSupervisor(staffWithoutSupervisor.length));
       }
 
       // Create the cycle
@@ -171,13 +173,13 @@ export function useCreateAnnualEvaluationCycle() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
       toast({
-        title: 'Berjaya',
-        description: 'Penilaian tahunan telah dihantar kepada semua kakitangan',
+        title: t.common.success,
+        description: t.toasts.annualSent,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -262,6 +264,7 @@ export function useMyPendingAnnualEvaluations(userId: string) {
 export function useSubmitStaffEvaluation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -289,7 +292,7 @@ export function useSubmitStaffEvaluation() {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai, telah dihantar, atau anda tidak mempunyai akses');
+      if (!data) throw new Error(t.toasts.evaluationUnavailable);
       return data;
     },
     onSuccess: () => {
@@ -297,13 +300,13 @@ export function useSubmitStaffEvaluation() {
       queryClient.invalidateQueries({ queryKey: ['my-pending-annual-evaluations'] });
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
       toast({
-        title: 'Berjaya',
-        description: 'Penilaian kendiri telah dihantar',
+        title: t.common.success,
+        description: t.toasts.selfSubmitted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -378,6 +381,7 @@ export function useIsSupervisor(userId: string) {
 export function useSubmitSupervisorEvaluation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -405,7 +409,7 @@ export function useSubmitSupervisorEvaluation() {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai, telah dihantar, atau anda tidak mempunyai akses');
+      if (!data) throw new Error(t.toasts.evaluationUnavailable);
       return data;
     },
     onSuccess: () => {
@@ -413,13 +417,13 @@ export function useSubmitSupervisorEvaluation() {
       queryClient.invalidateQueries({ queryKey: ['pending-supervisee-count'] });
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
       toast({
-        title: 'Berjaya',
-        description: 'Penilaian penyelia telah dihantar',
+        title: t.common.success,
+        description: t.toasts.supervisorSubmitted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -454,6 +458,7 @@ export function useAnnualEvaluationResult(evaluationId: string) {
 export function useCloseEvaluationCycle() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (cycleId: string) => {
@@ -471,8 +476,8 @@ export function useCloseEvaluationCycle() {
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
       toast({
-        title: 'Berjaya',
-        description: 'Kitaran penilaian telah ditutup',
+        title: t.common.success,
+        description: t.toasts.cycleClosed,
       });
     },
   });
@@ -482,6 +487,7 @@ export function useCloseEvaluationCycle() {
 export function useUpdateCycleDates() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ cycleId, startDate, endDate }: { cycleId: string; startDate: string; endDate: string }) => {
@@ -499,13 +505,13 @@ export function useUpdateCycleDates() {
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
       queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
       toast({
-        title: 'Berjaya',
-        description: 'Tarikh kitaran telah dikemaskini',
+        title: t.common.success,
+        description: t.toasts.cycleDatesUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -562,6 +568,7 @@ export function useAnnualEvaluationStatsByYear(year: number) {
 export function useResetAnnualEvaluation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({
@@ -604,7 +611,7 @@ export function useResetAnnualEvaluation() {
       const { data, error } = await query.select().maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai atau statusnya telah berubah');
+      if (!data) throw new Error(t.toasts.evaluationStatusChanged);
       return data;
     },
     onSuccess: () => {
@@ -615,13 +622,13 @@ export function useResetAnnualEvaluation() {
       queryClient.invalidateQueries({ queryKey: ['supervisee-evaluations'] });
       queryClient.invalidateQueries({ queryKey: ['pending-supervisee-count'] });
       toast({
-        title: 'Berjaya',
-        description: 'Penilaian telah direset',
+        title: t.common.success,
+        description: t.toasts.evaluationReset,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

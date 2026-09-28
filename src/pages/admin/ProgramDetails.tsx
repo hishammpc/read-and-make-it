@@ -52,15 +52,7 @@ import {
   SearchX,
   Tag,
 } from 'lucide-react';
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
+import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 
 /** One label/value pair in the program information grid. */
 function InfoItem({
@@ -270,29 +262,12 @@ export default function ProgramDetails() {
                 <div className="grid gap-6 md:grid-cols-2">
                   {/* Radar Chart */}
                   <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart
-                        data={evaluationDetails.questionScores.map(q => ({
-                          subject: q.shortLabel,
-                          score: q.avgScore,
-                          fullMark: 3,
-                        }))}
-                      >
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                        <PolarRadiusAxis angle={90} domain={[0, 3]} tick={{ fontSize: 10 }} />
-                        <Tooltip
-                          formatter={(value: number) => [value.toFixed(2), td.score]}
-                        />
-                        <Radar
-                          name={td.score}
-                          dataKey="score"
-                          stroke="#22c55e"
-                          fill="#22c55e"
-                          fillOpacity={0.5}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
+                    <RadarScoreChart
+                      data={evaluationDetails.questionScores.map((q) => ({ subject: q.shortLabel, score: q.avgScore }))}
+                      series={[{ dataKey: 'score', label: td.score }]}
+                      max={3}
+                      formatValue={(value) => value.toFixed(2)}
+                    />
                   </div>
 
                   {/* Question Breakdown */}

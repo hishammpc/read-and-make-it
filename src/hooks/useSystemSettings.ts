@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Fetch a single system setting by key
 export function useSystemSetting(key: string) {
@@ -23,6 +24,7 @@ export function useSystemSetting(key: string) {
 export function useUpdateSystemSetting() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ key, value, updatedBy }: { key: string; value: unknown; updatedBy?: string }) => {
@@ -46,13 +48,13 @@ export function useUpdateSystemSetting() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['system-settings', variables.key] });
       toast({
-        title: 'Berjaya',
-        description: 'Tetapan telah dikemaskini',
+        title: t.common.success,
+        description: t.toasts.settingsUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Ralat',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });

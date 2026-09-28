@@ -2,6 +2,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { parseUserCSV, ParsedUser } from '@/lib/csvParser';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+/** Thrown when the CSV has no importable rows; the hook shows a translated message. */
+class NoValidUsersError extends Error {
+  constructor() {
+    super('No valid users found in CSV file');
+    this.name = 'NoValidUsersError';
+  }
+}
 
 export interface BulkImportResult {
   success: boolean;
@@ -35,7 +44,7 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
   };
 
   if (users.length === 0) {
-    throw new Error('No valid users found in CSV file');
+    throw new NoValidUsersError();
   }
 
   // Get existing users by email
@@ -163,6 +172,8 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
 export function useBulkImportUsers() {
   const queryClient = useQueryClient();
 
+  const { t } = useLanguage();
+
   return useMutation({
     mutationFn: bulkImportUsers,
     onSuccess: (data) => {
@@ -170,9 +181,7 @@ export function useBulkImportUsers() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
 
       // Show success message
-      const message = `Import complete: ${data.created} created, ${data.updated} updated${
-        data.failed > 0 ? `, ${data.failed} failed` : ''
-      }`;
+      const message = t.toasts.importComplete(data.created, data.updated, data.failed);
 
       if (data.failed > 0) {
         toast.warning(message);
@@ -181,7 +190,9 @@ export function useBulkImportUsers() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Import failed: ${error.message}`);
+      toast.error(
+        error instanceof NoValidUsersError ? t.toasts.importNoValidUsers : t.toasts.importFailed(error.message)
+      );
     },
   });
 }

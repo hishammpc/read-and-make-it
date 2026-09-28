@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export interface Program {
@@ -71,6 +72,7 @@ export function useProgram(id: string) {
 export function useCreateProgram() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (program: CreateProgramInput) => {
@@ -86,13 +88,13 @@ export function useCreateProgram() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programs'] });
       toast({
-        title: 'Success',
-        description: 'Program created successfully',
+        title: t.common.success,
+        description: t.toasts.programCreated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -103,6 +105,7 @@ export function useCreateProgram() {
 export function useUpdateProgram() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateProgramInput> }) => {
@@ -120,13 +123,13 @@ export function useUpdateProgram() {
       queryClient.invalidateQueries({ queryKey: ['programs'] });
       queryClient.invalidateQueries({ queryKey: ['programs', variables.id] });
       toast({
-        title: 'Success',
-        description: 'Program updated successfully',
+        title: t.common.success,
+        description: t.toasts.programUpdated,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
@@ -137,6 +140,7 @@ export function useUpdateProgram() {
 export function useDeleteProgram() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -151,13 +155,13 @@ export function useDeleteProgram() {
       queryClient.invalidateQueries({ queryKey: ['programs'] });
       queryClient.invalidateQueries({ queryKey: ['programs-with-stats'] });
       toast({
-        title: 'Success',
-        description: 'Program deleted successfully',
+        title: t.common.success,
+        description: t.toasts.programDeleted,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: t.common.errorTitle,
         description: error.message,
         variant: 'destructive',
       });
