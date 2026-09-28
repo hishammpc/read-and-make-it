@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAllRows } from '@/lib/fetchAllRows';
+import { getMonthRangeBounds } from '@/lib/dateUtils';
 
 export interface Profile {
   id: string;
@@ -82,10 +83,7 @@ export function useUsersWithTrainingHours(
       const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
       const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
 
-      const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
-      // Get last day of end month
-      const lastDay = new Date(year, endMonth, 0).getDate();
-      const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
+      const { start: startDate, end: endDate } = getMonthRangeBounds(year, startMonth, year, endMonth);
 
       const assignments = await fetchAllRows((from, to) =>
         supabase
@@ -95,7 +93,7 @@ export function useUsersWithTrainingHours(
             programs:program_id(hours, start_date_time)
           `)
           .gte('programs.start_date_time', startDate)
-          .lte('programs.start_date_time', endDate)
+          .lt('programs.start_date_time', endDate)
           .range(from, to)
       );
 

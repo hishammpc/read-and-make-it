@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAllRows } from '@/lib/fetchAllRows';
+import { getMonthRangeBounds } from '@/lib/dateUtils';
 
 export interface EvaluationTemplate {
   id: string;
@@ -214,7 +216,7 @@ export function useUserEvaluations(userId: string) {
         .from('evaluations')
         .select(`
           *,
-          programs:program_id(id, title, start_date_time, end_date_time)
+          programs:program_id(id, title, category, start_date_time, end_date_time)
         `)
         .eq('user_id', userId)
         .order('submitted_at', { ascending: false });
@@ -283,9 +285,7 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
       const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
       const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
 
-      const startDate = `${currentYear}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
-      const lastDay = new Date(currentYear, endMonth, 0).getDate();
-      const endDate = `${currentYear}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
+      const { start: startDate, end: endDate } = getMonthRangeBounds(currentYear, startMonth, currentYear, endMonth);
 
       // Fetch programs within date range
       const { data: programs, error: programsError } = await supabase
@@ -299,7 +299,7 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
           program_assignments(count)
         `)
         .gte('start_date_time', startDate)
-        .lte('start_date_time', endDate)
+        .lt('start_date_time', endDate)
         .order('start_date_time', { ascending: false });
 
       if (programsError) throw programsError;
@@ -311,12 +311,15 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
         return [];
       }
 
-      const { data: evaluations, error: evalError } = await supabase
-        .from('evaluations')
-        .select('*')
-        .in('program_id', programIds);
-
-      if (evalError) throw evalError;
+      // Paginated: a year's evaluations can exceed the 1000-row cap.
+      const evaluations = await fetchAllRows((from, to) =>
+        supabase
+          .from('evaluations')
+          .select('*')
+          .in('program_id', programIds)
+          .order('id')
+          .range(from, to)
+      );
 
       // Group evaluations by program and calculate stats
       const result: ProgramEvaluationSummary[] = programs?.map(program => {

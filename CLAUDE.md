@@ -276,3 +276,6 @@ Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
 - **Configurable proposal period**: Admin can set proposal start/end dates on Proposed Trainings page; `system_settings` table stores config; `useProposalPeriod()` hook replaces hardcoded `isProposalPeriodOpen()`
 - New table: `system_settings` (key/value JSONB) — migration `20260209_system_settings.sql`
 - **Timezone fix**: `ProgramForm` appends local timezone offset to `datetime-local` values before saving (prevents PostgreSQL from interpreting as UTC); `ProgramEdit` uses local time components instead of `.toISOString()` when loading dates
+- **Date range filters**: use `getYearBounds` / `getMonthRangeBounds` + `.gte(col, start).lt(col, end)` (and `isWithinBounds` in JS) from `src/lib/dateUtils.ts`. Never filter timestamptz columns with `'YYYY-12-31'` or offset-less `'...T23:59:59'` — Postgres reads them as UTC and drops most of 31 Dec (MYT)
+- **Admin routes** use `<ProtectedRoute requireAdmin>`; role resolves to admin if any `user_roles` row is admin. Annual-evaluation submits are guarded by owner/supervisor + expected status in the `update` filter
+- Embedding `profiles` from `program_assignments` must name the FK (`profiles:user_id(...)`) — the table has two FKs to profiles (`user_id`, `attendance_marked_by`) and an unhinted embed makes PostgREST reject the query

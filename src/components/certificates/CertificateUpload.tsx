@@ -45,7 +45,7 @@ export default function CertificateUpload({
   };
 
   const handleUpload = async () => {
-    if (!file || !user?.id || !programId || !userId) {
+    if (!file || !user?.userId || !programId || !userId) {
       setErrorMessage('Missing required information');
       return;
     }
@@ -71,7 +71,7 @@ export default function CertificateUpload({
         file,
         userId,
         programId,
-        uploadedBy: user.id,
+        uploadedBy: user.userId,
       });
 
       clearInterval(progressInterval);

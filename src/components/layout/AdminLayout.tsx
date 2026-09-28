@@ -55,8 +55,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const handleBackLogout = () => {
-    sessionStorage.removeItem('adminPinVerified');
-    signOut();
+    signOut(); // logout() also clears the PIN unlock
   };
 
   const menuItems = [

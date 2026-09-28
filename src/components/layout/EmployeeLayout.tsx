@@ -13,7 +13,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { usePendingSuperviseeCount } from '@/hooks/useAnnualEvaluations';
+import { usePendingSuperviseeCount, useIsSupervisor } from '@/hooks/useAnnualEvaluations';
 import ProposedTrainingDialog from '@/components/employee/ProposedTrainingDialog';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -30,6 +30,7 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
 
   // Check if user has supervisees with pending evaluations
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
+  const { data: isSupervisor } = useIsSupervisor(user?.userId || '');
 
   const trainingMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -43,7 +44,7 @@ export default function EmployeeLayout({ children }: EmployeeLayoutProps) {
   ];
 
   // Add supervisor menu item if user has supervisees
-  if (pendingSuperviseeCount !== undefined && pendingSuperviseeCount >= 0) {
+  if (isSupervisor) {
     annualEvalMenuItems.push({
       icon: Users,
       label: `Staff Evaluation${pendingSuperviseeCount > 0 ? ` (${pendingSuperviseeCount})` : ''}`,

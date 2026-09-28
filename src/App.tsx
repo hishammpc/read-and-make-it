@@ -71,7 +71,7 @@ const App = () => (
             <Route
               path="/admin/users"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <UsersList />
                 </ProtectedRoute>
               }
@@ -79,7 +79,7 @@ const App = () => (
             <Route
               path="/admin/users/create"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <UserCreate />
                 </ProtectedRoute>
               }
@@ -87,7 +87,7 @@ const App = () => (
             <Route
               path="/admin/users/:id/edit"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <UserEdit />
                 </ProtectedRoute>
               }
@@ -95,7 +95,7 @@ const App = () => (
             <Route
               path="/admin/users/bulk-import"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <BulkUserImport />
                 </ProtectedRoute>
               }
@@ -103,7 +103,7 @@ const App = () => (
             <Route
               path="/dashboard/programs"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProgramsList />
                 </ProtectedRoute>
               }
@@ -111,7 +111,7 @@ const App = () => (
             <Route
               path="/dashboard/programs/new"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProgramCreate />
                 </ProtectedRoute>
               }
@@ -119,7 +119,7 @@ const App = () => (
             <Route
               path="/dashboard/programs/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProgramDetails />
                 </ProtectedRoute>
               }
@@ -127,7 +127,7 @@ const App = () => (
             <Route
               path="/dashboard/programs/:id/edit"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProgramEdit />
                 </ProtectedRoute>
               }
@@ -135,7 +135,7 @@ const App = () => (
             <Route
               path="/dashboard/programs/:id/assign"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProgramAssign />
                 </ProtectedRoute>
               }
@@ -143,7 +143,7 @@ const App = () => (
             <Route
               path="/dashboard/attendance"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <Attendance />
                 </ProtectedRoute>
               }
@@ -151,7 +151,7 @@ const App = () => (
             <Route
               path="/dashboard/certificates"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <Certificates />
                 </ProtectedRoute>
               }
@@ -159,7 +159,7 @@ const App = () => (
             <Route
               path="/dashboard/certificates/upload"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <CertificateUpload />
                 </ProtectedRoute>
               }
@@ -167,7 +167,7 @@ const App = () => (
             <Route
               path="/dashboard/evaluations"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <Evaluations />
                 </ProtectedRoute>
               }
@@ -175,7 +175,7 @@ const App = () => (
             <Route
               path="/dashboard/evaluations/templates/new"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <EvaluationTemplateCreate />
                 </ProtectedRoute>
               }
@@ -183,7 +183,7 @@ const App = () => (
             <Route
               path="/dashboard/evaluations/templates/:id/edit"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <EvaluationTemplateEdit />
                 </ProtectedRoute>
               }
@@ -191,7 +191,7 @@ const App = () => (
             <Route
               path="/dashboard/reports"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <Reports />
                 </ProtectedRoute>
               }
@@ -232,7 +232,7 @@ const App = () => (
             <Route
               path="/dashboard/annual-evaluations"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AnnualEvaluations />
                 </ProtectedRoute>
               }
@@ -240,7 +240,7 @@ const App = () => (
             <Route
               path="/dashboard/annual-evaluations/:cycleId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AnnualEvaluationCycle />
                 </ProtectedRoute>
               }
@@ -248,7 +248,7 @@ const App = () => (
             <Route
               path="/dashboard/annual-evaluations/:cycleId/staff/:userId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AnnualEvaluationResult />
                 </ProtectedRoute>
               }
@@ -305,7 +305,7 @@ const App = () => (
             <Route
               path="/dashboard/proposed-trainings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <ProposedTrainings />
                 </ProtectedRoute>
               }

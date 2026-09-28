@@ -106,3 +106,38 @@ export function isWithinCurrentYear(date: string | Date): boolean {
   const { start, end } = getCurrentYearRange();
   return isAfter(dateObj, start) && isBefore(dateObj, end);
 }
+
+/**
+ * Half-open [start, end) ISO bounds covering whole calendar months in local time
+ * (MYT for our users). Query timestamptz columns with `.gte(col, start).lt(col, end)`.
+ *
+ * Don't filter timestamptz columns with date-only or offset-less strings like
+ * 'YYYY-12-31' or '...T23:59:59': Postgres reads them as UTC (08:00 MYT), so the
+ * range drops most of the last day and picks up the first hours of the next.
+ */
+export function getMonthRangeBounds(
+  startYear: number,
+  startMonth: number,
+  endYear: number,
+  endMonth: number
+): { start: string; end: string } {
+  return {
+    start: new Date(startYear, startMonth - 1, 1).toISOString(),
+    // Day 1 of the month after endMonth (Date rolls month 12 over to January).
+    end: new Date(endYear, endMonth, 1).toISOString(),
+  };
+}
+
+export function getYearBounds(year: number): { start: string; end: string } {
+  return getMonthRangeBounds(year, 1, year, 12);
+}
+
+/** True when `date` falls inside half-open bounds from getMonthRangeBounds/getYearBounds. */
+export function isWithinBounds(
+  date: string | null | undefined,
+  bounds: { start: string; end: string }
+): boolean {
+  if (!date) return false;
+  const t = new Date(date).getTime();
+  return t >= new Date(bounds.start).getTime() && t < new Date(bounds.end).getTime();
+}

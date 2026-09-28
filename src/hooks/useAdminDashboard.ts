@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { parseDateSafe } from '@/lib/dateUtils';
+import { parseDateSafe, getYearBounds } from '@/lib/dateUtils';
 
 export interface DepartmentCompliance {
   department: string;
@@ -70,8 +70,7 @@ export function useEnhancedAdminDashboard(year?: number) {
   return useQuery({
     queryKey: ['enhanced-admin-dashboard', selectedYear],
     queryFn: async (): Promise<EnhancedDashboardStats> => {
-      const startOfYear = `${selectedYear}-01-01`;
-      const endOfYear = `${selectedYear}-12-31`;
+      const { start: startOfYear, end: endOfYear } = getYearBounds(selectedYear);
 
       // Get all profiles (paginated to bypass the 1000-row cap)
       const profiles = await fetchAllRows((from, to) =>
@@ -87,7 +86,7 @@ export function useEnhancedAdminDashboard(year?: number) {
           .from('programs')
           .select('id, title, hours, start_date_time, end_date_time, category')
           .gte('start_date_time', startOfYear)
-          .lte('start_date_time', endOfYear)
+          .lt('start_date_time', endOfYear)
           .range(from, to)
       );
 
@@ -103,7 +102,7 @@ export function useEnhancedAdminDashboard(year?: number) {
             programs!inner(hours, end_date_time, start_date_time)
           `)
           .gte('programs.end_date_time', startOfYear)
-          .lte('programs.end_date_time', endOfYear)
+          .lt('programs.end_date_time', endOfYear)
           .range(from, to)
       );
 
@@ -113,7 +112,7 @@ export function useEnhancedAdminDashboard(year?: number) {
           .from('evaluations')
           .select('*')
           .gte('submitted_at', startOfYear)
-          .lte('submitted_at', endOfYear)
+          .lt('submitted_at', endOfYear)
           .range(from, to)
       );
 
@@ -255,31 +254,51 @@ export function useEnhancedAdminDashboard(year?: number) {
         .limit(5);
 
       // === Overdue Evaluations ===
+      // Attended seats on evaluation-required programs that ended in the selected
+      // year, more than 3 days ago, with no evaluation submitted. Filter in JS after
+      // fetching both sides — limiting before the "no evaluation" filter hid real
+      // overdue rows. `profiles:user_id` must be explicit: program_assignments has
+      // two FKs to profiles (user_id, attendance_marked_by), and an unhinted embed
+      // makes PostgREST reject the whole query.
       const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-      const { data: overdueAssignments } = await supabase
-        .from('program_assignments')
-        .select(`
-          id, user_id, program_id,
-          programs!inner(id, title, end_date_time),
-          profiles!inner(id, name, email)
-        `)
-        .eq('status', 'Attended')
-        .lt('programs.end_date_time', threeDaysAgo)
-        .limit(10);
+      // Both are toISOString() output, so string comparison is chronological.
+      const overdueCutoff = threeDaysAgo < endOfYear ? threeDaysAgo : endOfYear;
+      const [attendedAssignments, yearEvaluations] = await Promise.all([
+        fetchAllRows((from, to) =>
+          supabase
+            .from('program_assignments')
+            .select(`
+              id, user_id, program_id,
+              programs!inner(id, title, end_date_time, notify_for_evaluation),
+              profiles:user_id(id, name, email)
+            `)
+            .eq('status', 'Attended')
+            .eq('programs.notify_for_evaluation', true)
+            .gte('programs.end_date_time', startOfYear)
+            .lt('programs.end_date_time', overdueCutoff)
+            .order('id')
+            .range(from, to)
+        ),
+        fetchAllRows((from, to) =>
+          supabase
+            .from('evaluations')
+            .select('id, user_id, program_id, programs!inner(end_date_time)')
+            .gte('programs.end_date_time', startOfYear)
+            .lt('programs.end_date_time', endOfYear)
+            .order('id')
+            .range(from, to)
+        ),
+      ]);
 
-      const overdueList = [];
-      for (const assignment of overdueAssignments || []) {
-        const { data: evaluation } = await supabase
-          .from('evaluations')
-          .select('id')
-          .eq('user_id', (assignment as any).user_id)
-          .eq('program_id', (assignment as any).program_id)
-          .maybeSingle();
-
-        if (!evaluation) {
-          overdueList.push(assignment);
-        }
-      }
+      const evaluatedSeats = new Set(
+        yearEvaluations.map((e: any) => `${e.user_id}:${e.program_id}`)
+      );
+      const overdueList = attendedAssignments
+        .filter((a: any) => !evaluatedSeats.has(`${a.user_id}:${a.program_id}`))
+        .sort((a: any, b: any) =>
+          new Date(a.programs.end_date_time).getTime() - new Date(b.programs.end_date_time).getTime()
+        )
+        .slice(0, 10);
 
       // === Available Years ===
       const allPrograms = await fetchAllRows((from, to) =>

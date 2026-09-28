@@ -266,11 +266,15 @@ export function useSubmitStaffEvaluation() {
   return useMutation({
     mutationFn: async ({
       evaluationId,
+      userId,
       answers,
     }: {
       evaluationId: string;
+      userId: string;
       answers: Record<string, number>;
     }) => {
+      // Guard on owner + expected status so a stale tab can't push a
+      // completed evaluation back to pending_supervisor.
       const { data, error } = await supabase
         .from('annual_evaluations')
         .update({
@@ -279,11 +283,13 @@ export function useSubmitStaffEvaluation() {
           status: 'pending_supervisor',
         })
         .eq('id', evaluationId)
+        .eq('user_id', userId)
+        .eq('status', 'pending_staff')
         .select()
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai atau anda tidak mempunyai akses');
+      if (!data) throw new Error('Penilaian tidak dijumpai, telah dihantar, atau anda tidak mempunyai akses');
       return data;
     },
     onSuccess: () => {
@@ -351,6 +357,23 @@ export function usePendingSuperviseeCount(supervisorId: string) {
   });
 }
 
+// Whether the user supervises anyone in any cycle (drives the "Staff Evaluation" menu)
+export function useIsSupervisor(userId: string) {
+  return useQuery({
+    queryKey: ['is-supervisor', userId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('annual_evaluations')
+        .select('id', { count: 'exact', head: true })
+        .eq('supervisor_id', userId);
+
+      if (error) throw error;
+      return (count || 0) > 0;
+    },
+    enabled: !!userId,
+  });
+}
+
 // Submit supervisor evaluation
 export function useSubmitSupervisorEvaluation() {
   const queryClient = useQueryClient();
@@ -359,11 +382,15 @@ export function useSubmitSupervisorEvaluation() {
   return useMutation({
     mutationFn: async ({
       evaluationId,
+      supervisorId,
       answers,
     }: {
       evaluationId: string;
+      supervisorId: string;
       answers: Record<string, number>;
     }) => {
+      // Guard on assigned supervisor + expected status: only the current
+      // supervisor can complete it, and only after the staff has submitted.
       const { data, error } = await supabase
         .from('annual_evaluations')
         .update({
@@ -372,11 +399,13 @@ export function useSubmitSupervisorEvaluation() {
           status: 'completed',
         })
         .eq('id', evaluationId)
+        .eq('supervisor_id', supervisorId)
+        .eq('status', 'pending_supervisor')
         .select()
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai atau anda tidak mempunyai akses');
+      if (!data) throw new Error('Penilaian tidak dijumpai, telah dihantar, atau anda tidak mempunyai akses');
       return data;
     },
     onSuccess: () => {
@@ -562,15 +591,20 @@ export function useResetAnnualEvaluation() {
         updates.supervisor_submitted_at = null;
       }
 
-      const { data, error } = await supabase
+      // Partial resets are valid from one status only, otherwise the answers left
+      // behind don't match the new status: staff-only needs pending_supervisor
+      // (no supervisor answers yet), supervisor-only needs completed (staff answers exist).
+      let query = supabase
         .from('annual_evaluations')
         .update(updates)
-        .eq('id', evaluationId)
-        .select()
-        .maybeSingle();
+        .eq('id', evaluationId);
+      if (resetType === 'staff') query = query.eq('status', 'pending_supervisor');
+      if (resetType === 'supervisor') query = query.eq('status', 'completed');
+
+      const { data, error } = await query.select().maybeSingle();
 
       if (error) throw error;
-      if (!data) throw new Error('Penilaian tidak dijumpai');
+      if (!data) throw new Error('Penilaian tidak dijumpai atau statusnya telah berubah');
       return data;
     },
     onSuccess: () => {

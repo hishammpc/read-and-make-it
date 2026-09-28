@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,13 +30,16 @@ import {
 export default function SupervisorEvaluationForm() {
   const navigate = useNavigate();
   const { cycleId, userId } = useParams<{ cycleId: string; userId: string }>();
+  const { user } = useAuth();
+  const supervisorId = user?.userId || '';
   const submitEvaluation = useSubmitSupervisorEvaluation();
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
-  // Fetch the evaluation
+  // Fetch the evaluation — scoped to the logged-in supervisor, so anyone else
+  // opening this URL gets "not found" instead of the form.
   const { data: evaluation, isLoading, error } = useQuery({
-    queryKey: ['supervisor-evaluation-form', cycleId, userId],
+    queryKey: ['supervisor-evaluation-form', cycleId, userId, supervisorId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('annual_evaluations')
@@ -46,12 +50,13 @@ export default function SupervisorEvaluationForm() {
         `)
         .eq('cycle_id', cycleId)
         .eq('user_id', userId)
-        .single();
+        .eq('supervisor_id', supervisorId)
+        .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!cycleId && !!userId,
+    enabled: !!cycleId && !!userId && !!supervisorId,
   });
 
   if (error) {
@@ -148,6 +153,7 @@ export default function SupervisorEvaluationForm() {
 
     await submitEvaluation.mutateAsync({
       evaluationId: evaluation.id,
+      supervisorId,
       answers,
     });
 

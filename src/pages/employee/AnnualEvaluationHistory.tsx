@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeLayout from '@/components/layout/EmployeeLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -38,7 +39,10 @@ export default function AnnualEvaluationHistory() {
   const navigate = useNavigate();
   const { evaluationId } = useParams<{ evaluationId: string }>();
 
-  const { data: evaluation, isLoading, error } = useAnnualEvaluationResult(evaluationId || '');
+  const { user } = useAuth();
+  const { data, isLoading, error } = useAnnualEvaluationResult(evaluationId || '');
+  // Only the staff member can view their own result; anyone else gets "not found".
+  const evaluation = data && data.user_id === user?.userId ? data : null;
 
   if (error) {
     return (

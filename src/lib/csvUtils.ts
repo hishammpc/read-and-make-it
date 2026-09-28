@@ -2,7 +2,8 @@
 
 export function downloadCSV(data: any[], filename: string) {
   const csv = arrayToCSV(data);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  // BOM so Excel opens the file as UTF-8 instead of garbling non-ASCII names.
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
 
@@ -33,15 +34,22 @@ export function arrayToCSV(data: any[]): string {
   return [headerRow, ...dataRows].join('\n');
 }
 
-function escapeCSVValue(value: any): string {
+export function escapeCSVValue(value: any): string {
   if (value === null || value === undefined) {
     return '';
   }
 
-  const stringValue = String(value);
+  let stringValue = String(value);
 
-  // If value contains comma, quote, or newline, wrap in quotes and escape quotes
-  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+  // Neutralise spreadsheet formulas (CSV injection): user-typed text starting with
+  // = + - @ or a tab/CR is executed by Excel even inside quotes. Numbers are left
+  // alone so hours stay numeric.
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(stringValue)) {
+    stringValue = `'${stringValue}`;
+  }
+
+  // If value contains comma, quote, or line break, wrap in quotes and escape quotes
+  if (/[",\r\n]/.test(stringValue)) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
 

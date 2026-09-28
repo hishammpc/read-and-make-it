@@ -104,6 +104,7 @@ export default function AnnualEvaluationForm() {
 
     await submitEvaluation.mutateAsync({
       evaluationId: evaluation.id,
+      userId: user?.userId || '',
       answers,
     });
 

@@ -459,8 +459,13 @@ export default function AnnualEvaluationCycle() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="full">Reset Penuh (Kakitangan & Penyelia)</SelectItem>
-                    <SelectItem value="staff">Reset Kakitangan Sahaja</SelectItem>
-                    <SelectItem value="supervisor">Reset Penyelia Sahaja</SelectItem>
+                    {/* Partial resets only make sense from one status each (see useResetAnnualEvaluation) */}
+                    {selectedEvaluation?.status === 'pending_supervisor' && (
+                      <SelectItem value="staff">Reset Kakitangan Sahaja</SelectItem>
+                    )}
+                    {selectedEvaluation?.status === 'completed' && (
+                      <SelectItem value="supervisor">Reset Penyelia Sahaja</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

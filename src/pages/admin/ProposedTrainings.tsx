@@ -56,6 +56,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { escapeCSVValue } from '@/lib/csvUtils';
 
 // Generate years for filter
 const currentYear = new Date().getFullYear();
@@ -121,7 +122,8 @@ export default function ProposedTrainings() {
   }
 
   const totalProposals = proposals?.length || 0;
-  const entertainedCount = proposals?.filter((p) => p.is_entertained).length || 0;
+  const entertainedCount =
+    proposals?.filter((p) => p.proposal_1_entertained || p.proposal_2_entertained).length || 0;
 
   const handleDownloadCSV = () => {
     if (!proposals || proposals.length === 0) return;
@@ -143,7 +145,7 @@ export default function ProposedTrainings() {
     });
 
     const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .map((row) => row.map(escapeCSVValue).join(','))
       .join('\n');
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });

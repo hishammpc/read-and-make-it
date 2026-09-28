@@ -105,8 +105,16 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
       const { error: roleError } = await supabase.from('user_roles').insert(roles);
 
       if (roleError) {
-        console.error('Failed to create roles:', roleError);
-        // Don't fail the import if roles fail, just log it
+        // Login requires a user_roles row, so these profiles exist but can't sign in.
+        usersToCreate.forEach((user) => {
+          result.errors.push({
+            row: user.rowNumber,
+            email: user.email,
+            error: `Profile created but role not assigned, so this user cannot log in: ${roleError.message}`,
+          });
+        });
+        result.created = 0;
+        result.failed += usersToCreate.length;
       }
     }
   }

@@ -115,8 +115,11 @@ export function useUpdateSupervisor() {
           .in('status', ['pending_staff', 'pending_supervisor']);
 
         if (evalError) {
-          console.error('Error updating annual evaluations supervisor:', evalError);
-          // Don't throw - profile update succeeded, this is secondary
+          // Surface it: otherwise the open evaluation stays with the old supervisor
+          // while the admin sees "success". Re-running the change is safe.
+          throw new Error(
+            `Penyelia dikemaskini dalam profil, tetapi gagal dikemaskini dalam penilaian tahunan: ${evalError.message}. Sila cuba lagi.`
+          );
         }
       }
 

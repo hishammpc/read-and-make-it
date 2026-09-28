@@ -71,7 +71,7 @@ export default function CertificateUpload() {
   };
 
   const handleUpload = async () => {
-    if (!selectedProgram || selectedEmployees.length === 0 || !file || !user?.id) {
+    if (!selectedProgram || selectedEmployees.length === 0 || !file || !user?.userId) {
       alert('Please fill in all required fields');
       return;
     }
@@ -92,7 +92,7 @@ export default function CertificateUpload() {
           file,
           userId: employeeId,
           programId: selectedProgram,
-          uploadedBy: user.id,
+          uploadedBy: user.userId,
         });
 
         results.push({

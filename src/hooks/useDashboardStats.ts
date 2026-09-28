@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getYearBounds, isWithinBounds } from '@/lib/dateUtils';
 
 export interface DashboardStats {
   totalPrograms: number;
@@ -146,8 +147,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
   return useQuery({
     queryKey: ['employee-dashboard-stats', userId, selectedYear],
     queryFn: async () => {
-      const startOfYear = `${selectedYear}-01-01`;
-      const endOfYear = `${selectedYear}-12-31`;
+      const yearBounds = getYearBounds(selectedYear);
 
       // Get user's assignments with program details
       const { data: assignments, error: assignmentsError } = await supabase
@@ -163,8 +163,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
       // Calculate hours this year (all assigned programs count)
       const hoursThisYear = assignments
         ?.filter((a: any) =>
-          a.programs?.end_date_time >= startOfYear &&
-          a.programs?.end_date_time <= endOfYear
+          isWithinBounds(a.programs?.end_date_time, yearBounds)
         )
         .reduce((sum: number, a: any) => sum + (a.programs?.hours || 0), 0) || 0;
 
@@ -185,8 +184,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
       const programsRequiringEvaluation = (assignments || []).filter(
         (a: any) =>
           a.programs?.notify_for_evaluation === true &&
-          a.programs?.end_date_time >= startOfYear &&
-          a.programs?.end_date_time <= endOfYear
+          isWithinBounds(a.programs?.end_date_time, yearBounds)
       );
 
       for (const assignment of programsRequiringEvaluation) {
@@ -213,8 +211,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
 
       assignments
         ?.filter((a: any) =>
-          a.programs?.end_date_time >= startOfYear &&
-          a.programs?.end_date_time <= endOfYear
+          isWithinBounds(a.programs?.end_date_time, yearBounds)
         )
         .forEach((a: any) => {
           const category = a.programs?.category || 'Others';
@@ -228,8 +225,7 @@ export function useEmployeeDashboardStats(userId: string, year?: number) {
 
       // Filter training history by selected year
       const trainingHistoryFiltered = (assignments || []).filter((a: any) =>
-        a.programs?.end_date_time >= startOfYear &&
-        a.programs?.end_date_time <= endOfYear
+        isWithinBounds(a.programs?.end_date_time, yearBounds)
       );
 
       return {

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
+import { getYearBounds } from '@/lib/dateUtils';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -24,8 +25,7 @@ export function useLeaderboard(currentUserId: string, year?: number) {
   return useQuery({
     queryKey: ['leaderboard', currentUserId, selectedYear],
     queryFn: async (): Promise<LeaderboardData> => {
-      const startOfYear = `${selectedYear}-01-01`;
-      const endOfYear = `${selectedYear}-12-31`;
+      const { start: startOfYear, end: endOfYear } = getYearBounds(selectedYear);
 
       // Get all profiles first (paginated to bypass the 1000-row cap)
       const profiles = await fetchAllRows((from, to) =>
@@ -45,7 +45,7 @@ export function useLeaderboard(currentUserId: string, year?: number) {
             programs!inner(hours, end_date_time)
           `)
           .gte('programs.end_date_time', startOfYear)
-          .lte('programs.end_date_time', endOfYear)
+          .lt('programs.end_date_time', endOfYear)
           .range(from, to)
       );
 

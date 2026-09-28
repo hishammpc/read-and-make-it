@@ -61,7 +61,7 @@ export default function Attendance() {
   };
 
   const handleSaveAttendance = async (assignmentId: string) => {
-    if (!user?.id) {
+    if (!user?.userId) {
       toast({
         title: 'Error',
         description: 'User not authenticated',
@@ -79,7 +79,7 @@ export default function Attendance() {
       await updateStatus.mutateAsync({
         assignmentId,
         status,
-        markedBy: user.id,
+        markedBy: user.userId,
       });
 
       // Remove from local state after successful save
@@ -100,7 +100,7 @@ export default function Attendance() {
   };
 
   const handleMarkAllAsAttended = async () => {
-    if (!user?.id || !assignments || assignments.length === 0) return;
+    if (!user?.userId || !assignments || assignments.length === 0) return;
 
     const unprocessedAssignments = assignments.filter(
       (assignment: any) => assignment.status !== 'Attended'
@@ -125,7 +125,7 @@ export default function Attendance() {
           updateStatus.mutateAsync({
             assignmentId: assignment.id,
             status: 'Attended',
-            markedBy: user.id,
+            markedBy: user.userId,
           })
         )
       );

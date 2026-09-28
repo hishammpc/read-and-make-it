@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { downloadCSV } from '@/lib/csvUtils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { formatMalaysianDate } from '@/lib/dateUtils';
+import { formatMalaysianDate, getMonthRangeBounds } from '@/lib/dateUtils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -110,9 +110,7 @@ export default function Reports() {
       const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
       const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
 
-      const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01T00:00:00`;
-      const lastDay = new Date(year, endMonth, 0).getDate();
-      const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}T23:59:59`;
+      const { start: startDate, end: endDate } = getMonthRangeBounds(year, startMonth, year, endMonth);
 
       switch (activeReport) {
         case 'training-hours-user':
@@ -191,7 +189,7 @@ export default function Reports() {
 
       // Filter by date range
       if (new Date(program.start_date_time) < new Date(startDate)) return;
-      if (new Date(program.start_date_time) > new Date(endDate)) return;
+      if (new Date(program.start_date_time) >= new Date(endDate)) return;
 
       // Check if evaluation is completed
       const evalKey = `${assignment.user_id}-${program.id}`;
@@ -224,7 +222,7 @@ export default function Reports() {
           program_assignments(count)
         `)
         .gte('start_date_time', startDate)
-        .lte('start_date_time', endDate)
+        .lt('start_date_time', endDate)
         .order('start_date_time', { ascending: false })
         .range(from, to)
     );
@@ -245,8 +243,7 @@ export default function Reports() {
   };
 
   const generateProgramOverseas = async (fromYear: number, toYearParam: number): Promise<ReportData[]> => {
-    const startDate = `${fromYear}-01-01T00:00:00`;
-    const endDate = `${toYearParam}-12-31T23:59:59`;
+    const { start: startDate, end: endDate } = getMonthRangeBounds(fromYear, 1, toYearParam, 12);
 
     const assignments = await fetchAllRows((from, to) =>
       supabase
@@ -281,7 +278,7 @@ export default function Reports() {
 
       // Filter by date range
       if (new Date(program.start_date_time) < new Date(startDate)) return;
-      if (new Date(program.start_date_time) > new Date(endDate)) return;
+      if (new Date(program.start_date_time) >= new Date(endDate)) return;
 
       result.push({
         name: profile.name || 'N/A',

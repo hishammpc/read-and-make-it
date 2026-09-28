@@ -16,6 +16,21 @@ export interface UserSession {
 const SESSION_KEY = 'mylearning_user_session';
 
 /**
+ * Pattern for a case-insensitive exact email match via `.ilike()`. ilike is needed
+ * because stored emails are mixed-case, but its wildcards (% and _, plus * which
+ * PostgREST maps to %) must be escaped or `_____@domain` matches someone else.
+ */
+function emailMatchPattern(email: string): string {
+  return email.toLowerCase().trim().replace(/[\\%_*]/g, (c) => `\\${c}`);
+}
+
+/** Highest role across a user's user_roles rows (an admin may also hold 'employee'). */
+function resolveRole(roleRows: unknown): 'admin' | 'employee' {
+  const rows = (Array.isArray(roleRows) ? roleRows : [roleRows]) as Array<{ role?: string } | null>;
+  return rows.some((r) => r?.role === 'admin') ? 'admin' : 'employee';
+}
+
+/**
  * Login with email only - checks if email exists in database
  */
 export async function loginWithEmailOnly(email: string): Promise<{
@@ -44,7 +59,7 @@ export async function loginWithEmailOnly(email: string): Promise<{
         status,
         user_roles!inner(role)
       `)
-      .ilike('email', cleanEmail)
+      .ilike('email', emailMatchPattern(cleanEmail))
       .eq('status', 'active')
       .maybeSingle();
 
@@ -64,14 +79,14 @@ export async function loginWithEmailOnly(email: string): Promise<{
     }
 
     // Get role from user_roles
-    const role = (profile.user_roles as any)?.[0]?.role || (profile.user_roles as any)?.role || 'employee';
+    const role = resolveRole(profile.user_roles);
 
     // Create session object
     const session: UserSession = {
       userId: profile.id,
       email: profile.email,
       name: profile.name,
-      role: role as 'admin' | 'employee',
+      role,
     };
 
     // Store session in localStorage
@@ -108,6 +123,10 @@ export function getCurrentSession(): UserSession | null {
  */
 export function logout(): void {
   localStorage.removeItem(SESSION_KEY);
+  // The admin PIN unlock belongs to this login, not the browser tab.
+  sessionStorage.removeItem('adminPinVerified');
+  // Password-login admins also hold a Supabase Auth session; clear it on this device.
+  void supabase.auth.signOut({ scope: 'local' });
 }
 
 /**
@@ -150,13 +169,12 @@ export async function loginAdmin(email: string, password: string): Promise<{
     }
 
     // Check if user has admin role
-    const { data: userRole, error: roleError } = await supabase
+    const { data: userRoles, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', authData.user.id)
-      .single();
+      .eq('user_id', authData.user.id);
 
-    if (roleError || !userRole || userRole.role !== 'admin') {
+    if (roleError || resolveRole(userRoles) !== 'admin') {
       // Sign out if not admin
       await supabase.auth.signOut();
       return {
@@ -221,7 +239,7 @@ export async function checkEmailExists(email: string): Promise<boolean> {
     const { data, error } = await supabase
       .from('profiles')
       .select('id')
-      .ilike('email', email.toLowerCase().trim())
+      .ilike('email', emailMatchPattern(email))
       .eq('status', 'active')
       .maybeSingle();
 
