@@ -13,6 +13,18 @@ export interface UserSession {
   role: 'admin' | 'employee';
 }
 
+/** Login failure reasons; the UI translates them (t.auth.errors[code]). */
+export type AuthErrorCode =
+  | 'invalidEmail'
+  | 'lookupFailed'
+  | 'notRegistered'
+  | 'unexpected'
+  | 'missingCredentials'
+  | 'invalidCredentials'
+  | 'notAdmin'
+  | 'profileNotFound'
+  | 'inactive';
+
 const SESSION_KEY = 'mylearning_user_session';
 
 /**
@@ -35,7 +47,7 @@ function resolveRole(roleRows: unknown): 'admin' | 'employee' {
  */
 export async function loginWithEmailOnly(email: string): Promise<{
   success: boolean;
-  error?: string;
+  error?: AuthErrorCode;
   user?: UserSession;
 }> {
   try {
@@ -44,7 +56,7 @@ export async function loginWithEmailOnly(email: string): Promise<{
     if (!emailRegex.test(email)) {
       return {
         success: false,
-        error: 'Please enter a valid email address',
+        error: 'invalidEmail',
       };
     }
 
@@ -67,14 +79,14 @@ export async function loginWithEmailOnly(email: string): Promise<{
       console.error('Profile check error:', profileError);
       return {
         success: false,
-        error: 'Error checking user. Please try again.',
+        error: 'lookupFailed',
       };
     }
 
     if (!profile) {
       return {
         success: false,
-        error: 'Email not registered or account is inactive. Please contact your administrator.',
+        error: 'notRegistered',
       };
     }
 
@@ -100,7 +112,7 @@ export async function loginWithEmailOnly(email: string): Promise<{
     console.error('Email-only login error:', error);
     return {
       success: false,
-      error: 'An unexpected error occurred. Please try again.',
+      error: 'unexpected',
     };
   }
 }
@@ -141,7 +153,7 @@ export function isAuthenticated(): boolean {
  */
 export async function loginAdmin(email: string, password: string): Promise<{
   success: boolean;
-  error?: string;
+  error?: AuthErrorCode;
   user?: UserSession;
 }> {
   try {
@@ -149,7 +161,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
     if (!email || !password) {
       return {
         success: false,
-        error: 'Email and password are required',
+        error: 'missingCredentials',
       };
     }
 
@@ -164,7 +176,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
     if (authError || !authData.user) {
       return {
         success: false,
-        error: 'Invalid email or password',
+        error: 'invalidCredentials',
       };
     }
 
@@ -179,7 +191,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
       await supabase.auth.signOut();
       return {
         success: false,
-        error: 'Access denied. Admin privileges required.',
+        error: 'notAdmin',
       };
     }
 
@@ -194,7 +206,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
       await supabase.auth.signOut();
       return {
         success: false,
-        error: 'Profile not found',
+        error: 'profileNotFound',
       };
     }
 
@@ -203,7 +215,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
       await supabase.auth.signOut();
       return {
         success: false,
-        error: 'Account is inactive',
+        error: 'inactive',
       };
     }
 
@@ -226,7 +238,7 @@ export async function loginAdmin(email: string, password: string): Promise<{
     console.error('Admin login error:', error);
     return {
       success: false,
-      error: 'An unexpected error occurred. Please try again.',
+      error: 'unexpected',
     };
   }
 }

@@ -1,0 +1,85 @@
+// Bahasa Melayu — the default language. `en.ts` must mirror every key (typed as Dictionary).
+// Official content (evaluation questions, PDFs, certificates, CSV exports) stays in BM
+// and does not go through these dictionaries.
+
+export const ms = {
+  common: {
+    appName: 'MyLearning Pro',
+    signOut: 'Log keluar',
+    openMenu: 'Buka menu',
+    navigation: 'Navigasi',
+    skipToContent: 'Langkau ke kandungan',
+    language: 'Bahasa',
+    account: 'Akaun',
+  },
+  theme: {
+    label: 'Tema',
+    light: 'Cerah',
+    dark: 'Gelap',
+    system: 'Ikut sistem',
+  },
+  roles: {
+    admin: 'Pentadbir',
+    employee: 'Kakitangan',
+  },
+  nav: {
+    dashboard: 'Papan pemuka',
+    sectionTraining: 'Latihan',
+    sectionStaff: 'Kakitangan',
+    sectionAnnualEvaluation: 'Penilaian tahunan',
+    programs: 'Program',
+    trainingEvaluation: 'Penilaian latihan',
+    proposedTrainings: 'Cadangan latihan',
+    reports: 'Laporan',
+    users: 'Pengguna',
+    annualEvaluation: 'Penilaian tahunan',
+    myTrainings: 'Latihan saya',
+    myHours: 'Jam latihan',
+    programEvaluations: 'Penilaian program',
+    myEvaluation: 'Penilaian saya',
+    staffEvaluation: 'Penilaian kakitangan',
+  },
+  auth: {
+    title: 'Log masuk',
+    subtitle: 'Masukkan emel rasmi anda untuk meneruskan.',
+    emailLabel: 'Emel',
+    emailPlaceholder: 'nama@mpc.gov.my',
+    submit: 'Log masuk',
+    submitting: 'Sedang log masuk…',
+    invalidEmail: 'Sila masukkan alamat emel yang sah.',
+    welcome: 'Selamat datang kembali',
+    adminTitle: 'Log masuk pentadbir',
+    adminSubtitle: 'Gunakan emel dan kata laluan pentadbir anda.',
+    passwordLabel: 'Kata laluan',
+    passwordPlaceholder: 'Masukkan kata laluan',
+    passwordRequired: 'Kata laluan diperlukan.',
+    adminSubmit: 'Log masuk sebagai pentadbir',
+    toEmployeeLogin: 'Log masuk kakitangan',
+    panelHeading: 'Rekod latihan dan penilaian anda, di satu tempat.',
+    panelPoints: [
+      'Semak jam latihan anda berbanding sasaran 40 jam setahun',
+      'Nilai program latihan yang anda hadiri',
+      'Lengkapkan penilaian tahunan bersama penyelia anda',
+    ],
+    errors: {
+      invalidEmail: 'Sila masukkan alamat emel yang sah.',
+      lookupFailed: 'Pengguna tidak dapat disemak. Sila cuba lagi.',
+      notRegistered: 'Emel ini tidak berdaftar atau akaun tidak aktif. Sila hubungi pentadbir.',
+      unexpected: 'Ralat tidak dijangka berlaku. Sila cuba lagi.',
+      missingCredentials: 'Emel dan kata laluan diperlukan.',
+      invalidCredentials: 'Emel atau kata laluan tidak sah.',
+      notAdmin: 'Akses ditolak. Akaun ini bukan pentadbir.',
+      profileNotFound: 'Profil tidak dijumpai.',
+      inactive: 'Akaun ini tidak aktif.',
+    },
+  },
+  pin: {
+    title: 'Akses pentadbir',
+    subtitle: 'Masukkan PIN untuk membuka halaman pentadbir.',
+    label: 'PIN',
+    wrong: 'PIN salah. Sila cuba lagi.',
+    submit: 'Teruskan',
+  },
+};
+
+export type Dictionary = typeof ms;

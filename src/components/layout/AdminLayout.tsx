@@ -1,9 +1,4 @@
 import { ReactNode, useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LayoutDashboard,
   BookOpen,
@@ -13,11 +8,15 @@ import {
   ClipboardCheck,
   Send,
   LogOut,
-  Menu,
   Lock,
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { AppShell, type NavSection } from '@/components/layout/AppShell';
+import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
 
 const ADMIN_PIN = '101010';
 
@@ -27,9 +26,7 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { signOut } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useLanguage();
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -54,164 +51,79 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   };
 
-  const handleBackLogout = () => {
-    signOut(); // logout() also clears the PIN unlock
-  };
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: BookOpen, label: 'Programs', path: '/dashboard/programs' },
-    { icon: Users, label: 'Users', path: '/admin/users' },
-    { icon: FileCheck, label: 'Training Evaluation', path: '/dashboard/evaluations' },
-    { icon: ClipboardCheck, label: 'Annual Evaluation', path: '/dashboard/annual-evaluations' },
-    { icon: Send, label: 'Proposed Trainings', path: '/dashboard/proposed-trainings' },
-    { icon: FileText, label: 'Reports', path: '/dashboard/reports' },
-  ];
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    setMobileMenuOpen(false);
-  };
-
-  const isActivePath = (path: string) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard';
-    }
-    return location.pathname.startsWith(path);
-  };
-
-  // PIN verification overlay
+  // PIN verification screen
   if (!isPinVerified) {
     return (
-      <div className="min-h-screen bg-background relative">
-        {/* Blurred background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10 backdrop-blur-sm" />
+      <div className="relative flex min-h-dvh items-center justify-center bg-muted/40 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_60%)] p-4">
+        <LanguageSwitch className="absolute right-4 top-4" />
+        <div className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-card">
+          <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <h1 className="text-xl font-semibold">{t.pin.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t.pin.subtitle}</p>
 
-        {/* PIN entry card */}
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-sm">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Lock className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle>Admin Access</CardTitle>
-              <p className="text-sm text-muted-foreground">Enter PIN to continue</p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePinSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    type="password"
-                    placeholder="Enter PIN"
-                    value={pin}
-                    onChange={(e) => {
-                      setPin(e.target.value);
-                      setPinError(false);
-                    }}
-                    className={`text-center text-lg tracking-widest ${pinError ? 'border-destructive' : ''}`}
-                    maxLength={6}
-                    autoFocus
-                  />
-                  {pinError && (
-                    <p className="text-sm text-destructive text-center">PIN salah. Sila cuba lagi.</p>
-                  )}
-                </div>
-                <Button type="submit" className="w-full">
-                  Masuk
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleBackLogout}
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="admin-pin" className="sr-only">
+                {t.pin.label}
+              </Label>
+              <Input
+                id="admin-pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="••••••"
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value);
+                  setPinError(false);
+                }}
+                aria-invalid={pinError}
+                aria-describedby={pinError ? 'admin-pin-error' : undefined}
+                className={`h-12 text-center text-lg tracking-[0.5em] ${pinError ? 'border-destructive' : ''}`}
+                maxLength={6}
+                autoFocus
+              />
+              {pinError && (
+                <p id="admin-pin-error" className="text-sm text-destructive">
+                  {t.pin.wrong}
+                </p>
+              )}
+            </div>
+            <Button type="submit" className="w-full">
+              {t.pin.submit}
+            </Button>
+            {/* signOut → logout() also clears the PIN unlock */}
+            <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={signOut}>
+              <LogOut className="h-4 w-4" />
+              {t.common.signOut}
+            </Button>
+          </form>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-40">
-        <div className="flex items-center justify-between h-16 px-4">
-          <div className="flex items-center gap-4">
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <div className="pt-16">
-                  <nav className="space-y-1 p-4">
-                    {menuItems.map((item) => (
-                      <Button
-                        key={item.label}
-                        variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
-                        className="w-full justify-start"
-                        onClick={() => handleNavigation(item.path)}
-                      >
-                        <item.icon className="w-4 h-4 mr-3" />
-                        {item.label}
-                      </Button>
-                    ))}
-                  </nav>
-                </div>
-              </SheetContent>
-            </Sheet>
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
-              <img
-                src="/mpclogo.jpeg"
-                alt="MPC Logo"
-                className="h-10 object-contain"
-              />
-              <h1 className="text-xl font-semibold">
-                MyLearning Pro
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* <ThemeToggle /> */}
-            <Button variant="ghost" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+  const sections: NavSection[] = [
+    { items: [{ icon: LayoutDashboard, label: t.nav.dashboard, path: '/dashboard' }] },
+    {
+      title: t.nav.sectionTraining,
+      items: [
+        { icon: BookOpen, label: t.nav.programs, path: '/dashboard/programs' },
+        { icon: FileCheck, label: t.nav.trainingEvaluation, path: '/dashboard/evaluations' },
+        { icon: Send, label: t.nav.proposedTrainings, path: '/dashboard/proposed-trainings' },
+        { icon: FileText, label: t.nav.reports, path: '/dashboard/reports' },
+      ],
+    },
+    {
+      title: t.nav.sectionStaff,
+      items: [
+        { icon: Users, label: t.nav.users, path: '/admin/users' },
+        { icon: ClipboardCheck, label: t.nav.annualEvaluation, path: '/dashboard/annual-evaluations' },
+      ],
+    },
+  ];
 
-      <div className="flex">
-        {/* Sidebar - Desktop */}
-        <aside className="hidden md:block w-64 border-r bg-card min-h-[calc(100vh-4rem)] sticky top-16">
-          <nav className="space-y-1 p-4">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant={isActivePath(item.path) ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-                onClick={() => handleNavigation(item.path)}
-              >
-                <item.icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </Button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
+  return <AppShell sections={sections}>{children}</AppShell>;
 }

@@ -5,14 +5,15 @@ import {
   loginWithEmailOnly,
   getCurrentSession,
   logout,
-  UserSession
+  UserSession,
+  type AuthErrorCode,
 } from '@/lib/emailOnlyAuth';
 
 interface AuthContextType {
   user: UserSession | null;
   loading: boolean;
   role: 'admin' | 'employee' | null;
-  signIn: (email: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string) => Promise<{ success: boolean; error?: AuthErrorCode }>;
   signOut: () => Promise<void>;
   setUser: (user: UserSession | null) => void;
 }
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const signIn = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const signIn = async (email: string): Promise<{ success: boolean; error?: AuthErrorCode }> => {
     const result = await loginWithEmailOnly(email);
 
     if (result.success && result.user) {

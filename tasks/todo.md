@@ -105,7 +105,7 @@ Vite doesn't typecheck, so all of these ship.
 
 ## Phases (verify each: build + tsc + Hazman eyeballs on dev server)
 - [x] **P1 Foundation (global, low risk)** — font; colour tokens + status tokens in `index.css`/tailwind; light by default (dark off until P5); `index.html` title/meta/`lang="ms"`; delete `App.css`; button/card/input polish (transitions, press feedback, focus rings, radius scale); `tabular-nums` utility.
-- [ ] **P2 Shell** — one shared `AppShell` for Admin + Employee layouts (grouped nav, red active marker, user menu with sign-out, `<Link>` logo, mobile drawer); login, admin login and PIN screens redesigned.
+- [x] **P2 Shell** — one shared `AppShell` for Admin + Employee layouts (grouped nav, red active marker, user menu with sign-out, `<Link>` logo, mobile drawer); login, admin login and PIN screens redesigned.
 - [ ] **P3 Shared components** — `PageHeader`, `StatCard`, `StatusBadge` (single source for every status → colour/label), `EmptyState`, `LoadingState`; roll out dashboards first, then lists, then forms. Replace `alert()`.
 - [ ] **P4 Charts + a11y** — one `RadarScoreChart` on theme tokens (load dataviz skill first); progress/compliance colours from tokens; aria-labels, keyboard-accessible rows/cards, label `htmlFor`, mobile-stacking headers/filters.
 - [ ] **P5 (optional)** — language standardisation pass; re-enable dark mode properly with a visible toggle.

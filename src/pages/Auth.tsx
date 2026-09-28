@@ -1,26 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { isAuthenticated } from '@/lib/emailOnlyAuth';
-
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { AuthLayout } from '@/components/layout/AuthLayout';
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { signIn } = useAuth();
+  const { t } = useLanguage();
+
+  const loginSchema = useMemo(
+    () => z.object({ email: z.string().email(t.auth.invalidEmail) }),
+    [t]
+  );
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -39,54 +42,43 @@ export default function Auth() {
     setLoading(false);
 
     if (!result.success) {
-      toast.error(result.error || 'Login failed');
+      toast.error(t.auth.errors[result.error ?? 'unexpected']);
       return;
     }
 
-    toast.success('Welcome back!');
+    toast.success(t.auth.welcome);
     navigate('/dashboard');
   };
 
+  const emailError = loginForm.formState.errors.email;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <img
-              src="/mpclogo.jpeg"
-              alt="MPC Logo"
-              className="h-16 object-contain"
-            />
-          </div>
-          <CardTitle className="text-2xl font-bold">
-            Welcome Back
-          </CardTitle>
-          <CardDescription>
-            Enter your company email to login
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@company.com"
-                {...loginForm.register('email')}
-              />
-              {loginForm.formState.errors.email && (
-                <p className="text-sm text-destructive">
-                  {loginForm.formState.errors.email.message}
-                </p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout title={t.auth.title} subtitle={t.auth.subtitle}>
+      <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-5" noValidate>
+        <div className="space-y-2">
+          <Label htmlFor="email">{t.auth.emailLabel}</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            placeholder={t.auth.emailPlaceholder}
+            className="h-11"
+            aria-invalid={!!emailError}
+            aria-describedby={emailError ? 'email-error' : undefined}
+            {...loginForm.register('email')}
+          />
+          {emailError && (
+            <p id="email-error" className="text-sm text-destructive">
+              {emailError.message}
+            </p>
+          )}
+        </div>
+        <Button type="submit" className="h-11 w-full" disabled={loading}>
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loading ? t.auth.submitting : t.auth.submit}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
