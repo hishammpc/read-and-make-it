@@ -212,7 +212,7 @@ getRatingLabel(percentage)       // Cemerlang, Bagus, etc.
 
 ### Colour
 - Tokens only: `success` / `warning` / `info` / `destructive` each with `-soft` + `-soft-foreground`, plus `primary`, `muted`, `accent` (neutral hover). No raw Tailwind palette classes or hex in pages — they break dark mode.
-- Status → tone lives in `lib/status.ts` (`getStatusTone`, `getRatingLevelTone`, `getRatingPercentageTone`, `getComplianceTone`, `getTrainingScoreTone`, `getTrainingRatingTone`, `toneClasses`). Annual 5-level scale is diverging: danger, warning, muted, info, success.
+- Status → tone lives in `lib/status.ts` (`getStatusTone`, `getRatingLevelTone`, `getRatingPercentageTone`, `getComplianceTone`, `getTrainingRatingTone`, `toneClasses`). Annual 5-level scale is diverging: danger, warning, muted, info, success.
 - Theme defaults to light until every page is dark-safe; switch offers Light/Dark/System.
 - Font: Plus Jakarta Sans (self-hosted, `@fontsource-variable`).
 

@@ -18,21 +18,6 @@ export interface MonthlyTrend {
   programs: number;
 }
 
-export interface EvaluationSummary {
-  q1: number; // Average score (1–3) for each scored question
-  q2: number;
-  q3: number;
-  q4: number;
-  q5: number;
-  overall: number; // Average across every scored answer
-  totalResponses: number;
-}
-
-// Scored questions on the training-evaluation form. Since Dec 2025 (e62d572) the form is
-// q1–q5 rated plus a free-text q6; the old 9-question form was retired, so only q1–q5
-// are comparable across years.
-const SCORED_QUESTIONS = ['q1', 'q2', 'q3', 'q4', 'q5'] as const;
-
 export interface LeaderboardEntry {
   rank: number;
   userId: string;
@@ -58,7 +43,6 @@ export interface EnhancedDashboardStats {
   // New metrics
   departmentCompliance: DepartmentCompliance[];
   monthlyTrend: MonthlyTrend[];
-  evaluationSummary: EvaluationSummary | null;
   leaderboard: LeaderboardEntry[];
 
   // Meta
@@ -160,15 +144,6 @@ export function useEnhancedAdminDashboard(year?: number) {
           .range(from, to)
       );
 
-      // Get all evaluations for this year (paginated)
-      const evaluations = await fetchAllRows((from, to) =>
-        supabase
-          .from('evaluations')
-          .select('*')
-          .gte('submitted_at', startOfYear)
-          .lt('submitted_at', endOfYear)
-          .range(from, to)
-      );
 
       // === Calculate Basic KPIs ===
       // Total participations = one count per (user x program) seat filled.
@@ -242,40 +217,6 @@ export function useEnhancedAdminDashboard(year?: number) {
         programs: data.programs.size,
       }));
 
-      // === Evaluation Summary ===
-      let evaluationSummary: EvaluationSummary | null = null;
-      if (evaluations && evaluations.length > 0) {
-        const scoreMap: Record<string, number> = { 'LEMAH': 1, 'SEDERHANA': 2, 'BAGUS': 3 };
-        const totals: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 };
-        const counts: Record<string, number> = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0 };
-
-        evaluations.forEach((e: any) => {
-          const answers = e.answers || {};
-          for (const key of SCORED_QUESTIONS) {
-            const value = answers[key];
-            if (value && scoreMap[value]) {
-              totals[key] += scoreMap[value];
-              counts[key]++;
-            }
-          }
-        });
-
-        const average = (total: number, count: number) =>
-          count > 0 ? Math.round((total / count) * 100) / 100 : 0;
-        const allTotal = SCORED_QUESTIONS.reduce((sum, key) => sum + totals[key], 0);
-        const allCount = SCORED_QUESTIONS.reduce((sum, key) => sum + counts[key], 0);
-
-        evaluationSummary = {
-          q1: average(totals.q1, counts.q1),
-          q2: average(totals.q2, counts.q2),
-          q3: average(totals.q3, counts.q3),
-          q4: average(totals.q4, counts.q4),
-          q5: average(totals.q5, counts.q5),
-          overall: average(allTotal, allCount),
-          totalResponses: evaluations.length,
-        };
-      }
-
       // === Leaderboard ===
       const userHours: Record<string, number> = {};
       (assignments || []).forEach((assignment: any) => {
@@ -346,7 +287,6 @@ export function useEnhancedAdminDashboard(year?: number) {
         hoursByDepartment: hoursByDept,
         departmentCompliance,
         monthlyTrend,
-        evaluationSummary,
         leaderboard,
         selectedYear,
         availableYears,

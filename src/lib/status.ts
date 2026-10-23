@@ -115,10 +115,3 @@ export function getComplianceTone(percentage: number): StatusTone {
   if (percentage >= 40) return 'warning';
   return 'danger';
 }
-
-/** Tone for an average training-evaluation score on the 1–3 (LEMAH–BAGUS) scale. */
-export function getTrainingScoreTone(score: number): StatusTone {
-  if (score >= 2.5) return 'success';
-  if (score >= 1.5) return 'warning';
-  return 'danger';
-}
