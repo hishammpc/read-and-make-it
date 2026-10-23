@@ -36,6 +36,7 @@ import {
   FileSpreadsheet,
   Loader2,
   SearchX,
+  Clock,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -506,6 +507,18 @@ export default function Reports() {
     }
 
     const headers = Object.keys(reportData[0]);
+    // Program list: totals for the generated period, summed from the rows shown
+    const programTotals =
+      activeReport === 'program-list'
+        ? reportData.reduce(
+            (acc, row) => ({
+              participants: acc.participants + (Number(row.participants) || 0),
+              hours: acc.hours + (Number(row.total_hours) || 0),
+            }),
+            { participants: 0, hours: 0 }
+          )
+        : null;
+    const formatTotal = (value: number) => value.toLocaleString('ms-MY', { maximumFractionDigits: 1 });
 
     return (
       <div className="space-y-4">
@@ -513,7 +526,29 @@ export default function Reports() {
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold tabular-nums text-foreground">{tr.totalRecords(reportData.length)}</span>
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {programTotals && (
+              <>
+                <div
+                  className="flex h-10 items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 text-sm"
+                  title={tr.accumulatedParticipantsHint}
+                >
+                  <Users className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="text-muted-foreground">{tr.accumulatedParticipants}</span>
+                  <span className="font-semibold tabular-nums">{formatTotal(programTotals.participants)}</span>
+                </div>
+                <div
+                  className="flex h-10 items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 text-sm"
+                  title={tr.accumulatedHoursHint}
+                >
+                  <Clock className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="text-muted-foreground">{tr.accumulatedHours}</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatTotal(programTotals.hours)} {t.common.hoursShort}
+                  </span>
+                </div>
+              </>
+            )}
             <Button onClick={handleDownloadCSV} variant="outline">
               <FileSpreadsheet className="h-4 w-4" />
               {t.common.downloadCsv}
