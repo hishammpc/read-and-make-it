@@ -4,6 +4,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getMonthRangeBounds } from '@/lib/dateUtils';
+import {
+  getEvaluationComment,
+  getEvaluationFormVersion,
+  summarizeImprovement,
+  type EvaluationFormVersion,
+  type ImprovementSummary,
+} from '@/lib/evaluationForms';
 
 export interface EvaluationTemplate {
   id: string;
@@ -274,8 +281,13 @@ export interface ProgramEvaluationSummary {
   programTitle: string;
   totalAssigned: number;
   totalResponses: number;
+  /** 1 = BAGUS/SEDERHANA/LEMAH form; 2 = before/after improvement form (programs from 2027) */
+  formVersion: EvaluationFormVersion;
+  /** v1 only */
   averageRating: string;
   averageScore: number;
+  /** v2 only; null when there are no usable responses yet */
+  improvement: ImprovementSummary | null;
   comments: string[];
   startDate: string;
   endDate: string;
@@ -353,18 +365,19 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
         else if (avgScore >= 1.5) avgRating = 'SEDERHANA';
         else if (avgScore > 0) avgRating = 'LEMAH';
 
-        // Collect all q6 comments
-        const comments = programEvals
-          .map(e => (e.answers as any)?.q6)
-          .filter(c => c && c.trim() !== '');
+        // Comments from either form (v1 q6, v2 comment)
+        const comments = programEvals.map((e) => getEvaluationComment(e.answers)).filter(Boolean);
+        const formVersion = getEvaluationFormVersion(program.start_date_time);
 
         return {
           programId: program.id,
           programTitle: program.title,
           totalAssigned,
           totalResponses: programEvals.length,
+          formVersion,
           averageRating: avgRating,
           averageScore: avgScore,
+          improvement: formVersion === 2 ? summarizeImprovement(programEvals) : null,
           comments,
           startDate: program.start_date_time,
           endDate: program.end_date_time,
@@ -391,6 +404,8 @@ export interface ProgramEvaluationDetails {
     sederhanaCount: number;
     lemahCount: number;
   }[];
+  /** Before/after form (programs from 2027); null for the old form or no responses */
+  improvement: ImprovementSummary | null;
   comments: string[];
 }
 
@@ -464,10 +479,8 @@ export function useProgramEvaluationDetails(programId: string) {
       else if (avgScore >= 1.5) avgRating = 'SEDERHANA';
       else if (avgScore > 0) avgRating = 'LEMAH';
 
-      // Collect comments
-      const comments = evaluations
-        ?.map(e => (e.answers as any)?.q6)
-        .filter(c => c && c.trim() !== '') || [];
+      // Comments from either form (v1 q6, v2 comment)
+      const comments = (evaluations || []).map((e) => getEvaluationComment(e.answers)).filter(Boolean);
 
       return {
         totalAssigned,
@@ -475,6 +488,8 @@ export function useProgramEvaluationDetails(programId: string) {
         averageRating: avgRating,
         averageScore: avgScore,
         questionScores,
+        // Before/after form (programs from 2027); null for the old form
+        improvement: summarizeImprovement(evaluations || []),
         comments,
       } as ProgramEvaluationDetails;
     },

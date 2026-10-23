@@ -104,6 +104,12 @@ const ms = {
     allAnswered: 'Semua soalan telah dijawab',
     remaining: (n: number) => `${n} soalan lagi perlu dijawab`,
     submit: 'Hantar penilaian',
+    v2Description:
+      'Nilaikan tahap anda sebelum dan selepas menghadiri program ini. Jawapan anda membantu mengukur keberkesanan latihan.',
+    scaleTitle: 'Skala penilaian',
+    changeLabel: 'Perubahan',
+    remainingRatings: (n: number) => `${n} penilaian lagi perlu diisi`,
+    allRated: 'Semua penilaian telah diisi',
   },
   myAnnual: {
     title: 'Penilaian tahunan',
@@ -266,6 +272,11 @@ const en: typeof ms = {
     allAnswered: 'All questions answered',
     remaining: (n: number) => (n === 1 ? '1 more question to answer' : `${n} more questions to answer`),
     submit: 'Submit evaluation',
+    v2Description: 'Rate yourself before and after attending this program. Your answers help measure how effective the training was.',
+    scaleTitle: 'Rating scale',
+    changeLabel: 'Change',
+    remainingRatings: (n: number) => `${n} more ratings to fill in`,
+    allRated: 'All ratings filled in',
   },
   myAnnual: {
     title: 'Annual evaluation',

@@ -89,6 +89,9 @@ logout()                       // Clear session
 - Upload certificates
 
 ### 2. Training Evaluations
+- **Two forms, chosen by the program's start date** (`lib/evaluationForms.ts`): programs before 2027 use v1 (5 statements, BAGUS/SEDERHANA/LEMAH + comment in `q6`); programs starting on/after **1 Jan 2027 (MYT)** use v2 — 4 skill questions each rated 1–5 *Sebelum* and *Selepas* program, stored as `{ version: 2, q1: { before, after }, …, comment }`. Same `evaluations` table, no migration
+- v2 reporting (for MPC's Ketua Pengarah): improvement = after − before; Training Evaluations shows pooled KPIs + a ranked "average improvement by program" chart (`ImprovementOverview`); Program Details shows per-question dumbbells and each staff member's own change (`ProgramImprovementDetails`). v1 views unchanged
+- `/preview/evaluation` (no login) shows the v2 form for review; it saves nothing
 - Custom evaluation templates with multiple question types
 - 3-tier rating: BAGUS (3) / SEDERHANA (2) / LEMAH (1)
 - Aggregate statistics and reporting

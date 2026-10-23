@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEvaluationsByProgram } from '@/hooks/useEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { getTrainingRatingTone } from '@/lib/status';
+import { formatChange, getChangeTone } from '@/lib/evaluationForms';
+import { ImprovementOverview } from '@/components/evaluations/ImprovementOverview';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -166,8 +168,17 @@ export default function Evaluations() {
         `${formatMalaysianDate(evaluation.startDate)} - ${formatMalaysianDate(evaluation.endDate)}`,
         evaluation.totalAssigned.toString(),
         evaluation.totalResponses.toString(),
-        evaluation.totalResponses > 0 ? evaluation.averageRating : '-',
-        evaluation.totalResponses > 0 ? evaluation.averageScore.toFixed(2) : '-',
+        ...(evaluation.formVersion === 2
+          ? evaluation.improvement
+            ? [
+                formatChange(evaluation.improvement.avgChange).replace('−', '-'),
+                `${evaluation.improvement.avgBefore.toFixed(1)}->${evaluation.improvement.avgAfter.toFixed(1)}`,
+              ]
+            : ['-', '-']
+          : [
+              evaluation.totalResponses > 0 ? evaluation.averageRating : '-',
+              evaluation.totalResponses > 0 ? evaluation.averageScore.toFixed(2) : '-',
+            ]),
       ];
 
       xPos = margin + 2;
@@ -297,6 +308,9 @@ export default function Evaluations() {
           )}
         </div>
 
+        {/* Before/after improvement (programs from 2027) */}
+        {!isLoading && !error && filteredEvaluations && <ImprovementOverview programs={filteredEvaluations} />}
+
         {/* Evaluations Table */}
         {error && !isLoading ? (
           <ErrorState message={error.message} />
@@ -336,7 +350,7 @@ export default function Evaluations() {
                     <TableHead>{te.colProgram}</TableHead>
                     <TableHead className="text-right">{te.colParticipants}</TableHead>
                     <TableHead className="text-right">{te.colResponses}</TableHead>
-                    <TableHead>{te.colRating}</TableHead>
+                    <TableHead>{te.colResult}</TableHead>
                     <TableHead>{te.colEvaluation}</TableHead>
                     <TableHead className="text-right">
                       <span className="sr-only">{t.common.actions}</span>
@@ -360,7 +374,20 @@ export default function Evaluations() {
                       <TableCell className="text-right tabular-nums">{evaluation.totalAssigned}</TableCell>
                       <TableCell className="text-right tabular-nums">{evaluation.totalResponses}</TableCell>
                       <TableCell>
-                        {evaluation.totalResponses > 0 ? (
+                        {evaluation.formVersion === 2 ? (
+                          evaluation.improvement ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm tabular-nums text-muted-foreground">
+                                {evaluation.improvement.avgBefore.toFixed(1)} → {evaluation.improvement.avgAfter.toFixed(1)}
+                              </span>
+                              <ToneBadge tone={getChangeTone(evaluation.improvement.avgChange)}>
+                                {formatChange(evaluation.improvement.avgChange)}
+                              </ToneBadge>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
+                        ) : evaluation.totalResponses > 0 ? (
                           <ToneBadge tone={getTrainingRatingTone(evaluation.averageRating)}>
                             {evaluation.averageRating}
                           </ToneBadge>

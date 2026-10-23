@@ -173,3 +173,24 @@ Writes (attendance, certificate upload, submissions) only on a test program/acco
 - **Still to do:** C2 catch-up migration (needs Docker Desktop running for a full schema dump); push; D1–D4 answers from MPC.
 - **D3 decided (2026-10-23): no attendance in the system** — MPC records attendance manually. Attendance page stays as is (URL-only, not in menu). Consequence: the admin "Overdue Evaluations" panel (counts only `Attended`) stays empty unless it's later changed to count everyone assigned.
 - Auth sign-up switched off by MPC (verified `disable_signup: true`).
+
+---
+
+# Program evaluation v2 — before/after improvement (MPC / Ketua Pengarah, 2026-10-23)
+
+**Decisions (Hazman):** programs **starting on/after 1 Jan 2027** use the new form; keep the optional comment box; improvement = average (after − before) per question and overall, plus each staff member's own difference, plus a master chart.
+
+**Form v2 (official BM, 1–5: Sangat rendah, Rendah, Sederhana, Tinggi, Sangat tinggi; each rated Sebelum and Selepas):**
+1. Tahap Kemahiran — Tahap kemahiran saya berkaitan topik latihan ini
+2. Peningkatan Kemahiran — Tahap kemahiran saya berubah sebelum / selepas menghadiri latihan ini
+3. Aplikasi Kemahiran — Tahap keyakinan untuk mengaplikasi kemahiran ini berubah sebelum / selepas menghadiri sesi latihan ini
+4. Penyelesaian Masalah — Tahap keupayaan saya menyelesaikan masalah berkaitan tugas menggunakan kemahiran yang dipelajari
+
+**Data:** same `evaluations.answers` JSONB, tagged `{ version: 2, q1: { before, after }, …, comment }`. No migration. Existing 813 rows (2025–2026, v1 BAGUS/SEDERHANA/LEMAH) untouched and still shown the old way.
+
+- [x] `lib/evaluationForms.ts`: switch-over rule by program start date (MYT), v2 questions/scale, summary maths (+ unit tests)
+- [x] Staff form: v2 grid for 2027 programs (v1 unchanged)
+- [x] Program Details: v2 summary (overall Δ, % improved, per-question before→after, per-staff table, comments)
+- [x] Training Evaluations: v2 columns (before → after, Peningkatan) + master chart (avg improvement per program) + KPIs; PDF
+- [x] `/preview/evaluation` shows the v2 form for MPC
+- [x] Verify: unit tests (switch-over date incl. MYT midnight, maths, v1 rows ignored), tsc 0, build ✅; admin v2 views need a 2027 response to see with data

@@ -26,6 +26,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, CheckCircle2, Check, SearchX, Target, Lightbulb, Users, ThumbsUp, Star, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTrainingRatingTone, toneClasses } from '@/lib/status';
+import { getEvaluationFormVersion } from '@/lib/evaluationForms';
+import { ImprovementEvaluationForm } from '@/components/evaluations/ImprovementEvaluationForm';
 
 // Fixed evaluation questions with icons
 const EVALUATION_QUESTIONS = [
@@ -138,6 +140,33 @@ export default function EvaluationForm() {
                 {tf.backToList}
               </Button>
             }
+          />
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  // Programs starting from 1 Jan 2027 use the before/after improvement form (v2)
+  if (getEvaluationFormVersion(program.start_date_time) === 2) {
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={program.title} description={tf.v2Description} backTo="/dashboard/my-evaluations" />
+          <ImprovementEvaluationForm
+            submitting={submitEvaluation.isPending}
+            onCancel={() => navigate('/dashboard/my-evaluations')}
+            onSubmit={async (answers) => {
+              if (!user || !programId) return;
+              try {
+                await submitEvaluation.mutateAsync({
+                  userId: user.userId,
+                  evaluation: { program_id: programId, answers },
+                });
+                navigate('/dashboard/my-evaluations');
+              } catch {
+                // useSubmitEvaluation already shows the error toast; stay on the form
+              }
+            }}
           />
         </div>
       </EmployeeLayout>

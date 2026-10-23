@@ -53,6 +53,8 @@ import {
   Tag,
 } from 'lucide-react';
 import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
+import { ProgramImprovementDetails } from '@/components/evaluations/ProgramImprovementDetails';
+import { formatChange, getChangeTone, getEvaluationFormVersion } from '@/lib/evaluationForms';
 
 /** One label/value pair in the program information grid. */
 function InfoItem({
@@ -166,6 +168,31 @@ export default function ProgramDetails() {
 
   const trainingType = program.training_type || 'Local';
 
+
+  // Programs starting from 2027 use the before/after improvement form
+  const formVersion = getEvaluationFormVersion(program.start_date_time);
+  const staffNames: Record<string, string> = Object.fromEntries(
+    (assignments || []).map((a: any) => [a.user_id, a.profiles?.name || a.profiles?.email || ''])
+  );
+
+  // Comments list, shared by both evaluation forms
+  const renderComments = (className?: string) =>
+    evaluationDetails && evaluationDetails.comments.length > 0 ? (
+      <div className={cn('border-t pt-4', className)}>
+        <h4 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
+          {td.comments(evaluationDetails.comments.length)}
+        </h4>
+        <div className="max-h-40 space-y-2 overflow-y-auto">
+          {evaluationDetails.comments.map((comment, idx) => (
+            <div key={idx} className="rounded-lg bg-muted/50 p-3 text-sm">
+              {comment}
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
+
   return (
     <AdminLayout>
       <PageHeader
@@ -240,9 +267,17 @@ export default function ProgramDetails() {
                   </CardDescription>
                 </div>
                 {evaluationDetails && evaluationDetails.totalResponses > 0 && (
-                  <ToneBadge tone={getTrainingRatingTone(evaluationDetails.averageRating)} className="self-start">
-                    {evaluationDetails.averageRating} ({evaluationDetails.averageScore.toFixed(2)}/3.00)
-                  </ToneBadge>
+                  formVersion === 2 ? (
+                    evaluationDetails.improvement && (
+                      <ToneBadge tone={getChangeTone(evaluationDetails.improvement.avgChange)} className="self-start">
+                        {td.improvementBadge(formatChange(evaluationDetails.improvement.avgChange))}
+                      </ToneBadge>
+                    )
+                  ) : (
+                    <ToneBadge tone={getTrainingRatingTone(evaluationDetails.averageRating)} className="self-start">
+                      {evaluationDetails.averageRating} ({evaluationDetails.averageScore.toFixed(2)}/3.00)
+                    </ToneBadge>
+                  )
                 )}
               </div>
             </CardHeader>
@@ -258,6 +293,20 @@ export default function ProgramDetails() {
                   title={td.noEvaluationsTitle}
                   description={td.noEvaluationsDescription}
                 />
+              ) : formVersion === 2 ? (
+                evaluationDetails.improvement ? (
+                  <div className="space-y-6">
+                    <ProgramImprovementDetails improvement={evaluationDetails.improvement} staffNames={staffNames} />
+                    {renderComments()}
+                  </div>
+                ) : (
+                  <EmptyState
+                    compact
+                    icon={ClipboardCheck}
+                    title={td.noEvaluationsTitle}
+                    description={td.noEvaluationsDescription}
+                  />
+                )
               ) : (
                 <div className="grid gap-6 md:grid-cols-2">
                   {/* Radar Chart */}
@@ -308,22 +357,7 @@ export default function ProgramDetails() {
                     })}
                   </div>
 
-                  {/* Comments Section */}
-                  {evaluationDetails.comments.length > 0 && (
-                    <div className="border-t pt-4 md:col-span-2">
-                      <h4 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                        {td.comments(evaluationDetails.comments.length)}
-                      </h4>
-                      <div className="max-h-40 space-y-2 overflow-y-auto">
-                        {evaluationDetails.comments.map((comment, idx) => (
-                          <div key={idx} className="rounded-lg bg-muted/50 p-3 text-sm">
-                            {comment}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {renderComments('md:col-span-2')}
                 </div>
               )}
             </CardContent>
