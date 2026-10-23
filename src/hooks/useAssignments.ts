@@ -66,7 +66,8 @@ export function useUserAssignments(userId: string) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as AssignmentWithDetails[];
+      // This query selects programs only (no profiles)
+      return data as Omit<AssignmentWithDetails, 'profiles'>[];
     },
     enabled: !!userId,
   });

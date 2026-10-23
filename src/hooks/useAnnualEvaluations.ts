@@ -83,7 +83,9 @@ export function useAnnualEvaluationCycle(cycleId: string) {
 
       return {
         cycle: cycle as AnnualEvaluationCycle,
-        evaluations: evaluations as AnnualEvaluation[],
+        // supabase-js can't infer types for column-hinted embeds (profiles:user_id),
+        // so the row type is asserted; PostgREST resolves the embed correctly at runtime.
+        evaluations: evaluations as unknown as AnnualEvaluation[],
       };
     },
     enabled: !!cycleId,

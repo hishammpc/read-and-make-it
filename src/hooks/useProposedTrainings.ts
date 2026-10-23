@@ -127,7 +127,8 @@ export function useProposedTrainingsList(year: number) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as ProposedTraining[];
+      // Column-hinted embed (profiles:user_id) isn't inferable by supabase-js; asserted.
+      return data as unknown as ProposedTraining[];
     },
   });
 }

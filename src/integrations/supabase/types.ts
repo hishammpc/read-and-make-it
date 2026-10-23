@@ -14,6 +14,149 @@ export type Database = {
   }
   public: {
     Tables: {
+      annual_evaluation_cycles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          end_date: string
+          id: string
+          start_date: string
+          status: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          end_date: string
+          id?: string
+          start_date: string
+          status?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          start_date?: string
+          status?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annual_evaluation_cycles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      annual_evaluations: {
+        Row: {
+          created_at: string | null
+          cycle_id: string
+          id: string
+          staff_answers: Json | null
+          staff_submitted_at: string | null
+          status: string | null
+          supervisor_answers: Json | null
+          supervisor_id: string | null
+          supervisor_submitted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          cycle_id: string
+          id?: string
+          staff_answers?: Json | null
+          staff_submitted_at?: string | null
+          status?: string | null
+          supervisor_answers?: Json | null
+          supervisor_id?: string | null
+          supervisor_submitted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          cycle_id?: string
+          id?: string
+          staff_answers?: Json | null
+          staff_submitted_at?: string | null
+          status?: string | null
+          supervisor_answers?: Json | null
+          supervisor_id?: string | null
+          supervisor_submitted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "annual_evaluations_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "annual_evaluation_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "annual_evaluations_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "annual_evaluations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bulk_uploads: {
+        Row: {
+          created_at: string | null
+          errors: Json | null
+          failed_count: number
+          file_name: string
+          id: string
+          status: string | null
+          success_count: number
+          total_rows: number
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          errors?: Json | null
+          failed_count: number
+          file_name: string
+          id?: string
+          status?: string | null
+          success_count: number
+          total_rows: number
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          errors?: Json | null
+          failed_count?: number
+          file_name?: string
+          id?: string
+          status?: string | null
+          success_count?: number
+          total_rows?: number
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_uploads_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificates: {
         Row: {
           created_at: string | null
@@ -160,6 +303,7 @@ export type Database = {
           name: string
           position: string | null
           status: string | null
+          supervisor_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -171,6 +315,7 @@ export type Database = {
           name: string
           position?: string | null
           status?: string | null
+          supervisor_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -182,9 +327,18 @@ export type Database = {
           name?: string
           position?: string | null
           status?: string | null
+          supervisor_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       program_assignments: {
         Row: {
@@ -246,75 +400,115 @@ export type Database = {
       }
       programs: {
         Row: {
-          category: string
+          category: string | null
           created_at: string | null
           description: string | null
           end_date_time: string
           hours: number
           id: string
           location: string | null
+          notify_for_evaluation: boolean | null
           organizer: string | null
           start_date_time: string
           status: string | null
           title: string
           trainer: string | null
+          training_type: string | null
           updated_at: string | null
         }
         Insert: {
-          category: string
+          category?: string | null
           created_at?: string | null
           description?: string | null
           end_date_time: string
           hours?: number
           id?: string
           location?: string | null
+          notify_for_evaluation?: boolean | null
           organizer?: string | null
           start_date_time: string
           status?: string | null
           title: string
           trainer?: string | null
+          training_type?: string | null
           updated_at?: string | null
         }
         Update: {
-          category?: string
+          category?: string | null
           created_at?: string | null
           description?: string | null
           end_date_time?: string
           hours?: number
           id?: string
           location?: string | null
+          notify_for_evaluation?: boolean | null
           organizer?: string | null
           start_date_time?: string
           status?: string | null
           title?: string
           trainer?: string | null
+          training_type?: string | null
           updated_at?: string | null
         }
         Relationships: []
       }
-      system_settings: {
+      proposed_trainings: {
         Row: {
-          key: string
-          value: Json
+          created_at: string | null
+          entertained_at: string | null
+          entertained_by: string | null
+          entertained_proposal: number | null
+          id: string
+          is_entertained: boolean | null
+          proposal_1: string | null
+          proposal_1_entertained: boolean | null
+          proposal_2: string | null
+          proposal_2_entertained: boolean | null
           updated_at: string | null
-          updated_by: string | null
+          user_id: string
+          year: number
         }
         Insert: {
-          key: string
-          value: Json
+          created_at?: string | null
+          entertained_at?: string | null
+          entertained_by?: string | null
+          entertained_proposal?: number | null
+          id?: string
+          is_entertained?: boolean | null
+          proposal_1?: string | null
+          proposal_1_entertained?: boolean | null
+          proposal_2?: string | null
+          proposal_2_entertained?: boolean | null
           updated_at?: string | null
-          updated_by?: string | null
+          user_id: string
+          year: number
         }
         Update: {
-          key?: string
-          value?: Json
+          created_at?: string | null
+          entertained_at?: string | null
+          entertained_by?: string | null
+          entertained_proposal?: number | null
+          id?: string
+          is_entertained?: boolean | null
+          proposal_1?: string | null
+          proposal_1_entertained?: boolean | null
+          proposal_2?: string | null
+          proposal_2_entertained?: boolean | null
           updated_at?: string | null
-          updated_by?: string | null
+          user_id?: string
+          year?: number
         }
         Relationships: [
           {
-            foreignKeyName: "system_settings_updated_by_fkey"
-            columns: ["updated_by"]
+            foreignKeyName: "proposed_trainings_entertained_by_fkey"
+            columns: ["entertained_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposed_trainings_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -360,6 +554,35 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -379,7 +602,15 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -411,12 +642,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -440,11 +671,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -465,11 +696,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -490,11 +721,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -507,11 +738,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

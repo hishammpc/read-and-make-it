@@ -36,9 +36,9 @@ Vite doesn't typecheck, so all of these ship.
 
 ## C. Structural / hygiene
 
-- [ ] **C1 `types.ts` stale** — missing `annual_evaluation_cycles`, `annual_evaluations`, `proposed_trainings`, `bulk_uploads`; columns `profiles.supervisor_id`, `programs.notify_for_evaluation`, `programs.training_type`. Cause of most of the 126 tsc errors. Regenerate, then add `tsc --noEmit` to `build`.
+- [x] **C1 `types.ts` stale** — missing `annual_evaluation_cycles`, `annual_evaluations`, `proposed_trainings`, `bulk_uploads`; columns `profiles.supervisor_id`, `programs.notify_for_evaluation`, `programs.training_type`. Cause of most of the 126 tsc errors. Regenerate, then add `tsc --noEmit` to `build`.
 - [ ] **C2 Migrations can't rebuild prod** — `programs.category NOT NULL` but ProgramForm never sends it; `proposal_1/2_entertained`, `entertained_proposal` exist in no migration. Prod was edited by hand. `supabase db pull` → commit reconciling migration. `config.toml` project_id is a placeholder.
-- [ ] C3 `profiles.email` no unique index; `user_roles` allows 2 roles/user (`loginAdmin` `.single()` fails on 2).
+- [x] C3 `profiles.email` no unique index; `user_roles` allows 2 roles/user (`loginAdmin` `.single()` fails on 2).
 - [ ] C4 Deleting a program cascades assignments/evaluations/certificates → wipes hours history. Archive instead.
 - [ ] C5 `fetchAllRows` callers have no `.order()` → rows can dup/skip across pages.
 - [ ] C6 Dead code: `lib/calculations.ts`, `pages/Index.tsx`, `components/NavLink.tsx`, `components/certificates/CertificateUpload.tsx`, `EvaluationQuestionRenderer.tsx`, dead feedback dialog in `Evaluations.tsx:392-440`, never-opened `ProposedTrainingDialog` in EmployeeLayout that still runs queries on every page; template pages routed but unlinked.
@@ -163,3 +163,13 @@ Writes (attendance, certificate upload, submissions) only on a test program/acco
 2. Batch 2 once access exists: regenerate `types.ts` + `tsc --noEmit` in build (C1); catch-up migration from the live schema (C2); unique `lower(email)` + one-role-per-user after a read-only duplicate check (C3 — writes to prod, needs Hazman's OK on the SQL).
 3. UI phase 5: theme default → System (every page is dark-safe now; test/preview pages excepted).
 4. Open questions for Hazman: A6 (are `VITE_SUPABASE_*` set in Netlify env? then untrack `.env`), A9 (keep the no-login `/certificate-test`, `/annual-evaluation-test`, `/preview/evaluation`?), decisions D1–D4 (compliance maths, evaluation eligibility, attendance flow, email-OTP + RLS).
+
+## Session 2026-10-23 — DB access from MPC
+- Access: MPC access token in `.env.local` (gitignored; token sees only MYLEARNINGPRO) + DB URL. Direct host is IPv6-only → helper scripts use the session pooler `aws-1-ap-southeast-1.pooler.supabase.com:5432`. Read-only checks run in `BEGIN TRANSACTION READ ONLY`.
+- **C1 done (uncommitted):** `types.ts` regenerated from prod → tsc 112 → 0; remaining 4 were type-only (column-hinted embeds supabase-js can't infer; wrong `useUserAssignments` type; ProgramEdit `training_type` narrowing). `npm run build` now runs `tsc --noEmit` first; `npm run typecheck` added.
+- **C3 applied to prod:** `supabase/migrations/20261023035322_unique_email_single_role.sql` — unique `lower(email)` on profiles, `UNIQUE(user_id)` on user_roles. Pre-checked: 0 duplicate emails, 1 role per user. Verified live after commit.
+- **Live findings:** RLS off on 12/13 tables (only `bulk_uploads` on); **attendance never recorded** (3,379 assignments all `Assigned`) → overdue panel always empty until D3 is decided; **Auth sign-up open + autoconfirm** + `handle_new_user` trigger → anyone with the public anon key can create a staff profile → MPC to switch off "Allow new users to sign up"; certificates bucket private with 0 files, code uses `getPublicUrl` → links will break once used (switch to signed URLs); no `supabase_migrations` history (all SQL was applied by hand); 3 staff emails contain `_` (login escaping verified for all 3).
+- **Follow-ups from C3:** bulk import with the same email twice in one CSV now fails that batch with a duplicate-key error (B7: dedupe in-file + friendly message); creating a user with an existing email shows a raw duplicate-key toast (map to a friendly message).
+- **Still to do:** C2 catch-up migration (needs Docker Desktop running for a full schema dump); push; D1–D4 answers from MPC.
+- **D3 decided (2026-10-23): no attendance in the system** — MPC records attendance manually. Attendance page stays as is (URL-only, not in menu). Consequence: the admin "Overdue Evaluations" panel (counts only `Attended`) stays empty unless it's later changed to count everyone assigned.
+- Auth sign-up switched off by MPC (verified `disable_signup: true`).

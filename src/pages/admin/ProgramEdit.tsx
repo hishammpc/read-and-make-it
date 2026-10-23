@@ -84,6 +84,8 @@ export default function ProgramEdit() {
     ...program,
     start_date_time: formatDateTimeLocal(program.start_date_time),
     end_date_time: formatDateTimeLocal(program.end_date_time),
+    // DB CHECK allows only these two values (or null → default Local)
+    training_type: program.training_type === 'International' ? ('International' as const) : ('Local' as const),
   };
 
   return (
