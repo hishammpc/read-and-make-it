@@ -17,8 +17,12 @@ import {
   CheckCircle2,
   Send,
   SearchX,
+  Lock,
+  CalendarClock,
 } from 'lucide-react';
 import { useMyAnnualEvaluation, useSubmitStaffEvaluation } from '@/hooks/useAnnualEvaluations';
+import { embeddedCycle, getCycleState } from '@/lib/annualCycle';
+import { formatMalaysianDate } from '@/lib/dateUtils';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   getQuestionsByCategory,
@@ -76,6 +80,32 @@ export default function AnnualEvaluationForm() {
             icon={CheckCircle2}
             title={tf.submittedTitle}
             description={tf.submittedDescription}
+            action={
+              <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                {tf.viewStatus}
+              </Button>
+            }
+          />
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  // Only while the cycle is open (within its dates or opened manually, not skipped)
+  const cycle = embeddedCycle(evaluation);
+  const cycleState = getCycleState(cycle);
+  if (!cycleState.isOpen) {
+    const scheduled = cycleState.phase === 'scheduled';
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={tf.title} backTo="/dashboard" />
+          <EmptyState
+            icon={scheduled ? CalendarClock : Lock}
+            title={scheduled ? ta.scheduledTitle(cycle?.year) : ta.closedTitle(cycle?.year)}
+            description={
+              scheduled ? ta.scheduledDescription(formatMalaysianDate(cycle?.start_date)) : ta.closedStaffDescription
+            }
             action={
               <Button variant="outline" onClick={() => navigate('/dashboard')}>
                 {tf.viewStatus}

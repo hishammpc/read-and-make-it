@@ -2,16 +2,36 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { embeddedCycle as cycleOf, getCycleState, isCycleSkipped } from '@/lib/annualCycle';
+import type { WindowMode } from '@/lib/windowState';
 
 export interface AnnualEvaluationCycle {
   id: string;
   year: number;
   start_date: string;
   end_date: string;
+  /** Legacy: open/closed now comes from window_mode + the dates (see lib/annualCycle.ts) */
   status: 'active' | 'closed';
+  window_mode: WindowMode;
+  /** Set when an admin skipped the year: hidden from staff and supervisors, data kept */
+  skipped_at: string | null;
+  skipped_by: string | null;
   created_at: string;
   created_by: string | null;
 }
+
+// Everything that shows cycles or evaluations to admins, staff or supervisors
+const ANNUAL_QUERY_KEYS = [
+  'annual-evaluation-cycles',
+  'annual-evaluation-cycle',
+  'annual-evaluation-stats',
+  'my-annual-evaluation',
+  'my-all-annual-evaluations',
+  'my-pending-annual-evaluations',
+  'supervisee-evaluations',
+  'pending-supervisee-count',
+  'is-supervisor',
+];
 
 export interface AnnualEvaluation {
   id: string;
@@ -198,14 +218,15 @@ export function useMyAllAnnualEvaluations(userId: string) {
         .from('annual_evaluations')
         .select(`
           *,
-          cycle:cycle_id(id, year, start_date, end_date, status),
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at),
           supervisor:supervisor_id(id, name, email)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      // A skipped year is hidden from staff
+      return (data || []).filter((e) => !isCycleSkipped(cycleOf(e)));
     },
     enabled: !!userId,
   });
@@ -220,7 +241,7 @@ export function useMyAnnualEvaluation(userId: string, cycleId?: string) {
         .from('annual_evaluations')
         .select(`
           *,
-          cycle:cycle_id(id, year, start_date, end_date, status),
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at),
           supervisor:supervisor_id(id, name, email)
         `)
         .eq('user_id', userId);
@@ -241,7 +262,7 @@ export function useMyAnnualEvaluation(userId: string, cycleId?: string) {
   });
 }
 
-// Get all pending evaluations for a user (active cycles)
+// Self-evaluations the user can do now: pending, in an open cycle (not closed or skipped)
 export function useMyPendingAnnualEvaluations(userId: string) {
   return useQuery({
     queryKey: ['my-pending-annual-evaluations', userId],
@@ -250,16 +271,29 @@ export function useMyPendingAnnualEvaluations(userId: string) {
         .from('annual_evaluations')
         .select(`
           *,
-          cycle:cycle_id(id, year, start_date, end_date, status)
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at)
         `)
         .eq('user_id', userId)
         .eq('status', 'pending_staff');
 
       if (error) throw error;
-      return data;
+      return (data || []).filter((e) => getCycleState(cycleOf(e)).isOpen);
     },
     enabled: !!userId,
   });
+}
+
+// Submissions are accepted only while the evaluation's cycle is open (within its dates or
+// opened manually, and not skipped). Checked here because the database has no RLS.
+async function assertCycleOpen(evaluationId: string, closedMessage: string) {
+  const { data, error } = await supabase
+    .from('annual_evaluations')
+    .select('cycle:cycle_id(start_date, end_date, window_mode, skipped_at)')
+    .eq('id', evaluationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data && !getCycleState(cycleOf(data)).isOpen) throw new Error(closedMessage);
 }
 
 // Submit staff self-evaluation
@@ -278,6 +312,8 @@ export function useSubmitStaffEvaluation() {
       userId: string;
       answers: Record<string, number>;
     }) => {
+      await assertCycleOpen(evaluationId, t.toasts.annualClosed);
+
       // Guard on owner + expected status so a stale tab can't push a
       // completed evaluation back to pending_supervisor.
       const { data, error } = await supabase
@@ -326,7 +362,7 @@ export function useSuperviseeEvaluations(supervisorId: string, cycleId?: string)
         .select(`
           *,
           profiles:user_id(id, name, email, department, position),
-          cycle:cycle_id(id, year, start_date, end_date, status)
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at)
         `)
         .eq('supervisor_id', supervisorId)
         .in('status', ['pending_staff', 'pending_supervisor', 'completed']);
@@ -338,25 +374,26 @@ export function useSuperviseeEvaluations(supervisorId: string, cycleId?: string)
       const { data, error } = await query.order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data;
+      // A skipped year is hidden from supervisors
+      return (data || []).filter((e) => !isCycleSkipped(cycleOf(e)));
     },
     enabled: !!supervisorId,
   });
 }
 
-// Get pending supervisee evaluations count
+// Staff waiting for this supervisor's evaluation in an open cycle (drives the reminders)
 export function usePendingSuperviseeCount(supervisorId: string) {
   return useQuery({
     queryKey: ['pending-supervisee-count', supervisorId],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from('annual_evaluations')
-        .select('*', { count: 'exact', head: true })
+        .select('id, cycle:cycle_id(start_date, end_date, window_mode, skipped_at)')
         .eq('supervisor_id', supervisorId)
         .eq('status', 'pending_supervisor');
 
       if (error) throw error;
-      return count || 0;
+      return (data || []).filter((e) => getCycleState(cycleOf(e)).isOpen).length;
     },
     enabled: !!supervisorId,
   });
@@ -395,6 +432,8 @@ export function useSubmitSupervisorEvaluation() {
       supervisorId: string;
       answers: Record<string, number>;
     }) => {
+      await assertCycleOpen(evaluationId, t.toasts.annualClosed);
+
       // Guard on assigned supervisor + expected status: only the current
       // supervisor can complete it, and only after the staff has submitted.
       const { data, error } = await supabase
@@ -444,7 +483,7 @@ export function useAnnualEvaluationResult(evaluationId: string) {
           *,
           profiles:user_id(id, name, email, department, position),
           supervisor:supervisor_id(id, name, email),
-          cycle:cycle_id(id, year, start_date, end_date, status)
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at)
         `)
         .eq('id', evaluationId)
         .single();
@@ -456,17 +495,17 @@ export function useAnnualEvaluationResult(evaluationId: string) {
   });
 }
 
-// Close an evaluation cycle
-export function useCloseEvaluationCycle() {
+// Manual control for a cycle: follow its dates, or open/close it now whatever the dates
+export function useSetCycleWindowMode() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
 
   return useMutation({
-    mutationFn: async (cycleId: string) => {
+    mutationFn: async ({ cycleId, mode }: { cycleId: string; mode: WindowMode }) => {
       const { data, error } = await supabase
         .from('annual_evaluation_cycles')
-        .update({ status: 'closed' })
+        .update({ window_mode: mode })
         .eq('id', cycleId)
         .select()
         .single();
@@ -475,11 +514,110 @@ export function useCloseEvaluationCycle() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
-      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
+      ANNUAL_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
       toast({
         title: t.common.success,
-        description: t.toasts.cycleClosed,
+        description: t.toasts.cycleWindowUpdated,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t.common.errorTitle,
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Skip a year: hidden from staff and supervisors, nothing can be submitted, no data deleted.
+// A year that has no cycle yet gets an empty placeholder cycle that records the skip.
+export function useSkipAnnualEvaluationYear() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useLanguage();
+
+  return useMutation({
+    mutationFn: async ({ year, skippedBy }: { year: number; skippedBy: string }) => {
+      const skip = { skipped_at: new Date().toISOString(), skipped_by: skippedBy };
+
+      const { data: existing, error: findError } = await supabase
+        .from('annual_evaluation_cycles')
+        .select('id')
+        .eq('year', year)
+        .maybeSingle();
+
+      if (findError) throw findError;
+
+      const { error } = existing
+        ? await supabase.from('annual_evaluation_cycles').update(skip).eq('id', existing.id)
+        : await supabase.from('annual_evaluation_cycles').insert({
+            year,
+            start_date: `${year}-12-01`,
+            end_date: `${year + 1}-02-28`,
+            created_by: skippedBy,
+            ...skip,
+          });
+
+      if (error) throw error;
+      return year;
+    },
+    onSuccess: (year) => {
+      ANNUAL_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      toast({
+        title: t.common.success,
+        description: t.toasts.yearSkipped(year),
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t.common.errorTitle,
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Undo a skip. A cycle with evaluations comes back exactly as it was; an empty placeholder
+// is removed, so the year can then be created normally.
+export function useUndoSkipAnnualEvaluationYear() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { t } = useLanguage();
+
+  return useMutation({
+    mutationFn: async ({ cycleId, year }: { cycleId: string; year: number }) => {
+      const { count, error: countError } = await supabase
+        .from('annual_evaluations')
+        .select('id', { count: 'exact', head: true })
+        .eq('cycle_id', cycleId);
+
+      if (countError) throw countError;
+
+      const removed = count === 0;
+      const { error } = removed
+        ? await supabase.from('annual_evaluation_cycles').delete().eq('id', cycleId).not('skipped_at', 'is', null)
+        : await supabase
+            .from('annual_evaluation_cycles')
+            .update({ skipped_at: null, skipped_by: null })
+            .eq('id', cycleId);
+
+      if (error) throw error;
+      return { year, removed };
+    },
+    onSuccess: ({ year }) => {
+      ANNUAL_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+      toast({
+        title: t.common.success,
+        description: t.toasts.skipUndone(year),
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t.common.errorTitle,
+        description: error.message,
+        variant: 'destructive',
       });
     },
   });
@@ -504,8 +642,7 @@ export function useUpdateCycleDates() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycles'] });
-      queryClient.invalidateQueries({ queryKey: ['annual-evaluation-cycle'] });
+      ANNUAL_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
       toast({
         title: t.common.success,
         description: t.toasts.cycleDatesUpdated,
@@ -529,18 +666,19 @@ export function useAnnualEvaluationStatsByYear(year: number) {
       // Get the cycle for this year
       const { data: cycle, error: cycleError } = await supabase
         .from('annual_evaluation_cycles')
-        .select('id')
+        .select('id, skipped_at')
         .eq('year', year)
         .maybeSingle();
 
       if (cycleError) throw cycleError;
 
-      if (!cycle) {
+      if (!cycle || cycle.skipped_at) {
         return {
           staffSubmitted: 0,
           supervisorSubmitted: 0,
           completed: 0,
           total: 0,
+          skipped: !!cycle?.skipped_at,
         };
       }
 
@@ -561,6 +699,7 @@ export function useAnnualEvaluationStatsByYear(year: number) {
         supervisorSubmitted,
         completed,
         total: evaluations?.length || 0,
+        skipped: false,
       };
     },
   });

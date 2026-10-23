@@ -56,7 +56,7 @@ const STATUS_TONES: Record<StatusKind, Record<string, StatusTone>> = {
   assignment: { Assigned: 'info', Registered: 'info', Attended: 'success', 'No-Show': 'danger' },
   program: { Planned: 'muted', Ongoing: 'info', Completed: 'success', Cancelled: 'danger' },
   annualEvaluation: { pending_staff: 'warning', pending_supervisor: 'info', completed: 'success' },
-  cycle: { active: 'success', closed: 'muted' },
+  cycle: { open: 'success', scheduled: 'info', closed: 'muted', skipped: 'warning' },
   user: { active: 'success', inactive: 'muted' },
 };
 

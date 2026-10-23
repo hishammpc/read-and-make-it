@@ -21,9 +21,11 @@ import {
   Clock,
   Send,
   SearchX,
+  Lock,
   User,
 } from 'lucide-react';
 import { useSubmitSupervisorEvaluation } from '@/hooks/useAnnualEvaluations';
+import { embeddedCycle, getCycleState } from '@/lib/annualCycle';
 import { getRatingLevelTone } from '@/lib/status';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
@@ -52,7 +54,7 @@ export default function SupervisorEvaluationForm() {
         .select(`
           *,
           profiles:user_id(id, name, email, department, position),
-          cycle:cycle_id(id, year, start_date, end_date, status)
+          cycle:cycle_id(id, year, start_date, end_date, status, window_mode, skipped_at)
         `)
         .eq('cycle_id', cycleId)
         .eq('user_id', userId)
@@ -130,6 +132,24 @@ export default function SupervisorEvaluationForm() {
             icon={Clock}
             title={tf.pendingStaffTitle}
             description={tf.pendingStaffDescription}
+            action={backToListButton}
+          />
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  // Only while the cycle is open (within its dates or opened manually, not skipped)
+  const cycle = embeddedCycle(evaluation);
+  if (!getCycleState(cycle).isOpen) {
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={ta.supervisorEvaluation} backTo={backTo} />
+          <EmptyState
+            icon={Lock}
+            title={ta.closedTitle(cycle?.year ?? '')}
+            description={ta.closedSupervisorDescription}
             action={backToListButton}
           />
         </div>

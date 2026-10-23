@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getDateWindowState, localTodayStr, type WindowMode } from '@/lib/windowState';
+
+export { localTodayStr };
 
 // Fetch a single system setting by key
 export function useSystemSetting(key: string) {
@@ -63,7 +66,7 @@ export function useUpdateSystemSetting() {
 }
 
 /** Admin override for the proposal window: follow the dates, or force it open/closed. */
-export type ProposalWindowMode = 'auto' | 'open' | 'closed';
+export type ProposalWindowMode = WindowMode;
 
 // A type alias (not an interface) so the stored JSON can be cast to it
 export type ProposalPeriodValue = {
@@ -72,11 +75,6 @@ export type ProposalPeriodValue = {
   /** Missing on rows saved before the override existed → 'auto'. */
   mode?: ProposalWindowMode;
 };
-
-/** Today's date as YYYY-MM-DD in local time (MYT for our users). */
-export function localTodayStr(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
 
 /**
  * Open/closed state of a proposal period on a given day. Pure, so the admin page can
@@ -87,10 +85,7 @@ export function getProposalWindowState(period: ProposalPeriodValue | null, today
   const endDate = period?.end_date || null;
   const mode: ProposalWindowMode = period?.mode ?? 'auto';
 
-  const withinDates = startDate && endDate ? todayStr >= startDate && todayStr <= endDate : false;
-  // The admin's manual override wins over the dates
-  const isOpen = mode === 'open' ? true : mode === 'closed' ? false : withinDates;
-  const isPastEnd = !!endDate && todayStr > endDate;
+  const { withinDates, isOpen, isPastEnd } = getDateWindowState(startDate, endDate, mode, todayStr);
   // New proposals count for the end date's year
   const proposalYear = endDate ? parseInt(endDate.substring(0, 4)) : parseInt(todayStr.substring(0, 4));
 

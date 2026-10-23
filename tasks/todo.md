@@ -194,3 +194,20 @@ Writes (attendance, certificate upload, submissions) only on a test program/acco
 - [x] Training Evaluations: v2 columns (before → after, Peningkatan) + master chart (avg improvement per program) + KPIs; PDF
 - [x] `/preview/evaluation` shows the v2 form for MPC
 - [x] Verify: unit tests (switch-over date incl. MYT midnight, maths, v1 rows ignored), tsc 0, build ✅; admin v2 views need a 2027 response to see with data
+
+---
+
+# Annual evaluation — manual open/close + skip a year (2026-10-23)
+
+**Decisions (Hazman):** same manual control as the proposal window (Ikut tarikh / Buka sekarang / Tutup sekarang), replacing the one-way "Tutup kitaran"; closed = enforced (no staff/supervisor submissions, no reminders). 2025 is considered finished, so it may close by its dates (ended 31 Mac 2026; 151 still pending — accepted). MPC may skip 2026 → "Langkau tahun" with "Batal langkau" rollback; skipping deletes nothing.
+
+**Data:** additive migration on `annual_evaluation_cycles`: `window_mode` (auto/open/closed, default auto), `skipped_at`, `skipped_by`. Existing `status = 'closed'` (2024) → `window_mode = 'closed'`; `status` becomes legacy. Skipping a year with no cycle stores an empty placeholder cycle; undoing it removes the placeholder so the year can be created normally. Old frontend keeps working (additive), so: apply migration → then push.
+
+- [x] `lib/windowState.ts` (shared open/closed rule; proposals reuse it) + `lib/annualCycle.ts` (open / scheduled / closed / skipped) + unit tests
+- [x] Migration + `types.ts` — applied to prod by Hazman 2026-10-23 (2024 → closed, 2025 → auto, 611 evaluations untouched); `types.ts` regenerated from prod = identical to the hand edit
+- [x] Hooks: set window mode, skip / undo skip; skipped cycles hidden from staff + supervisor queries; reminders only while open; submit guarded on an open cycle
+- [x] Admin cycle page: period card with manual control (replaces "Tutup kitaran"), skipped banner + Batal langkau; set dates / reset no longer tied to legacy `status`
+- [x] Admin cycles list: phase badge, "Langkau tahun" dialog, "Batal langkau" on skipped rows, stats notice for a skipped year
+- [x] Staff + supervisor pages: closed notice, no start/evaluate buttons while closed
+- [x] Verify: unit tests (dates inclusive, manual override, skip beats manual open, proposal window unchanged), tsc 0, lint unchanged (147 pre-existing), build ✅, dev compile 200; live read-only: 2024 + 2025 read as closed
+- [ ] Hazman: look at the admin cycle page + list on localhost (skip/undo writes to the live DB, reversible)

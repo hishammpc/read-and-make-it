@@ -18,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ClipboardList, SearchX, User, UserCheck } from 'lucide-react';
+import { ClipboardList, Lock, SearchX, User, UserCheck } from 'lucide-react';
 import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { useAnnualEvaluationResult } from '@/hooks/useAnnualEvaluations';
+import { embeddedCycle, getCycleState } from '@/lib/annualCycle';
 import { getRatingLevelTone, toneClasses, type StatusTone } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import {
@@ -78,19 +79,23 @@ export default function AnnualEvaluationHistory() {
     />
   );
 
-  // If staff hasn't submitted yet
+  // If staff hasn't submitted yet (they can only submit while the cycle is open)
   if (evaluation.status === 'pending_staff') {
+    const cycle = embeddedCycle(evaluation);
+    const cycleOpen = getCycleState(cycle).isOpen;
     return (
       <EmployeeLayout>
         {header}
         <EmptyState
-          icon={ClipboardList}
-          title={th.notSubmittedTitle}
-          description={th.notSubmittedDescription}
+          icon={cycleOpen ? ClipboardList : Lock}
+          title={cycleOpen ? th.notSubmittedTitle : ta.closedTitle(cycle?.year ?? '')}
+          description={cycleOpen ? th.notSubmittedDescription : ta.closedStaffDescription}
           action={
-            <Button onClick={() => navigate(`/dashboard/my-annual-evaluation/${(evaluation.cycle as any)?.id}/submit`)}>
-              {th.submitNow}
-            </Button>
+            cycleOpen && (
+              <Button onClick={() => navigate(`/dashboard/my-annual-evaluation/${(evaluation.cycle as any)?.id}/submit`)}>
+                {th.submitNow}
+              </Button>
+            )
           }
         />
       </EmployeeLayout>

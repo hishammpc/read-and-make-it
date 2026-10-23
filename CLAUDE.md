@@ -102,6 +102,8 @@ logout()                       // Clear session
 - **10 competency questions** across 4 categories
 - **5-level rating** (Tahap 1-5): 2, 4, 6, 8, 10 points
 - **Reset functionality**: Reset staff/supervisor/full responses
+- **Open / closed per cycle** (`lib/annualCycle.ts`): open from `start_date` to `end_date` (inclusive, MYT) unless an admin set `window_mode` to `open` / `closed` on the cycle page (`WindowModeControl`, same control as the proposal window). Staff and supervisors can submit only while open (checked in the submit hooks); reminders and "Nilai" buttons only show while open. The `status` column is legacy (2024 was migrated to `window_mode = 'closed'`)
+- **Skip a year** ("Langkau tahun" on the cycles list, MPC 2026-10): sets `skipped_at` / `skipped_by`; the cycle disappears from staff and supervisor screens and stats, nothing can be submitted, no data is deleted. "Batal langkau" clears it; a year skipped before it had a cycle is stored as an empty placeholder cycle, which the undo deletes so the year can be created normally
 - Spider web chart visualization for results
 
 ### 4. Proposed Trainings
@@ -151,6 +153,8 @@ useMyPendingAnnualEvaluations(userId)
 useSubmitStaffEvaluation()
 useSubmitSupervisorEvaluation()
 useResetAnnualEvaluation()    // Admin reset
+useSetCycleWindowMode()       // Manual open/close (auto | open | closed)
+useSkipAnnualEvaluationYear() / useUndoSkipAnnualEvaluationYear()
 usePendingSuperviseeCount(supervisorId)
 ```
 

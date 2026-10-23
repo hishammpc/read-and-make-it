@@ -45,13 +45,20 @@ import {
   CheckCircle2,
   Clock,
   UserCheck,
+  EyeOff,
+  Undo2,
+  Info,
 } from 'lucide-react';
 import {
   useAnnualEvaluationCycles,
   useCreateAnnualEvaluationCycle,
   useStaffWithoutSupervisors,
   useAnnualEvaluationStatsByYear,
+  useSkipAnnualEvaluationYear,
+  useUndoSkipAnnualEvaluationYear,
 } from '@/hooks/useAnnualEvaluations';
+import { Notice } from '@/components/common/Callout';
+import { getCycleState } from '@/lib/annualCycle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
@@ -72,14 +79,34 @@ export default function AnnualEvaluations() {
   const { data: cycles, isLoading, error } = useAnnualEvaluationCycles();
   const { data: staffWithoutSupervisors } = useStaffWithoutSupervisors();
   const createCycle = useCreateAnnualEvaluationCycle();
+  const skipYear = useSkipAnnualEvaluationYear();
+  const undoSkip = useUndoSkipAnnualEvaluationYear();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [createStartDate, setCreateStartDate] = useState<Date | undefined>(new Date(currentYear, 11, 1));
   const [createEndDate, setCreateEndDate] = useState<Date | undefined>(new Date(currentYear + 1, 1, 28));
 
-  // Default stats year to latest cycle year, or current year if no cycles
-  const latestCycleYear = cycles?.[0]?.year || currentYear;
+  // Skip a year: any year from 2025 to next year that isn't skipped already
+  const [showSkipDialog, setShowSkipDialog] = useState(false);
+  const skippableYears = [currentYear + 1, ...AVAILABLE_YEARS].filter(
+    (y) => !cycles?.some((c) => c.year === y && c.skipped_at)
+  );
+  const [skipYearValue, setSkipYearValue] = useState<number | null>(null);
+  const effectiveSkipYear =
+    skipYearValue ?? (skippableYears.includes(currentYear) ? currentYear : skippableYears[0]);
+  const skipYearHasCycle = !!cycles?.some((c) => c.year === effectiveSkipYear);
+
+  const handleSkipYear = () => {
+    if (!user?.userId || !effectiveSkipYear) return;
+    skipYear.mutate(
+      { year: effectiveSkipYear, skippedBy: user.userId },
+      { onSuccess: () => setShowSkipDialog(false) }
+    );
+  };
+
+  // Default stats year to the latest cycle that ran (not skipped), or current year if none
+  const latestCycleYear = cycles?.find((c) => !c.skipped_at)?.year || currentYear;
   const [statsYear, setStatsYear] = useState<number | null>(null);
   const effectiveStatsYear = statsYear ?? latestCycleYear;
   const { data: evalStats } = useAnnualEvaluationStatsByYear(effectiveStatsYear);
@@ -118,13 +145,26 @@ export default function AnnualEvaluations() {
       title={ta.title}
       description={ta.description}
       actions={
-        <Button
-          onClick={() => setShowCreateDialog(true)}
-          disabled={availableYearsToCreate.length === 0 || hasStaffWithoutSupervisors}
-        >
-          <Plus className="h-4 w-4" />
-          {ta.create}
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSkipYearValue(null);
+              setShowSkipDialog(true);
+            }}
+            disabled={skippableYears.length === 0}
+          >
+            <EyeOff className="h-4 w-4" />
+            {ta.skipYear}
+          </Button>
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            disabled={availableYearsToCreate.length === 0 || hasStaffWithoutSupervisors}
+          >
+            <Plus className="h-4 w-4" />
+            {ta.create}
+          </Button>
+        </>
       }
     />
   );
@@ -187,30 +227,36 @@ export default function AnnualEvaluations() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label={ta.statTotalStaff} value={total} icon={Users} tone="primary" />
-            <StatCard
-              label={statusLabels.pending_staff}
-              value={total - staffSubmitted}
-              icon={Clock}
-              tone="warning"
-              hint={ta.answered(staffSubmitted, total)}
-            />
-            <StatCard
-              label={statusLabels.pending_supervisor}
-              value={staffSubmitted - completed}
-              icon={UserCheck}
-              tone="info"
-              hint={ta.reviewed(completed, staffSubmitted)}
-            />
-            <StatCard
-              label={statusLabels.completed}
-              value={completed}
-              icon={CheckCircle2}
-              tone="success"
-              hint={ta.completedShare(completedPercent)}
-            />
-          </div>
+          {evalStats?.skipped ? (
+            <Notice tone="warning" icon={EyeOff}>
+              {ta.skippedStats(effectiveStatsYear)}
+            </Notice>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard label={ta.statTotalStaff} value={total} icon={Users} tone="primary" />
+              <StatCard
+                label={statusLabels.pending_staff}
+                value={total - staffSubmitted}
+                icon={Clock}
+                tone="warning"
+                hint={ta.answered(staffSubmitted, total)}
+              />
+              <StatCard
+                label={statusLabels.pending_supervisor}
+                value={staffSubmitted - completed}
+                icon={UserCheck}
+                tone="info"
+                hint={ta.reviewed(completed, staffSubmitted)}
+              />
+              <StatCard
+                label={statusLabels.completed}
+                value={completed}
+                icon={CheckCircle2}
+                tone="success"
+                hint={ta.completedShare(completedPercent)}
+              />
+            </div>
+          )}
         </section>
 
         {/* Cycles Table */}
@@ -266,10 +312,26 @@ export default function AnnualEvaluations() {
                       {formatMalaysianDate(cycle.start_date)} – {formatMalaysianDate(cycle.end_date)}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge kind="cycle" status={cycle.status} />
+                      <StatusBadge kind="cycle" status={getCycleState(cycle).phase} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{formatMalaysianDate(cycle.created_at)}</TableCell>
                     <TableCell className="text-right">
+                      {cycle.skipped_at && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            undoSkip.mutate({ cycleId: cycle.id, year: cycle.year });
+                          }}
+                          disabled={undoSkip.isPending}
+                          aria-label={ta.undoSkipFor(cycle.year)}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                          {ta.undoSkip}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -291,6 +353,52 @@ export default function AnnualEvaluations() {
           )}
         </Card>
       </div>
+
+      {/* Skip a Year Dialog */}
+      <Dialog open={showSkipDialog} onOpenChange={setShowSkipDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ta.skipTitle}</DialogTitle>
+            <DialogDescription>{ta.skipDescription}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="skip-year">{ta.yearLabel}</Label>
+              <Select
+                value={effectiveSkipYear?.toString()}
+                onValueChange={(value) => setSkipYearValue(parseInt(value))}
+              >
+                <SelectTrigger id="skip-year">
+                  <SelectValue placeholder={ta.yearPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {skippableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {effectiveSkipYear && (
+              <Notice tone={skipYearHasCycle ? 'warning' : 'info'} icon={skipYearHasCycle ? AlertTriangle : Info}>
+                {skipYearHasCycle ? ta.skipExisting(effectiveSkipYear) : ta.skipNoCycle(effectiveSkipYear)}
+              </Notice>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSkipDialog(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button onClick={handleSkipYear} disabled={skipYear.isPending || !effectiveSkipYear}>
+              {skipYear.isPending ? t.common.saving : ta.skipConfirm(effectiveSkipYear)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Cycle Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

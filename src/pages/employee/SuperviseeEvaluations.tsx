@@ -33,8 +33,11 @@ import {
   ChevronRight,
   Eye,
   MinusCircle,
+  Lock,
 } from 'lucide-react';
 import { useSuperviseeEvaluations } from '@/hooks/useAnnualEvaluations';
+import { Notice } from '@/components/common/Callout';
+import { embeddedCycle, getCycleState } from '@/lib/annualCycle';
 import { calculatePercentage, getRatingLabel } from '@/lib/annualEvaluationQuestions';
 import { getRatingPercentageTone, getStatusTone } from '@/lib/status';
 
@@ -71,6 +74,9 @@ export default function SuperviseeEvaluations() {
   const pendingStaffCount = filteredEvaluations.filter((e) => e.status === 'pending_staff').length;
   const pendingSupervisorCount = filteredEvaluations.filter((e) => e.status === 'pending_supervisor').length;
   const completedCount = filteredEvaluations.filter((e) => e.status === 'completed').length;
+  // Evaluating is possible only while the selected year's cycle is open
+  const yearCycle = embeddedCycle(filteredEvaluations[0]);
+  const yearOpen = getCycleState(yearCycle).isOpen;
 
   const header = (
     <PageHeader
@@ -149,6 +155,13 @@ export default function SuperviseeEvaluations() {
           />
         </div>
 
+        {yearCycle && !yearOpen && pendingSupervisorCount > 0 && (
+          <Notice tone="muted" icon={Lock}>
+            <span className="font-medium text-foreground">{t.employee.annual.closedTitle(yearCycle.year)}.</span>{' '}
+            {t.employee.annual.closedSupervisorDescription}
+          </Notice>
+        )}
+
         {filteredEvaluations.length > 0 ? (
           <Card className="overflow-hidden">
             <CardHeader>
@@ -189,7 +202,7 @@ export default function SuperviseeEvaluations() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {evaluation.status === 'pending_supervisor' && (
+                        {evaluation.status === 'pending_supervisor' && yearOpen && (
                           <Button
                             size="sm"
                             onClick={() =>

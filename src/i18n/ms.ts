@@ -11,6 +11,13 @@ import employee from './sections/employee';
 
 export const ms = {
   common: {
+    /** Manual override for a date-bound window (proposal period, annual cycle) */
+    windowMode: {
+      control: 'Kawalan manual',
+      auto: 'Ikut tarikh',
+      open: 'Buka sekarang',
+      closed: 'Tutup sekarang',
+    },
     appName: 'MyLearning Pro',
     signOut: 'Log keluar',
     openMenu: 'Buka menu',
@@ -91,8 +98,10 @@ export const ms = {
       completed: 'Selesai',
     },
     cycle: {
-      active: 'Aktif',
+      open: 'Dibuka',
+      scheduled: 'Dijadualkan',
       closed: 'Ditutup',
+      skipped: 'Dilangkau',
     },
     user: {
       active: 'Aktif',
@@ -106,7 +115,10 @@ export const ms = {
     annualSent: 'Penilaian tahunan telah dihantar kepada semua kakitangan.',
     selfSubmitted: 'Penilaian kendiri telah dihantar.',
     supervisorSubmitted: 'Penilaian penyelia telah dihantar.',
-    cycleClosed: 'Kitaran penilaian telah ditutup.',
+    cycleWindowUpdated: 'Status kitaran penilaian dikemas kini.',
+    yearSkipped: (year: number) => `Penilaian tahunan ${year} dilangkau.`,
+    skipUndone: (year: number) => `Langkau penilaian tahunan ${year} dibatalkan.`,
+    annualClosed: 'Tempoh penilaian tahunan ini telah ditutup. Penilaian tidak boleh dihantar.',
     cycleDatesUpdated: 'Tarikh kitaran telah dikemas kini.',
     evaluationReset: 'Penilaian telah direset.',
     evaluationUnavailable: 'Penilaian tidak dijumpai, telah dihantar, atau anda tidak mempunyai akses.',

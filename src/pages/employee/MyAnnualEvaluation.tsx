@@ -24,10 +24,13 @@ import {
   User,
   UserCheck,
   ChevronRight,
+  Lock,
+  CalendarClock,
 } from 'lucide-react';
 import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { useMyPendingAnnualEvaluations, useMyAllAnnualEvaluations } from '@/hooks/useAnnualEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { embeddedCycle, getCycleState } from '@/lib/annualCycle';
 import {
   ANNUAL_EVALUATION_QUESTIONS,
   calculateTotalScore,
@@ -74,6 +77,10 @@ export default function MyAnnualEvaluation() {
   const isCompleted = selectedEvaluation?.status === 'completed';
   const isWaitingSupervisor = selectedEvaluation?.status === 'pending_supervisor';
   const waitingSupervisorName: string | undefined = (selectedEvaluation?.supervisor as any)?.name;
+  // Unfinished evaluation in a cycle that isn't open (closed, or not open yet)
+  const selectedCycle = embeddedCycle(selectedEvaluation);
+  const selectedCycleState = getCycleState(selectedCycle);
+  const selectedNotOpen = !!selectedEvaluation && !isCompleted && !selectedCycleState.isOpen;
 
   return (
     <EmployeeLayout>
@@ -124,8 +131,32 @@ export default function MyAnnualEvaluation() {
           </Callout>
         )}
 
+        {/* Unfinished, but the period is closed or hasn't opened yet */}
+        {selectedNotOpen &&
+          (selectedCycleState.phase === 'scheduled' ? (
+            <Callout
+              variant="plain"
+              tone="info"
+              icon={CalendarClock}
+              title={t.employee.annual.scheduledTitle(selectedCycle?.year ?? '')}
+              description={t.employee.annual.scheduledDescription(formatMalaysianDate(selectedCycle?.start_date ?? ''))}
+            />
+          ) : (
+            <Callout
+              variant="plain"
+              tone="muted"
+              icon={Lock}
+              title={t.employee.annual.closedTitle(selectedCycle?.year ?? '')}
+              description={
+                isWaitingSupervisor
+                  ? t.employee.annual.closedWaitingDescription
+                  : t.employee.annual.closedStaffDescription
+              }
+            />
+          ))}
+
         {/* Waiting for supervisor */}
-        {isWaitingSupervisor && selectedEvaluation && (
+        {isWaitingSupervisor && selectedEvaluation && !selectedNotOpen && (
           <Callout variant="plain" tone="info" icon={Clock} title={tm.waitingTitle} description={tm.waitingDescription}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
               <StatusBadge kind="annualEvaluation" status="pending_supervisor" />

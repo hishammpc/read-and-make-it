@@ -27,16 +27,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,12 +43,23 @@ import {
   Clock,
   UserCheck,
   Users,
-  Lock,
+  EyeOff,
+  Undo2,
   RotateCcw,
   Search,
   CalendarIcon,
 } from 'lucide-react';
-import { useAnnualEvaluationCycle, useCloseEvaluationCycle, useResetAnnualEvaluation, useUpdateCycleDates, AnnualEvaluation } from '@/hooks/useAnnualEvaluations';
+import {
+  useAnnualEvaluationCycle,
+  useResetAnnualEvaluation,
+  useSetCycleWindowMode,
+  useUndoSkipAnnualEvaluationYear,
+  useUpdateCycleDates,
+  AnnualEvaluation,
+} from '@/hooks/useAnnualEvaluations';
+import { Callout } from '@/components/common/Callout';
+import { WindowModeControl } from '@/components/common/WindowModeControl';
+import { getCycleState } from '@/lib/annualCycle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { toneClasses } from '@/lib/status';
@@ -79,7 +80,8 @@ export default function AnnualEvaluationCycle() {
   const statusLabels = t.status.annualEvaluation;
   const { cycleId } = useParams<{ cycleId: string }>();
   const { data, isLoading, error } = useAnnualEvaluationCycle(cycleId || '');
-  const closeCycle = useCloseEvaluationCycle();
+  const setWindowMode = useSetCycleWindowMode();
+  const undoSkip = useUndoSkipAnnualEvaluationYear();
   const resetEvaluation = useResetAnnualEvaluation();
   const updateCycleDates = useUpdateCycleDates();
 
@@ -87,9 +89,6 @@ export default function AnnualEvaluationCycle() {
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editStartDate, setEditStartDate] = useState<Date | undefined>();
   const [editEndDate, setEditEndDate] = useState<Date | undefined>();
-
-  // Close-cycle confirmation state
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   // Reset dialog state
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -197,6 +196,29 @@ export default function AnnualEvaluationCycle() {
   const progressPercentage = totalStaff > 0 ? Math.round((completed / totalStaff) * 100) : 0;
 
   const hasActiveFilters = !!searchQuery.trim() || statusFilter !== 'all';
+
+  // Open/closed: the dates, unless an admin opened or closed it manually; a skipped cycle is never open
+  const cycleState = getCycleState(cycle);
+  const startLabel = formatMalaysianDate(cycle.start_date);
+  const endLabel = formatMalaysianDate(cycle.end_date);
+  const windowReason =
+    cycleState.mode === 'open'
+      ? tc.manualOpen(startLabel, endLabel)
+      : cycleState.mode === 'closed'
+        ? tc.manualClosed(startLabel, endLabel)
+        : cycleState.withinDates
+          ? tc.scheduleDuring(endLabel)
+          : cycleState.isPastEnd
+            ? tc.scheduleAfter(endLabel)
+            : tc.scheduleBefore(startLabel, endLabel);
+
+  const handleUndoSkip = () =>
+    undoSkip.mutate(
+      { cycleId: cycle.id, year: cycle.year },
+      // An empty placeholder cycle is removed by the undo, so go back to the list
+      { onSuccess: ({ removed }) => removed && navigate('/dashboard/annual-evaluations') }
+    );
+
   return (
     <AdminLayout>
       <PageHeader
@@ -205,36 +227,57 @@ export default function AnnualEvaluationCycle() {
         backTo="/dashboard/annual-evaluations"
         backLabel={tc.backToCycles}
         actions={
-          <>
-            <StatusBadge kind="cycle" status={cycle.status} />
-            {cycle.status === 'active' && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditStartDate(parseISO(cycle.start_date));
-                  setEditEndDate(parseISO(cycle.end_date));
-                  setDateDialogOpen(true);
-                }}
-              >
-                <CalendarIcon className="h-4 w-4" />
-                {tc.setDates}
-              </Button>
-            )}
-            {cycle.status === 'active' && (
-              <Button
-                variant="outline"
-                onClick={() => setCloseDialogOpen(true)}
-                disabled={closeCycle.isPending}
-              >
-                <Lock className="h-4 w-4" />
-                {tc.closeCycle}
-              </Button>
-            )}
-          </>
+          !cycleState.skipped && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditStartDate(parseISO(cycle.start_date));
+                setEditEndDate(parseISO(cycle.end_date));
+                setDateDialogOpen(true);
+              }}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {tc.setDates}
+            </Button>
+          )
         }
       />
 
       <div className="space-y-6">
+        {/* Evaluation period: status + manual control, or the skipped notice */}
+        {cycleState.skipped ? (
+          <Callout
+            tone="warning"
+            icon={EyeOff}
+            title={tc.skippedTitle(cycle.year)}
+            description={tc.skippedDescription(formatMalaysianDate(cycle.skipped_at!))}
+            action={
+              <Button variant="outline" onClick={handleUndoSkip} disabled={undoSkip.isPending}>
+                <Undo2 className="h-4 w-4" />
+                {tc.undoSkip}
+              </Button>
+            }
+          />
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col gap-4 pt-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">{tc.windowTitle}</span>
+                  <StatusBadge kind="cycle" status={cycleState.phase} />
+                  <span className="text-muted-foreground">— {windowReason}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">{tc.windowHint}</p>
+              </div>
+              <WindowModeControl
+                value={cycleState.mode}
+                onChange={(mode) => setWindowMode.mutate({ cycleId: cycle.id, mode })}
+                disabled={setWindowMode.isPending}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Cards — each one also filters the table below */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -419,7 +462,7 @@ export default function AnnualEvaluationCycle() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           )}
-                          {evaluation.status !== 'pending_staff' && cycle.status === 'active' && (
+                          {evaluation.status !== 'pending_staff' && !cycleState.skipped && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -444,25 +487,6 @@ export default function AnnualEvaluationCycle() {
           </Table>
         </Card>
       </div>
-
-      {/* Close Cycle Confirmation */}
-      <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tc.closeTitle(cycle.year)}</AlertDialogTitle>
-            <AlertDialogDescription>{tc.closeDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => closeCycle.mutate(cycle.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {tc.closeCycle}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Reset Confirmation Dialog */}
       <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>

@@ -20,8 +20,11 @@ export type Database = {
           created_by: string | null
           end_date: string
           id: string
+          skipped_at: string | null
+          skipped_by: string | null
           start_date: string
           status: string | null
+          window_mode: string
           year: number
         }
         Insert: {
@@ -29,8 +32,11 @@ export type Database = {
           created_by?: string | null
           end_date: string
           id?: string
+          skipped_at?: string | null
+          skipped_by?: string | null
           start_date: string
           status?: string | null
+          window_mode?: string
           year: number
         }
         Update: {
@@ -38,14 +44,24 @@ export type Database = {
           created_by?: string | null
           end_date?: string
           id?: string
+          skipped_at?: string | null
+          skipped_by?: string | null
           start_date?: string
           status?: string | null
+          window_mode?: string
           year?: number
         }
         Relationships: [
           {
             foreignKeyName: "annual_evaluation_cycles_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "annual_evaluation_cycles_skipped_by_fkey"
+            columns: ["skipped_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

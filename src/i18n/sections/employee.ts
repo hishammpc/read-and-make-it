@@ -39,6 +39,13 @@ const ms = {
     colStaff: 'Kakitangan',
     colSupervisor: 'Penyelia',
     colDifference: 'Perbezaan',
+    closedTitle: (year: number | string) => `Tempoh penilaian ${year} telah ditutup`,
+    closedStaffDescription: 'Penilaian kendiri ini tidak lagi boleh dihantar. Hubungi pentadbir jika anda perlukan akses.',
+    closedSupervisorDescription: 'Penilaian kakitangan bagi tahun ini tidak lagi boleh dihantar.',
+    closedWaitingDescription:
+      'Penilaian kendiri anda telah dihantar, tetapi penilaian penyelia tidak dilengkapkan sebelum tempoh ditutup.',
+    scheduledTitle: (year: number | string) => `Penilaian ${year} belum dibuka`,
+    scheduledDescription: (start: string) => `Penilaian boleh dihantar mulai ${start}.`,
   },
   myTrainings: {
     title: 'Latihan saya',
@@ -208,6 +215,13 @@ const en: typeof ms = {
     colStaff: 'Staff',
     colSupervisor: 'Supervisor',
     colDifference: 'Difference',
+    closedTitle: (year: number | string) => `The ${year} evaluation period is closed`,
+    closedStaffDescription: 'This self-evaluation can no longer be submitted. Contact the admin if you need access.',
+    closedSupervisorDescription: 'Staff evaluations for this year can no longer be submitted.',
+    closedWaitingDescription:
+      'Your self-evaluation was submitted, but your supervisor’s evaluation wasn’t completed before the period closed.',
+    scheduledTitle: (year: number | string) => `The ${year} evaluation hasn’t opened yet`,
+    scheduledDescription: (start: string) => `Evaluations can be submitted from ${start}.`,
   },
   myTrainings: {
     title: 'My trainings',

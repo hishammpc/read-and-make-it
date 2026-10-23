@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
+import { WindowModeControl } from '@/components/common/WindowModeControl';
 import { StatCard } from '@/components/common/StatCard';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Notice } from '@/components/common/Callout';
@@ -129,11 +130,6 @@ export default function ProposedTrainings() {
     });
   };
 
-  const modeOptions: { value: ProposalWindowMode; label: string }[] = [
-    { value: 'auto', label: tp.modeAuto },
-    { value: 'open', label: tp.modeOpen },
-    { value: 'closed', label: tp.modeClosed },
-  ];
   const periodChanged =
     editPeriodStart && editPeriodEnd && periodStart && periodEnd
       ? format(editPeriodStart, 'yyyy-MM-dd') !== periodStart ||
@@ -434,36 +430,11 @@ export default function ProposedTrainings() {
                   {shown.startDate && shown.endDate ? tp.proposalYearNote(shown.proposalYear) : tp.needDates}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span id="proposal-window-control" className="text-sm font-medium text-muted-foreground">
-                  {tp.windowControl}
-                </span>
-                <div
-                  role="radiogroup"
-                  aria-labelledby="proposal-window-control"
-                  className="inline-flex h-9 items-center rounded-md border bg-muted/60 p-0.5 text-xs font-medium"
-                >
-                  {modeOptions.map((option) => {
-                    const active = periodMode === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        onClick={() => handleSetMode(option.value)}
-                        disabled={!periodStart || !periodEnd || updateSetting.isPending}
-                        className={cn(
-                          'h-full rounded-[5px] px-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
-                          active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <WindowModeControl
+                value={periodMode}
+                onChange={handleSetMode}
+                disabled={!periodStart || !periodEnd || updateSetting.isPending}
+              />
             </div>
             {periodMode === 'open' && shown.isPastEnd && shown.endDate && (
               <Notice tone="warning" icon={AlertTriangle} className="mt-4">

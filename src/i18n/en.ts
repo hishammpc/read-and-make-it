@@ -6,6 +6,12 @@ import employee from './sections/employee';
 
 export const en: Dictionary = {
   common: {
+    windowMode: {
+      control: 'Manual control',
+      auto: 'Follow dates',
+      open: 'Open now',
+      closed: 'Close now',
+    },
     appName: 'MyLearning Pro',
     signOut: 'Sign out',
     openMenu: 'Open menu',
@@ -86,8 +92,10 @@ export const en: Dictionary = {
       completed: 'Completed',
     },
     cycle: {
-      active: 'Active',
+      open: 'Open',
+      scheduled: 'Scheduled',
       closed: 'Closed',
+      skipped: 'Skipped',
     },
     user: {
       active: 'Active',
@@ -101,7 +109,10 @@ export const en: Dictionary = {
     annualSent: 'Annual evaluation sent to all staff.',
     selfSubmitted: 'Self-assessment submitted.',
     supervisorSubmitted: 'Supervisor evaluation submitted.',
-    cycleClosed: 'Evaluation cycle closed.',
+    cycleWindowUpdated: 'Evaluation cycle status updated.',
+    yearSkipped: (year: number) => `Annual evaluation ${year} skipped.`,
+    skipUndone: (year: number) => `Skip of annual evaluation ${year} undone.`,
+    annualClosed: 'This annual evaluation period is closed. Evaluations can no longer be submitted.',
     cycleDatesUpdated: 'Cycle dates updated.',
     evaluationReset: 'Evaluation reset.',
     evaluationUnavailable: "Evaluation not found, already submitted, or you don't have access.",
