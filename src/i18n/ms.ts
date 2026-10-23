@@ -107,6 +107,11 @@ export const ms = {
       active: 'Aktif',
       inactive: 'Tidak aktif',
     },
+    skillChange: {
+      improved: 'Meningkat',
+      unchanged: 'Tiada perubahan',
+      declined: 'Menurun',
+    },
   },
   toasts: {
     staffWithoutSupervisor: (count: number) =>

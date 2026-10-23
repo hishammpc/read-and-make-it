@@ -50,7 +50,7 @@ export const toneClasses: Record<StatusTone, { soft: string; solid: string; text
   },
 };
 
-export type StatusKind = 'assignment' | 'program' | 'annualEvaluation' | 'cycle' | 'user';
+export type StatusKind = 'assignment' | 'program' | 'annualEvaluation' | 'cycle' | 'user' | 'skillChange';
 
 const STATUS_TONES: Record<StatusKind, Record<string, StatusTone>> = {
   assignment: { Assigned: 'info', Registered: 'info', Attended: 'success', 'No-Show': 'danger' },
@@ -58,6 +58,7 @@ const STATUS_TONES: Record<StatusKind, Record<string, StatusTone>> = {
   annualEvaluation: { pending_staff: 'warning', pending_supervisor: 'info', completed: 'success' },
   cycle: { open: 'success', scheduled: 'info', closed: 'muted', skipped: 'warning' },
   user: { active: 'success', inactive: 'muted' },
+  skillChange: { improved: 'success', unchanged: 'muted', declined: 'danger' },
 };
 
 export function getStatusTone(kind: StatusKind, status: string | null | undefined): StatusTone {

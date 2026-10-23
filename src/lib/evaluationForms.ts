@@ -70,79 +70,77 @@ export function getEvaluationComment(answers: unknown): string {
   return typeof text === 'string' ? text.trim() : '';
 }
 
-export interface RespondentImprovement {
+// Analysis (MPC, 2026-10-23): only question 2 (Peningkatan Kemahiran) is analysed. Each
+// respondent counts as improved (Selepas > Sebelum), declined (Selepas < Sebelum) or
+// unchanged. Shares are of the staff who answered, not of everyone assigned.
+export const V2_ANALYSIS_QUESTION = V2_QUESTIONS[1];
+
+export type SkillChange = 'improved' | 'unchanged' | 'declined';
+
+/** Display order everywhere (diverging around "no change"). */
+export const SKILL_CHANGES: readonly SkillChange[] = ['improved', 'unchanged', 'declined'];
+
+export function getSkillChange(before: number, after: number): SkillChange {
+  if (after > before) return 'improved';
+  if (after < before) return 'declined';
+  return 'unchanged';
+}
+
+export interface SkillChangeRespondent {
   userId: string;
-  /** after − before for each question */
-  changes: Record<V2QuestionId, number>;
-  ratings: Record<V2QuestionId, BeforeAfter>;
-  /** Mean of this person's four changes */
-  avgChange: number;
+  before: number;
+  after: number;
+  change: SkillChange;
 }
 
-export interface ImprovementSummary {
+export interface SkillChangeSummary {
+  /** Staff who answered question 2 — the base for every percentage */
   responses: number;
-  questions: { id: V2QuestionId; short: string; avgBefore: number; avgAfter: number; avgChange: number }[];
-  avgBefore: number;
-  avgAfter: number;
-  avgChange: number;
-  /** Share (0–1) of respondents whose own average change is above zero */
-  improvedShare: number;
-  respondents: RespondentImprovement[];
+  counts: Record<SkillChange, number>;
+  respondents: SkillChangeRespondent[];
 }
-
-const mean = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
 
 /**
- * Improvement for a set of v2 evaluations (one program, or several pooled).
- * Non-v2 or incomplete answers are ignored. Returns null when nothing usable is left.
+ * Question-2 outcome counts for a set of v2 evaluations (one program).
+ * Non-v2 answers, or a missing question-2 rating, are ignored. Null when nothing usable is left.
  */
-export function summarizeImprovement(
+export function summarizeSkillChange(
   evaluations: { user_id: string; answers: unknown }[]
-): ImprovementSummary | null {
-  const respondents: RespondentImprovement[] = [];
+): SkillChangeSummary | null {
+  const respondents: SkillChangeRespondent[] = [];
 
   for (const evaluation of evaluations) {
-    const answers = evaluation.answers;
-    if (!isV2Answers(answers)) continue;
-    const complete = V2_QUESTIONS.every(
-      (q) => Number.isFinite(answers[q.id]?.before) && Number.isFinite(answers[q.id]?.after)
-    );
-    if (!complete) continue;
-
-    const changes = {} as Record<V2QuestionId, number>;
-    const ratings = {} as Record<V2QuestionId, BeforeAfter>;
-    for (const q of V2_QUESTIONS) {
-      ratings[q.id] = { before: answers[q.id].before, after: answers[q.id].after };
-      changes[q.id] = answers[q.id].after - answers[q.id].before;
-    }
+    if (!isV2Answers(evaluation.answers)) continue;
+    const rating = evaluation.answers[V2_ANALYSIS_QUESTION.id];
+    if (!Number.isFinite(rating?.before) || !Number.isFinite(rating?.after)) continue;
     respondents.push({
       userId: evaluation.user_id,
-      changes,
-      ratings,
-      avgChange: mean(V2_QUESTIONS.map((q) => changes[q.id])),
+      before: rating.before,
+      after: rating.after,
+      change: getSkillChange(rating.before, rating.after),
     });
   }
 
   if (respondents.length === 0) return null;
+  return { responses: respondents.length, counts: countSkillChanges(respondents), respondents };
+}
 
-  const questions = V2_QUESTIONS.map((q) => {
-    const avgBefore = mean(respondents.map((r) => r.ratings[q.id].before));
-    const avgAfter = mean(respondents.map((r) => r.ratings[q.id].after));
-    return { id: q.id, short: q.short, avgBefore, avgAfter, avgChange: avgAfter - avgBefore };
-  });
+export function countSkillChanges(items: { change: SkillChange }[]): Record<SkillChange, number> {
+  const counts: Record<SkillChange, number> = { improved: 0, unchanged: 0, declined: 0 };
+  for (const item of items) counts[item.change]++;
+  return counts;
+}
 
-  const avgBefore = mean(questions.map((q) => q.avgBefore));
-  const avgAfter = mean(questions.map((q) => q.avgAfter));
+/** Whole-number share, e.g. 24 of 30 → 80. */
+export function percentOf(count: number, total: number): number {
+  return total > 0 ? Math.round((count / total) * 100) : 0;
+}
 
-  return {
-    responses: respondents.length,
-    questions,
-    avgBefore,
-    avgAfter,
-    avgChange: avgAfter - avgBefore,
-    improvedShare: respondents.filter((r) => r.avgChange > 0).length / respondents.length,
-    respondents,
-  };
+/** Headline tone: green when more staff improved than declined, red for the reverse. */
+export function getSkillChangeTone(counts: Record<SkillChange, number>): 'success' | 'danger' | 'muted' {
+  if (counts.improved > counts.declined) return 'success';
+  if (counts.declined > counts.improved) return 'danger';
+  return 'muted';
 }
 
 /** "+1.3", "0.0", "−0.5" (true minus sign). */

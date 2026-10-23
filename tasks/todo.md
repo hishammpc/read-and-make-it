@@ -211,3 +211,16 @@ Writes (attendance, certificate upload, submissions) only on a test program/acco
 - [x] Staff + supervisor pages: closed notice, no start/evaluate buttons while closed
 - [x] Verify: unit tests (dates inclusive, manual override, skip beats manual open, proposal window unchanged), tsc 0, lint unchanged (147 pre-existing), build ✅, dev compile 200; live read-only: 2024 + 2025 read as closed
 - [ ] Hazman: look at the admin cycle page + list on localhost (skip/undo writes to the live DB, reversible)
+
+---
+
+# Program evaluation v2 — analysis on question 2 only (MPC, 2026-10-23)
+
+**MPC's rule:** the v2 analysis uses only Q2 (Peningkatan Kemahiran — "Tahap kemahiran saya berubah sebelum / selepas menghadiri latihan ini"). Each respondent: Selepas > Sebelum = **Meningkat**, Selepas < Sebelum = **Menurun**, same = **Tiada perubahan**. Percentages are of the staff who answered, not of everyone assigned (e.g. peserta 40, penilaian 30 → meningkat 24 (80%), menurun 5 (17%), tiada perubahan 1 (3%)). Replaces the 4-question averages. The form itself is unchanged (all 4 questions still collected).
+
+- [x] `lib/evaluationForms.ts`: `summarizeSkillChange` (Q2 counts) replaces `summarizeImprovement` + unit tests with MPC's example
+- [x] Program Details: v2 card like v1's layout: donut left, analysis figures right (peserta, penilaian, meningkat/menurun/tiada perubahan with bars), per-staff Q2 table (sebelum → selepas, status), comments; header badge "Meningkat 80%"
+- [x] Training Evaluations: KPI cards (penilaian, meningkat, tiada perubahan, menurun) + per-program 100% stacked bar ranked by % meningkat; table "Keputusan" + PDF cells
+- [x] New `--chart-neutral` token for "Tiada perubahan" (validated: adjacent CVD ΔE ≥ 8.8, normal ≥ 24.8, both modes)
+- [x] Verify: 6 unit tests incl. MPC's 40/30 → 80/17/3 example and "only Q2 counts", tsc 0, lint 147 (unchanged), build ✅, dev compile 200 on all 12 changed modules, no component dropped vs HEAD
+- [x] Hazman screenshotted it with a dev-only preview (7 real 2026 programs shown as 2027 with made-up Q2 answers; nothing written; preview removed before commit)

@@ -66,6 +66,8 @@ work in both themes.
     --chart-1: 222 70% 50%;
     --chart-2: 17 82% 56%;
     --chart-grid: 220 14% 91%;
+    /* Neutral midpoint between success and destructive ("no change"); adjacent ΔE ≥ 19.9 CVD, 25.1 normal */
+    --chart-neutral: 220 12% 76%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 30% 12%;
@@ -128,6 +130,7 @@ work in both themes.
     --chart-1: 217 80% 62%;
     --chart-2: 17 70% 50%;
     --chart-grid: 222 14% 19%;
+    --chart-neutral: 220 10% 34%;
 
     --sidebar-background: 222 20% 11%;
     --sidebar-foreground: 220 15% 92%;

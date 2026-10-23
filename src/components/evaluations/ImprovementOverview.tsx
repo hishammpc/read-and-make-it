@@ -1,28 +1,37 @@
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, TrendingUp, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ClipboardCheck, Minus, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard } from '@/components/common/StatCard';
+import { OUTCOME_COLORS } from '@/components/charts/chartTheme';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { cn } from '@/lib/utils';
-import { formatChange, getChangeTone } from '@/lib/evaluationForms';
+import { getStatusTone } from '@/lib/status';
+import { SKILL_CHANGES, countSkillChanges, percentOf, type SkillChange } from '@/lib/evaluationForms';
 import type { ProgramEvaluationSummary } from '@/hooks/useEvaluations';
 
+const OUTCOME_ICONS = { improved: ArrowUpRight, unchanged: Minus, declined: ArrowDownRight };
+
 /**
- * Master view for the before/after evaluation form (programs from 2027):
- * pooled headline numbers + average improvement per program, ranked.
- * Bars diverge from zero: improvement right (series blue), decline left (red).
+ * Master view for the before/after evaluation form (programs from 2027), analysed on
+ * question 2 only: pooled outcome shares, then each program as a 100% stacked bar
+ * (improved / no change / declined), ranked by share improved.
  */
 export function ImprovementOverview({ programs }: { programs: ProgramEvaluationSummary[] }) {
   const { t } = useLanguage();
   const te = t.adminTraining.evaluations;
+  const td = t.adminTraining.programDetails;
+  const labels = t.status.skillChange;
 
   const v2Programs = programs.filter((p) => p.formVersion === 2);
   if (v2Programs.length === 0) return null;
 
   const withData = v2Programs
     .filter((p) => p.improvement)
-    .map((p) => ({ ...p, improvement: p.improvement! }))
-    .sort((a, b) => b.improvement.avgChange - a.improvement.avgChange);
+    .map((p) => ({
+      ...p,
+      improvement: p.improvement!,
+      improvedPercent: percentOf(p.improvement!.counts.improved, p.improvement!.responses),
+    }))
+    .sort((a, b) => b.improvedPercent - a.improvedPercent || b.improvement.responses - a.improvement.responses);
 
   const header = (
     <CardHeader>
@@ -47,39 +56,34 @@ export function ImprovementOverview({ programs }: { programs: ProgramEvaluationS
     );
   }
 
-  // Pool across programs, weighted by each program's number of responses
-  const totalResponses = withData.reduce((n, p) => n + p.improvement.responses, 0);
-  const weighted = (pick: (p: (typeof withData)[number]) => number) =>
-    withData.reduce((sum, p) => sum + pick(p) * p.improvement.responses, 0) / totalResponses;
-  const pooledBefore = weighted((p) => p.improvement.avgBefore);
-  const pooledAfter = weighted((p) => p.improvement.avgAfter);
-  const pooledChange = pooledAfter - pooledBefore;
-  const pooledImproved = weighted((p) => p.improvement.improvedShare);
+  // Pool across programs: every respondent counts once
+  const respondents = withData.flatMap((p) => p.improvement.respondents);
+  const counts = countSkillChanges(respondents);
+  const participants = v2Programs.reduce((n, p) => n + p.totalAssigned, 0);
 
-  // Symmetric domain around zero, at least ±1 point, rounded up to half a point
-  const maxAbs = Math.max(1, ...withData.map((p) => Math.abs(p.improvement.avgChange)));
-  const domain = Math.ceil(maxAbs * 2) / 2;
-  const changeTone = getChangeTone(pooledChange);
+  const breakdown = (pCounts: Record<SkillChange, number>, total: number) =>
+    SKILL_CHANGES.map((c) => `${labels[c]} ${td.peopleShare(pCounts[c], percentOf(pCounts[c], total))}`).join(' · ');
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={te.statBefore} value={pooledBefore.toFixed(1)} hint={te.scaleHint} tone="muted" />
-        <StatCard label={te.statAfter} value={pooledAfter.toFixed(1)} hint={te.scaleHint} tone="primary" />
         <StatCard
-          label={te.statChange}
-          value={formatChange(pooledChange)}
-          icon={changeTone === 'danger' ? ArrowDownRight : ArrowUpRight}
-          tone={changeTone}
-          hint={`${pooledBefore.toFixed(1)} → ${pooledAfter.toFixed(1)}`}
-        />
-        <StatCard
-          label={te.statImproved}
-          value={`${Math.round(pooledImproved * 100)}%`}
-          icon={Users}
+          label={te.statResponses}
+          value={respondents.length}
+          icon={ClipboardCheck}
           tone="info"
-          hint={te.statImprovedHint}
+          hint={te.ofParticipants(participants)}
         />
+        {SKILL_CHANGES.map((c) => (
+          <StatCard
+            key={c}
+            label={labels[c]}
+            value={`${percentOf(counts[c], respondents.length)}%`}
+            icon={OUTCOME_ICONS[c]}
+            tone={getStatusTone('skillChange', c)}
+            hint={td.people(counts[c])}
+          />
+        ))}
       </div>
 
       <Card>
@@ -89,40 +93,45 @@ export function ImprovementOverview({ programs }: { programs: ProgramEvaluationS
             <CardTitle>{te.chartTitle}</CardTitle>
           </div>
           <CardDescription>{te.chartDescription}</CardDescription>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1 pt-1 text-sm">
+            {SKILL_CHANGES.map((c) => (
+              <li key={c} className="flex items-center gap-2">
+                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: OUTCOME_COLORS[c] }} />
+                <span className="text-muted-foreground">{labels[c]}</span>
+              </li>
+            ))}
+          </ul>
         </CardHeader>
         <CardContent>
           <ol className="max-h-[28rem] space-y-1 overflow-y-auto pr-1">
-            {withData.map((p) => {
-              const change = p.improvement.avgChange;
-              const width = (Math.abs(change) / domain) * 50; // % of the full track
-              const positive = change >= 0;
-              return (
-                <li
-                  key={p.programId}
-                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_3.25rem] items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent"
-                  title={`${p.programTitle}: ${p.improvement.avgBefore.toFixed(1)} → ${p.improvement.avgAfter.toFixed(1)} (${p.improvement.responses})`}
+            {withData.map((p) => (
+              <li
+                key={p.programId}
+                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_3.25rem] items-center gap-3 rounded-md px-2 py-1.5 hover:bg-accent"
+                title={`${p.programTitle}: ${breakdown(p.improvement.counts, p.improvement.responses)}`}
+              >
+                <Link
+                  to={`/dashboard/programs/${p.programId}`}
+                  className="truncate text-sm hover:text-primary hover:underline underline-offset-4"
                 >
-                  <Link
-                    to={`/dashboard/programs/${p.programId}`}
-                    className="truncate text-sm hover:text-primary hover:underline underline-offset-4"
-                  >
-                    {p.programTitle}
-                  </Link>
-                  <div className="relative h-3" aria-hidden="true">
-                    <div className="absolute inset-y-[5px] left-0 right-0 rounded-full bg-muted" />
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-border" />
+                  {p.programTitle}
+                </Link>
+                <div
+                  className="flex h-3 gap-0.5 overflow-hidden rounded"
+                  role="img"
+                  aria-label={breakdown(p.improvement.counts, p.improvement.responses)}
+                >
+                  {SKILL_CHANGES.filter((c) => p.improvement.counts[c] > 0).map((c) => (
                     <div
-                      className={cn(
-                        'absolute inset-y-0 rounded-full',
-                        positive ? 'left-1/2 bg-chart-1' : 'right-1/2 bg-destructive'
-                      )}
-                      style={{ width: `${width}%` }}
+                      key={c}
+                      className="h-full basis-0"
+                      style={{ flexGrow: p.improvement.counts[c], backgroundColor: OUTCOME_COLORS[c] }}
                     />
-                  </div>
-                  <span className="text-right text-sm font-semibold tabular-nums">{formatChange(change)}</span>
-                </li>
-              );
-            })}
+                  ))}
+                </div>
+                <span className="text-right text-sm font-semibold tabular-nums">{p.improvedPercent}%</span>
+              </li>
+            ))}
           </ol>
         </CardContent>
       </Card>

@@ -7,9 +7,9 @@ import { getMonthRangeBounds } from '@/lib/dateUtils';
 import {
   getEvaluationComment,
   getEvaluationFormVersion,
-  summarizeImprovement,
+  summarizeSkillChange,
   type EvaluationFormVersion,
-  type ImprovementSummary,
+  type SkillChangeSummary,
 } from '@/lib/evaluationForms';
 
 export interface EvaluationTemplate {
@@ -286,8 +286,8 @@ export interface ProgramEvaluationSummary {
   /** v1 only */
   averageRating: string;
   averageScore: number;
-  /** v2 only; null when there are no usable responses yet */
-  improvement: ImprovementSummary | null;
+  /** v2 only: question-2 outcome counts; null when there are no usable responses yet */
+  improvement: SkillChangeSummary | null;
   comments: string[];
   startDate: string;
   endDate: string;
@@ -377,7 +377,7 @@ export function useEvaluationsByProgram(year?: number, fromMonth?: string, toMon
           formVersion,
           averageRating: avgRating,
           averageScore: avgScore,
-          improvement: formVersion === 2 ? summarizeImprovement(programEvals) : null,
+          improvement: formVersion === 2 ? summarizeSkillChange(programEvals) : null,
           comments,
           startDate: program.start_date_time,
           endDate: program.end_date_time,
@@ -404,8 +404,8 @@ export interface ProgramEvaluationDetails {
     sederhanaCount: number;
     lemahCount: number;
   }[];
-  /** Before/after form (programs from 2027); null for the old form or no responses */
-  improvement: ImprovementSummary | null;
+  /** Before/after form (programs from 2027): question-2 outcome counts; null for the old form or no responses */
+  improvement: SkillChangeSummary | null;
   comments: string[];
 }
 
@@ -489,7 +489,7 @@ export function useProgramEvaluationDetails(programId: string) {
         averageScore: avgScore,
         questionScores,
         // Before/after form (programs from 2027); null for the old form
-        improvement: summarizeImprovement(evaluations || []),
+        improvement: summarizeSkillChange(evaluations || []),
         comments,
       } as ProgramEvaluationDetails;
     },

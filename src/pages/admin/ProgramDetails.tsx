@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { ProgramImprovementDetails } from '@/components/evaluations/ProgramImprovementDetails';
-import { formatChange, getChangeTone, getEvaluationFormVersion } from '@/lib/evaluationForms';
+import { getEvaluationFormVersion, getSkillChangeTone, percentOf } from '@/lib/evaluationForms';
 
 /** One label/value pair in the program information grid. */
 function InfoItem({
@@ -269,8 +269,10 @@ export default function ProgramDetails() {
                 {evaluationDetails && evaluationDetails.totalResponses > 0 && (
                   formVersion === 2 ? (
                     evaluationDetails.improvement && (
-                      <ToneBadge tone={getChangeTone(evaluationDetails.improvement.avgChange)} className="self-start">
-                        {td.improvementBadge(formatChange(evaluationDetails.improvement.avgChange))}
+                      <ToneBadge tone={getSkillChangeTone(evaluationDetails.improvement.counts)} className="self-start">
+                        {td.improvedBadge(
+                          percentOf(evaluationDetails.improvement.counts.improved, evaluationDetails.improvement.responses)
+                        )}
                       </ToneBadge>
                     )
                   ) : (
@@ -296,7 +298,11 @@ export default function ProgramDetails() {
               ) : formVersion === 2 ? (
                 evaluationDetails.improvement ? (
                   <div className="space-y-6">
-                    <ProgramImprovementDetails improvement={evaluationDetails.improvement} staffNames={staffNames} />
+                    <ProgramImprovementDetails
+                      summary={evaluationDetails.improvement}
+                      totalAssigned={evaluationDetails.totalAssigned}
+                      staffNames={staffNames}
+                    />
                     {renderComments()}
                   </div>
                 ) : (

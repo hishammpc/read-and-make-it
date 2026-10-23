@@ -101,6 +101,11 @@ export const en: Dictionary = {
       active: 'Active',
       inactive: 'Inactive',
     },
+    skillChange: {
+      improved: 'Improved',
+      unchanged: 'No change',
+      declined: 'Declined',
+    },
   },
   toasts: {
     staffWithoutSupervisor: (count: number) =>

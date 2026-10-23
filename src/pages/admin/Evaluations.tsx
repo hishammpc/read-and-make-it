@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEvaluationsByProgram } from '@/hooks/useEvaluations';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { getTrainingRatingTone } from '@/lib/status';
-import { formatChange, getChangeTone } from '@/lib/evaluationForms';
+import { getSkillChangeTone, percentOf } from '@/lib/evaluationForms';
 import { ImprovementOverview } from '@/components/evaluations/ImprovementOverview';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
@@ -171,8 +171,8 @@ export default function Evaluations() {
         ...(evaluation.formVersion === 2
           ? evaluation.improvement
             ? [
-                formatChange(evaluation.improvement.avgChange).replace('−', '-'),
-                `${evaluation.improvement.avgBefore.toFixed(1)}->${evaluation.improvement.avgAfter.toFixed(1)}`,
+                `Meningkat ${percentOf(evaluation.improvement.counts.improved, evaluation.improvement.responses)}%`,
+                `${evaluation.improvement.counts.improved}/${evaluation.improvement.responses}`,
               ]
             : ['-', '-']
           : [
@@ -376,14 +376,11 @@ export default function Evaluations() {
                       <TableCell>
                         {evaluation.formVersion === 2 ? (
                           evaluation.improvement ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm tabular-nums text-muted-foreground">
-                                {evaluation.improvement.avgBefore.toFixed(1)} → {evaluation.improvement.avgAfter.toFixed(1)}
-                              </span>
-                              <ToneBadge tone={getChangeTone(evaluation.improvement.avgChange)}>
-                                {formatChange(evaluation.improvement.avgChange)}
-                              </ToneBadge>
-                            </div>
+                            <ToneBadge tone={getSkillChangeTone(evaluation.improvement.counts)}>
+                              {t.adminTraining.programDetails.improvedBadge(
+                                percentOf(evaluation.improvement.counts.improved, evaluation.improvement.responses)
+                              )}
+                            </ToneBadge>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )
