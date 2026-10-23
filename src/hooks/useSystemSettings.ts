@@ -62,28 +62,48 @@ export function useUpdateSystemSetting() {
   });
 }
 
+/** Admin override for the proposal window: follow the dates, or force it open/closed. */
+export type ProposalWindowMode = 'auto' | 'open' | 'closed';
+
+// A type alias (not an interface) so the stored JSON can be cast to it
+export type ProposalPeriodValue = {
+  start_date: string;
+  end_date: string;
+  /** Missing on rows saved before the override existed → 'auto'. */
+  mode?: ProposalWindowMode;
+};
+
+/** Today's date as YYYY-MM-DD in local time (MYT for our users). */
+export function localTodayStr(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Open/closed state of a proposal period on a given day. Pure, so the admin page can
+ * preview unsaved dates with exactly the rules staff will get once they're saved.
+ */
+export function getProposalWindowState(period: ProposalPeriodValue | null, todayStr: string) {
+  const startDate = period?.start_date || null;
+  const endDate = period?.end_date || null;
+  const mode: ProposalWindowMode = period?.mode ?? 'auto';
+
+  const withinDates = startDate && endDate ? todayStr >= startDate && todayStr <= endDate : false;
+  // The admin's manual override wins over the dates
+  const isOpen = mode === 'open' ? true : mode === 'closed' ? false : withinDates;
+  const isPastEnd = !!endDate && todayStr > endDate;
+  // New proposals count for the end date's year
+  const proposalYear = endDate ? parseInt(endDate.substring(0, 4)) : parseInt(todayStr.substring(0, 4));
+
+  return { startDate, endDate, mode, withinDates, isOpen, isPastEnd, proposalYear };
+}
+
 // Convenience hook for the proposal period setting
 export function useProposalPeriod() {
   const { data, isLoading } = useSystemSetting('proposal_period');
-
-  const value = data?.value as { start_date: string; end_date: string } | null;
-  const startDate = value?.start_date || null;
-  const endDate = value?.end_date || null;
-
-  // Determine if the proposal period is currently open
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  const isOpen = startDate && endDate ? todayStr >= startDate && todayStr <= endDate : false;
-
-  // Determine the proposal year based on the end date
-  const proposalYear = endDate ? parseInt(endDate.substring(0, 4)) : now.getFullYear();
+  const value = data?.value as ProposalPeriodValue | null;
 
   return {
-    startDate,
-    endDate,
-    isOpen,
-    proposalYear,
+    ...getProposalWindowState(value, localTodayStr()),
     isLoading,
   };
 }

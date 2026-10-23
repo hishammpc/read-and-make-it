@@ -4,6 +4,8 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Notice } from '@/components/common/Callout';
+import { ToneBadge } from '@/components/common/StatusBadge';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -33,6 +35,8 @@ import {
   Trash2,
   Save,
   Download,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -43,7 +47,14 @@ import {
   getProposalYear,
   isLegacyProposal,
 } from '@/hooks/useProposedTrainings';
-import { useProposalPeriod, useUpdateSystemSetting } from '@/hooks/useSystemSettings';
+import {
+  useProposalPeriod,
+  useUpdateSystemSetting,
+  type ProposalPeriodValue,
+  type ProposalWindowMode,
+  getProposalWindowState,
+  localTodayStr,
+} from '@/hooks/useSystemSettings';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
@@ -73,7 +84,16 @@ export default function ProposedTrainings() {
   const { data: proposals, isLoading, error } = useProposedTrainingsList(selectedYear);
   const markAsEntertained = useMarkAsEntertained();
   const deleteProposal = useDeleteProposedTraining();
-  const { startDate: periodStart, endDate: periodEnd, isLoading: periodLoading } = useProposalPeriod();
+  const {
+    startDate: periodStart,
+    endDate: periodEnd,
+    mode: periodMode,
+    isOpen: windowOpen,
+    withinDates,
+    isPastEnd,
+    proposalYear: windowYear,
+    isLoading: periodLoading,
+  } = useProposalPeriod();
   const updateSetting = useUpdateSystemSetting();
   const [editPeriodStart, setEditPeriodStart] = useState<Date | undefined>();
   const [editPeriodEnd, setEditPeriodEnd] = useState<Date | undefined>();
@@ -93,16 +113,68 @@ export default function ProposedTrainings() {
       value: {
         start_date: format(editPeriodStart, 'yyyy-MM-dd'),
         end_date: format(editPeriodEnd, 'yyyy-MM-dd'),
-      },
+        mode: periodMode, // keep the manual override as it is
+      } satisfies ProposalPeriodValue,
       updatedBy: user?.userId,
     });
   };
 
+  // Manual override: saves straight away and keeps the saved dates
+  const handleSetMode = (next: ProposalWindowMode) => {
+    if (next === periodMode || !periodStart || !periodEnd) return;
+    updateSetting.mutate({
+      key: 'proposal_period',
+      value: { start_date: periodStart, end_date: periodEnd, mode: next } satisfies ProposalPeriodValue,
+      updatedBy: user?.userId,
+    });
+  };
+
+  const modeOptions: { value: ProposalWindowMode; label: string }[] = [
+    { value: 'auto', label: tp.modeAuto },
+    { value: 'open', label: tp.modeOpen },
+    { value: 'closed', label: tp.modeClosed },
+  ];
   const periodChanged =
     editPeriodStart && editPeriodEnd && periodStart && periodEnd
       ? format(editPeriodStart, 'yyyy-MM-dd') !== periodStart ||
         format(editPeriodEnd, 'yyyy-MM-dd') !== periodEnd
       : false;
+
+  // Unsaved dates in the pickers are previewed with the same rules staff get once saved;
+  // the status badge itself always shows the saved (live) state.
+  const previewState =
+    periodChanged && editPeriodStart && editPeriodEnd
+      ? getProposalWindowState(
+          {
+            start_date: format(editPeriodStart, 'yyyy-MM-dd'),
+            end_date: format(editPeriodEnd, 'yyyy-MM-dd'),
+            mode: periodMode,
+          },
+          localTodayStr()
+        )
+      : null;
+  const shown = previewState ?? {
+    startDate: periodStart,
+    endDate: periodEnd,
+    withinDates,
+    isPastEnd,
+    proposalYear: windowYear,
+  };
+
+  // Plain-language schedule: when it opens/closes automatically, or that a manual override is on
+  const startLabel = shown.startDate ? formatMalaysianDate(shown.startDate) : '';
+  const endLabel = shown.endDate ? formatMalaysianDate(shown.endDate) : '';
+  const modeReason = !shown.startDate || !shown.endDate
+    ? ''
+    : periodMode === 'open'
+      ? tp.manualOpen(startLabel, endLabel)
+      : periodMode === 'closed'
+        ? tp.manualClosed(startLabel, endLabel)
+        : shown.withinDates
+          ? tp.scheduleDuring(endLabel)
+          : shown.isPastEnd
+            ? tp.scheduleAfter(endLabel)
+            : tp.scheduleBefore(startLabel, endLabel);
 
   // proposalNumber: 1 or 2 for an old two-proposal row; undefined for a current-form proposal
   const handleToggleEntertained = (proposalId: string, proposalNumber: 1 | 2 | undefined, currentStatus: boolean) => {
@@ -255,7 +327,7 @@ export default function ProposedTrainings() {
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:pb-2"
               >
                 <CalendarIcon className="h-4 w-4" />
-                {tp.periodLabel}
+                {shown.endDate ? tp.periodLabelYear(shown.proposalYear) : tp.periodLabel}
               </p>
               <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end">
                 <div className="space-y-1">
@@ -323,6 +395,81 @@ export default function ProposedTrainings() {
                 )}
               </div>
             </div>
+
+            {/* Viewing a later year than the saved window: offer to set it up (Dec 1 – end of Feb) */}
+            {!previewState && periodEnd && selectedYear > windowYear && (
+              <Notice tone="info" icon={Info} className="mt-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span>{tp.nextYearHint(windowYear, selectedYear)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => {
+                      setEditPeriodStart(new Date(selectedYear - 1, 11, 1));
+                      setEditPeriodEnd(new Date(selectedYear, 2, 0)); // last day of February
+                    }}
+                  >
+                    {tp.fillForYear(selectedYear)}
+                  </Button>
+                </div>
+              </Notice>
+            )}
+            {/* Manual override */}
+            <div className="mt-5 flex flex-col gap-3 border-t pt-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">{t.common.status}</span>
+                  <ToneBadge tone={windowOpen ? 'success' : 'muted'} dot>
+                    {windowOpen ? tp.statusOpen : tp.statusClosed}
+                  </ToneBadge>
+                  {modeReason && (
+                    <span className="text-muted-foreground">
+                      — {previewState && <span className="font-medium text-foreground">{tp.afterSaving} </span>}
+                      {modeReason}
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {shown.startDate && shown.endDate ? tp.proposalYearNote(shown.proposalYear) : tp.needDates}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span id="proposal-window-control" className="text-sm font-medium text-muted-foreground">
+                  {tp.windowControl}
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="proposal-window-control"
+                  className="inline-flex h-9 items-center rounded-md border bg-muted/60 p-0.5 text-xs font-medium"
+                >
+                  {modeOptions.map((option) => {
+                    const active = periodMode === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => handleSetMode(option.value)}
+                        disabled={!periodStart || !periodEnd || updateSetting.isPending}
+                        className={cn(
+                          'h-full rounded-[5px] px-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                          active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            {periodMode === 'open' && shown.isPastEnd && shown.endDate && (
+              <Notice tone="warning" icon={AlertTriangle} className="mt-4">
+                {tp.pastEndWarning(formatMalaysianDate(shown.endDate), shown.proposalYear)}
+              </Notice>
+            )}
           </CardContent>
         </Card>
 

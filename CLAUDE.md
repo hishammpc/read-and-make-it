@@ -245,7 +245,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=[anon-key]
 1. **Training Compliance**: 40 hours/year target per employee
 2. **Evaluation Window**: Programs must be evaluated within 3 days of completion
 3. **Annual Evaluation**: All staff must have supervisors before creating cycle
-4. **Proposal Period**: Admin-configurable via `system_settings` table (default Dec 1 - Feb 28)
+4. **Proposal Period**: Admin-configurable via `system_settings` table (default Dec 1 - Feb 28); admin manual override `mode: 'auto' | 'open' | 'closed'` in the same JSON (missing = auto). New proposals count for the end date's year
 5. **Admin PIN**: `101010` (session-based, stored in sessionStorage)
 
 ## Database Security Note

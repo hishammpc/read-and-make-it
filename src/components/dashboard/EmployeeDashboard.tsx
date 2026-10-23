@@ -75,7 +75,12 @@ export default function EmployeeDashboard() {
   const { data: supervisor } = useUserSupervisor(user?.userId || '');
   const { data: allAnnualEvals } = useMyAllAnnualEvaluations(user?.userId || '');
   const [showProposalDialog, setShowProposalDialog] = useState(false);
-  const { isOpen: proposalPeriodOpen, proposalYear, endDate: proposalEndDate } = useProposalPeriod();
+  const {
+    isOpen: proposalPeriodOpen,
+    proposalYear,
+    endDate: proposalEndDate,
+    isPastEnd: proposalPastEnd,
+  } = useProposalPeriod();
 
   // Generate available years (current year and 4 previous years)
   const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -210,7 +215,8 @@ export default function EmployeeDashboard() {
               </Button>
             }
           >
-            {proposalEndDate && <p>{ts.proposalOpen.due(formatMalaysianDate(proposalEndDate))}</p>}
+            {/* No "submit by" date when an admin has opened the window manually after its end date */}
+            {proposalEndDate && !proposalPastEnd && <p>{ts.proposalOpen.due(formatMalaysianDate(proposalEndDate))}</p>}
           </Callout>
         )}
 
