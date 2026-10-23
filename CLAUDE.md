@@ -254,7 +254,14 @@ VITE_SUPABASE_PUBLISHABLE_KEY=[anon-key]
 - RLS policies that rely on `auth.uid()` or JWT claims don't work with email-only auth
 - Security is enforced at the application level instead
 
-Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
+Migration: `supabase/migrations_archive/20260202100000_disable_rls_for_hybrid_auth.sql` (archived; see below)
+
+## Migrations
+
+- `supabase/migrations/20261023035000_baseline_production_schema.sql` is the source of truth: a structure-only dump of production (2026-10-23) plus the auth sign-up trigger and certificates bucket/policies. Verified to rebuild a schema identical to production.
+- Earlier files are in `supabase/migrations_archive/` (reference only; they don't rebuild production).
+- New schema changes go in new timestamped files after the baseline. Apply to production deliberately (there is no CLI migration history there yet; see the baseline header for `migration repair`).
+- Local `.env.local` (gitignored) holds `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_URL`; the direct DB host is IPv6-only, so connect through the session pooler `aws-1-ap-southeast-1.pooler.supabase.com:5432` (user `postgres.ecoxrleadphtiaoxaswl`).
 
 ## Recent Updates
 
@@ -281,7 +288,7 @@ Migration: `20260202100000_disable_rls_for_hybrid_auth.sql`
 - Proposed Training dialog: moved descriptive text below subtitle, simplified submit button to "Hantar"
 - **Configurable dates**: Annual evaluation cycle dates editable via "Tetapkan Tarikh" button; create dialog includes date pickers
 - **Configurable proposal period**: Admin can set proposal start/end dates on Proposed Trainings page; `system_settings` table stores config; `useProposalPeriod()` hook replaces hardcoded `isProposalPeriodOpen()`
-- New table: `system_settings` (key/value JSONB) — migration `20260209_system_settings.sql`
+- New table: `system_settings` (key/value JSONB) — migration `supabase/migrations_archive/20260209_system_settings.sql` (archived)
 - **Timezone fix**: `ProgramForm` appends local timezone offset to `datetime-local` values before saving (prevents PostgreSQL from interpreting as UTC); `ProgramEdit` uses local time components instead of `.toISOString()` when loading dates
 - **Date range filters**: use `getYearBounds` / `getMonthRangeBounds` + `.gte(col, start).lt(col, end)` (and `isWithinBounds` in JS) from `src/lib/dateUtils.ts`. Never filter timestamptz columns with `'YYYY-12-31'` or offset-less `'...T23:59:59'` — Postgres reads them as UTC and drops most of 31 Dec (MYT)
 - **Admin routes** use `<ProtectedRoute requireAdmin>`; role resolves to admin if any `user_roles` row is admin. Annual-evaluation submits are guarded by owner/supervisor + expected status in the `update` filter

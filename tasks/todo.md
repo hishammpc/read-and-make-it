@@ -37,7 +37,7 @@ Vite doesn't typecheck, so all of these ship.
 ## C. Structural / hygiene
 
 - [x] **C1 `types.ts` stale** — missing `annual_evaluation_cycles`, `annual_evaluations`, `proposed_trainings`, `bulk_uploads`; columns `profiles.supervisor_id`, `programs.notify_for_evaluation`, `programs.training_type`. Cause of most of the 126 tsc errors. Regenerate, then add `tsc --noEmit` to `build`.
-- [ ] **C2 Migrations can't rebuild prod** — `programs.category NOT NULL` but ProgramForm never sends it; `proposal_1/2_entertained`, `entertained_proposal` exist in no migration. Prod was edited by hand. `supabase db pull` → commit reconciling migration. `config.toml` project_id is a placeholder.
+- [x] **C2 Migrations can't rebuild prod** — `programs.category NOT NULL` but ProgramForm never sends it; `proposal_1/2_entertained`, `entertained_proposal` exist in no migration. Prod was edited by hand. `supabase db pull` → commit reconciling migration. `config.toml` project_id is a placeholder.
 - [x] C3 `profiles.email` no unique index; `user_roles` allows 2 roles/user (`loginAdmin` `.single()` fails on 2).
 - [ ] C4 Deleting a program cascades assignments/evaluations/certificates → wipes hours history. Archive instead.
 - [ ] C5 `fetchAllRows` callers have no `.order()` → rows can dup/skip across pages.
