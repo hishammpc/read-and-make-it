@@ -7,8 +7,14 @@ export interface ProposedTraining {
   id: string;
   user_id: string;
   year: number;
+  // Current form (from 2027): one proposal with details and notes
+  training_title: string | null;
+  training_details: string | null;
+  notes: string | null;
+  // Legacy form (up to 2026): two one-line proposals, each with its own "considered" flag
   proposal_1: string | null;
   proposal_2: string | null;
+  /** "Considered" flag for a current-form proposal */
   is_entertained: boolean;
   entertained_proposal: number | null;
   proposal_1_entertained: boolean;
@@ -24,6 +30,11 @@ export interface ProposedTraining {
     department: string | null;
     position: string | null;
   };
+}
+
+/** True for proposals made with the old two-proposal form (kept as-is, shown in the old layout). */
+export function isLegacyProposal(p: Pick<ProposedTraining, 'training_title' | 'proposal_1' | 'proposal_2'>): boolean {
+  return !p.training_title && !!(p.proposal_1 || p.proposal_2);
 }
 
 // Get the year for which proposals are being made
@@ -66,13 +77,15 @@ export function useSubmitProposedTraining() {
     mutationFn: async ({
       userId,
       year,
-      proposal1,
-      proposal2,
+      title,
+      details,
+      notes,
     }: {
       userId: string;
       year: number;
-      proposal1: string;
-      proposal2: string;
+      title: string;
+      details: string;
+      notes: string;
     }) => {
       const { data, error } = await supabase
         .from('proposed_trainings')
@@ -80,8 +93,9 @@ export function useSubmitProposedTraining() {
           {
             user_id: userId,
             year,
-            proposal_1: proposal1 || null,
-            proposal_2: proposal2 || null,
+            training_title: title,
+            training_details: details,
+            notes: notes || null,
             updated_at: new Date().toISOString(),
           },
           {
@@ -179,7 +193,8 @@ export function useMarkAsEntertained() {
       adminId,
     }: {
       proposalId: string;
-      proposalNumber: 1 | 2;
+      /** 1 or 2 for a legacy two-proposal row; omit for a current-form proposal. */
+      proposalNumber?: 1 | 2;
       isEntertained: boolean;
       adminId: string;
     }) => {
@@ -190,8 +205,10 @@ export function useMarkAsEntertained() {
 
       if (proposalNumber === 1) {
         updateData.proposal_1_entertained = isEntertained;
-      } else {
+      } else if (proposalNumber === 2) {
         updateData.proposal_2_entertained = isEntertained;
+      } else {
+        updateData.is_entertained = isEntertained;
       }
 
       const { data, error } = await supabase

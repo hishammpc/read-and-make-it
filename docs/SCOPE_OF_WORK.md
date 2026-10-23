@@ -51,7 +51,7 @@
 | 2.7 | `certificates` table | Training certificates with file URLs, issued dates, uploaded_by tracking |
 | 2.8 | `annual_evaluation_cycles` table | Yearly evaluation periods with year, start_date, end_date, status (active/closed) |
 | 2.9 | `annual_evaluations` table | Two-stage staff + supervisor assessments with JSONB answers, timestamps, status flow (pending_staff -> pending_supervisor -> completed) |
-| 2.10 | `proposed_trainings` table | Employee training proposals (2 per year) with entertained status, admin approval tracking |
+| 2.10 | `proposed_trainings` table | Employee training proposals with entertained status, admin approval tracking. **Changed 2026-10-23 (MPC request):** one proposal per year with title, details and notes; 2026 data is kept and shown by its first proposal |
 | 2.11 | `system_settings` table | Key-value config store (JSONB) for proposal period dates and future settings |
 | 2.12 | `reminders_log` table | Reminder/notification send history |
 | 2.13 | 9 SQL migrations | Schema creation, bulk uploads support, FK removal for hybrid auth, evaluation flags, annual evaluation system, backfill data, proposed trainings, RLS disable, system settings |
@@ -136,7 +136,7 @@
 ### 3I. Proposed Trainings
 | # | Scope Item | Description |
 |---|-----------|-------------|
-| 3.39 | Proposed trainings page | Year filter, proposals table with employee name, 2 proposals, entertained checkboxes, delete button |
+| 3.39 | Proposed trainings page | Year filter, proposals table with employee name, proposed training + details + notes, considered checkbox, delete button (one layout for all years; 2026 rows show their first proposal) |
 | 3.40 | **Configurable proposal period** | Admin date pickers (Mula/Akhir) with Save button, persisted to `system_settings` table |
 | 3.41 | Entertained toggle | Inline checkbox to mark proposals as entertained |
 
@@ -177,7 +177,7 @@
 ### 4D. Proposed Training
 | # | Scope Item | Description |
 |---|-----------|-------------|
-| 4.19 | Proposed training dialog | Modal with 2 proposal input fields, existing proposal detection, update capability, submit button ("Hantar") |
+| 4.19 | Proposed training dialog | Modal with proposed training (required), details (required) and notes (optional) — was 2 one-line fields until 2026 — existing proposal detection, update capability, submit button ("Hantar") |
 | 4.20 | Dynamic proposal period | Uses `useProposalPeriod()` hook — shows actual due date from system settings instead of hardcoded Feb 28 |
 
 ---
@@ -325,7 +325,7 @@
 | 14.2 | Evaluation window | Programs should be evaluated within 3 days of completion |
 | 14.3 | Supervisor requirement | All staff must have supervisors before annual evaluation cycle can be created |
 | 14.4 | Proposal period | Configurable open period for training proposals (default Dec 1 - Feb 28) |
-| 14.5 | 2-proposal limit | Employees can propose maximum 2 trainings per year |
+| 14.5 | One proposal per year | Employees submit one training proposal per year with details and notes (changed from a 2-proposal limit at MPC's request, 2026-10-23) |
 | 14.6 | Two-stage evaluation | Staff self-eval must be completed before supervisor can evaluate |
 | 14.7 | Unique constraints | One assignment per user per program, one proposal per user per year |
 | 14.8 | Supervisor hierarchy | Self-referencing FK for organizational structure |

@@ -460,10 +460,13 @@ export type Database = {
           entertained_proposal: number | null
           id: string
           is_entertained: boolean | null
+          notes: string | null
           proposal_1: string | null
           proposal_1_entertained: boolean | null
           proposal_2: string | null
           proposal_2_entertained: boolean | null
+          training_details: string | null
+          training_title: string | null
           updated_at: string | null
           user_id: string
           year: number
@@ -475,10 +478,13 @@ export type Database = {
           entertained_proposal?: number | null
           id?: string
           is_entertained?: boolean | null
+          notes?: string | null
           proposal_1?: string | null
           proposal_1_entertained?: boolean | null
           proposal_2?: string | null
           proposal_2_entertained?: boolean | null
+          training_details?: string | null
+          training_title?: string | null
           updated_at?: string | null
           user_id: string
           year: number
@@ -490,10 +496,13 @@ export type Database = {
           entertained_proposal?: number | null
           id?: string
           is_entertained?: boolean | null
+          notes?: string | null
           proposal_1?: string | null
           proposal_1_entertained?: boolean | null
           proposal_2?: string | null
           proposal_2_entertained?: boolean | null
+          training_details?: string | null
+          training_title?: string | null
           updated_at?: string | null
           user_id?: string
           year?: number
@@ -606,7 +615,7 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

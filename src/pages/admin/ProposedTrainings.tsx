@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
@@ -40,6 +41,7 @@ import {
   useMarkAsEntertained,
   useDeleteProposedTraining,
   getProposalYear,
+  isLegacyProposal,
 } from '@/hooks/useProposedTrainings';
 import { useProposalPeriod, useUpdateSystemSetting } from '@/hooks/useSystemSettings';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -102,7 +104,8 @@ export default function ProposedTrainings() {
         format(editPeriodEnd, 'yyyy-MM-dd') !== periodEnd
       : false;
 
-  const handleToggleEntertained = (proposalId: string, proposalNumber: 1 | 2, currentStatus: boolean) => {
+  // proposalNumber: 1 or 2 for an old two-proposal row; undefined for a current-form proposal
+  const handleToggleEntertained = (proposalId: string, proposalNumber: 1 | 2 | undefined, currentStatus: boolean) => {
     if (!user?.userId) return;
     markAsEntertained.mutate({
       proposalId,
@@ -113,14 +116,56 @@ export default function ProposedTrainings() {
   };
 
   const totalProposals = proposals?.length || 0;
-  const entertainedCount =
-    proposals?.filter((p) => p.proposal_1_entertained || p.proposal_2_entertained).length || 0;
+  // Old-format rows (up to 2026) are shown by their first proposal, so they count by its tick.
+  const isConsidered = (p: NonNullable<typeof proposals>[number]) =>
+    isLegacyProposal(p) ? !!p.proposal_1_entertained : !!p.is_entertained;
+  const entertainedCount = proposals?.filter(isConsidered).length || 0;
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const renderDeleteAction = (proposalId: string, staffName: string) => (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
+          aria-label={tp.deleteProposal(staffName)}
+          title={tp.deleteProposal(staffName)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{tp.deleteTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{tp.deleteDescription(staffName)}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteProposal.mutate(proposalId)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {t.common.delete}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
   // CSV export is official output: headers and values stay in BM regardless of UI language.
   const handleDownloadCSV = () => {
     if (!proposals || proposals.length === 0) return;
 
-    const headers = ['Nama', 'Emel', 'Jawatan', 'Jabatan', 'Cadangan 1', 'Cadangan 1 Dilayan', 'Cadangan 2', 'Cadangan 2 Dilayan', 'Tarikh Hantar'];
+    const headers = ['Nama', 'Emel', 'Jawatan', 'Jabatan', 'Cadangan Latihan', 'Butiran', 'Catatan', 'Dipertimbangkan', 'Tarikh Hantar'];
     const rows = proposals.map((p) => {
       const profile = p.profiles as any;
       return [
@@ -128,10 +173,10 @@ export default function ProposedTrainings() {
         profile?.email || '',
         profile?.position || '',
         profile?.department || '',
-        p.proposal_1 || '',
-        p.proposal_1_entertained ? 'Ya' : 'Tidak',
-        p.proposal_2 || '',
-        p.proposal_2_entertained ? 'Ya' : 'Tidak',
+        (isLegacyProposal(p) ? p.proposal_1 : p.training_title) || '',
+        p.training_details || '',
+        p.notes || '',
+        isConsidered(p) ? 'Ya' : 'Tidak',
         p.created_at ? format(new Date(p.created_at), 'dd/MM/yyyy') : '',
       ];
     });
@@ -294,7 +339,6 @@ export default function ProposedTrainings() {
             value={isLoading ? <Skeleton className="h-8 w-12" /> : entertainedCount}
             icon={CheckCircle2}
             tone="success"
-            hint={tp.statConsideredHint}
           />
           <StatCard label={t.common.year} value={selectedYear} icon={Calendar} tone="muted" />
         </div>
@@ -324,14 +368,9 @@ export default function ProposedTrainings() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{tp.colEmployee}</TableHead>
-                  <TableHead>{tp.colProposal1}</TableHead>
-                  <TableHead className="w-10">
-                    <span className="sr-only">{tp.colConsidered}</span>
-                  </TableHead>
-                  <TableHead>{tp.colProposal2}</TableHead>
-                  <TableHead className="w-10">
-                    <span className="sr-only">{tp.colConsidered}</span>
-                  </TableHead>
+                  <TableHead className="w-[42%]">{tp.colProposal}</TableHead>
+                  <TableHead>{tp.colNotes}</TableHead>
+                  <TableHead className="w-28 text-center">{tp.colConsidered}</TableHead>
                   <TableHead>{tp.colSubmitted}</TableHead>
                   <TableHead className="w-10 text-right">
                     <span className="sr-only">{t.common.actions}</span>
@@ -340,72 +379,53 @@ export default function ProposedTrainings() {
               </TableHeader>
               <TableBody>
                 {proposals?.map((proposal) => {
-                  const staffName: string = (proposal.profiles as any)?.name || '—';
+                  const profile = proposal.profiles as any;
+                  const staffName: string = profile?.name || '—';
+                  const legacy = isLegacyProposal(proposal);
+                  // Old-format rows (up to 2026) show their first proposal; the second is kept in the DB only.
+                  const title = legacy ? proposal.proposal_1 : proposal.training_title;
+                  const considered = legacy ? !!proposal.proposal_1_entertained : !!proposal.is_entertained;
+                  const details = proposal.training_details || '';
+                  const expanded = expandedIds.has(proposal.id);
 
                   return (
-                    <TableRow key={proposal.id}>
-                      <TableCell className="font-medium">{staffName}</TableCell>
+                    <TableRow key={proposal.id} className="align-top">
                       <TableCell>
-                        {proposal.proposal_1 || <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        {proposal.proposal_1 && (
-                          <Checkbox
-                            checked={proposal.proposal_1_entertained || false}
-                            onCheckedChange={() =>
-                              handleToggleEntertained(proposal.id, 1, proposal.proposal_1_entertained || false)
-                            }
-                            aria-label={tp.markConsidered(1, staffName)}
-                          />
-                        )}
+                        <div className="font-medium">{staffName}</div>
+                        {profile?.department && <div className="text-xs text-muted-foreground">{profile.department}</div>}
                       </TableCell>
                       <TableCell>
-                        {proposal.proposal_2 || <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        {proposal.proposal_2 && (
-                          <Checkbox
-                            checked={proposal.proposal_2_entertained || false}
-                            onCheckedChange={() =>
-                              handleToggleEntertained(proposal.id, 2, proposal.proposal_2_entertained || false)
-                            }
-                            aria-label={tp.markConsidered(2, staffName)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {formatMalaysianDate(proposal.created_at)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:bg-destructive-soft hover:text-destructive"
-                              aria-label={tp.deleteProposal(staffName)}
-                              title={tp.deleteProposal(staffName)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{tp.deleteTitle}</AlertDialogTitle>
-                              <AlertDialogDescription>{tp.deleteDescription(staffName)}</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteProposal.mutate(proposal.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        <div className="font-medium">{title || '—'}</div>
+                        {details && (
+                          <>
+                            <p className={cn('mt-1 whitespace-pre-line text-sm text-muted-foreground', !expanded && 'line-clamp-2')}>
+                              {details}
+                            </p>
+                            {details.length > 140 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpanded(proposal.id)}
+                                className="mt-1 rounded text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-expanded={expanded}
                               >
-                                {t.common.delete}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                {expanded ? tp.showLess : tp.showMore}
+                              </button>
+                            )}
+                          </>
+                        )}
                       </TableCell>
+                      <TableCell className="max-w-xs whitespace-pre-line text-sm text-muted-foreground">
+                        {proposal.notes || '—'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={considered}
+                          onCheckedChange={() => handleToggleEntertained(proposal.id, legacy ? 1 : undefined, considered)}
+                          aria-label={tp.markConsideredOne(staffName)}
+                        />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{formatMalaysianDate(proposal.created_at)}</TableCell>
+                      <TableCell className="text-right">{renderDeleteAction(proposal.id, staffName)}</TableCell>
                     </TableRow>
                   );
                 })}

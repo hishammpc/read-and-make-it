@@ -103,7 +103,8 @@ logout()                       // Clear session
 
 ### 4. Proposed Trainings
 - **Open period**: December 1 - February 28
-- Employees propose up to 2 trainings
+- One proposal per staff per year: **training title, details, notes** (changed at MPC's request, 2026-10-23; columns `training_title`, `training_details`, `notes`; "considered" = `is_entertained`)
+- Up to 2026 the form was two one-line proposals (`proposal_1`/`proposal_2` + `*_entertained`). That data is kept in the DB; the admin page uses one layout for every year and shows an old row's `proposal_1` as its training (tick = `proposal_1_entertained`); `proposal_2` is not shown (100 of 115 rows in 2026 have one). See `isLegacyProposal()`
 - Admin approval workflow
 
 ### 5. Dashboards

@@ -70,12 +70,14 @@ const ms = {
   proposal: {
     title: (year: number) => `Cadangan latihan ${year}`,
     description:
-      'Sila cadangkan 2 latihan yang dirasakan dapat menyumbang kepada peningkatan kecekapan tugasan anda.',
+      'Sila cadangkan satu latihan yang dirasakan dapat menyumbang kepada peningkatan kecekapan tugasan anda.',
     alreadySubmitted: 'Anda sudah menghantar cadangan. Anda boleh mengemas kininya di bawah.',
-    proposal1: 'Cadangan latihan 1',
-    proposal2: 'Cadangan latihan 2 (pilihan)',
-    placeholder1: 'cth. Latihan Excel lanjutan',
-    placeholder2: 'cth. Bengkel kemahiran kepimpinan',
+    titleLabel: 'Cadangan latihan',
+    titlePlaceholder: 'cth. Latihan Excel lanjutan',
+    detailsLabel: 'Butiran latihan',
+    detailsPlaceholder: 'Apa yang diliputi oleh latihan ini dan bagaimana ia membantu tugasan anda.',
+    notesLabel: 'Catatan (pilihan)',
+    notesPlaceholder: 'cth. cadangan penganjur, bulan pilihan atau anggaran kos.',
   },
 };
 
@@ -147,12 +149,14 @@ const en: typeof ms = {
   },
   proposal: {
     title: (year: number) => `Propose training for ${year}`,
-    description: 'Suggest up to 2 trainings that you feel would help you do your job better.',
+    description: 'Propose one training that you feel would help you do your job better.',
     alreadySubmitted: 'You have already submitted a proposal. You can update it below.',
-    proposal1: 'Training proposal 1',
-    proposal2: 'Training proposal 2 (optional)',
-    placeholder1: 'e.g. Advanced Excel training',
-    placeholder2: 'e.g. Leadership skills workshop',
+    titleLabel: 'Proposed training',
+    titlePlaceholder: 'e.g. Advanced Excel training',
+    detailsLabel: 'Training details',
+    detailsPlaceholder: 'What the training covers and how it would help your work.',
+    notesLabel: 'Notes (optional)',
+    notesPlaceholder: 'e.g. suggested provider, preferred month or estimated cost.',
   },
 };
 
