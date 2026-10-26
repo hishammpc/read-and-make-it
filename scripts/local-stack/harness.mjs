@@ -69,7 +69,8 @@ function loadSqlFile(file, { allowedErrors = [] } = {}) {
 }
 
 export function stopStack() {
-  spawnSync('docker', ['rm', '-f', PG, REST], { stdio: 'ignore' });
+  // -v: the Postgres image puts its data in an anonymous volume that would otherwise pile up
+  spawnSync('docker', ['rm', '-f', '-v', PG, REST], { stdio: 'ignore' });
   spawnSync('docker', ['network', 'rm', NETWORK], { stdio: 'ignore' });
 }
 

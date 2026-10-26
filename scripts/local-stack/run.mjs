@@ -35,7 +35,7 @@ try {
 } finally {
   await app?.vite.close();
   stack?.proxy.close();
-  if (keep && stack) console.log(`\nDatabase left running: ${stack.psqlHint}  (stop: docker rm -f mlp-test-pg mlp-test-rest)`);
+  if (keep && stack) console.log(`\nDatabase left running: ${stack.psqlHint}  (stop: docker rm -f -v mlp-test-pg mlp-test-rest)`);
   else stopStack();
 }
 
