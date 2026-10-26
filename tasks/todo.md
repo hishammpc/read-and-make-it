@@ -322,7 +322,13 @@ Q1 start date · Q2 active non-admin staff · Q3 no department filter for now (n
 - **Verified:** tsc 0 · lint 129 (unchanged) · build ✅ · local stack: write-path checks (status switch changes the target count and back; duplicate create rejected with 23505; bulk import 2 created / 1 updated / 1 duplicate reported, mixed-case match, position kept) — local data restored after; all earlier checks still pass + a user-edit render check.
 
 ## Sweep — where it ended (2026-10-26)
-- Pushed: `1c97463` sort · `f182821` Phase 1 · `d3cd1b8` Phase 2 · `21e58ab` Phase 3 · Phase 4 (this commit).
+- Pushed: `1c97463` sort · `f182821` Phase 1 · `d3cd1b8` Phase 2 · `21e58ab` Phase 3 · `db345b7` Phase 4.
 - Lint 147 → 129 over the sweep; tsc 0 throughout.
 - **Still open (not in this sweep):** A1–A3 security / D4 auth model; B9/B10 + D2 (evaluating No-Show or unfinished programs, certificate on evaluation alone); B14 atomic cycle creation; certificate delete leaves the file (`useCertificates.ts:148`); department/grade data (Q3); clicking through in a real browser and checking PDFs by eye (Hazman).
-- **Local test stack** (Docker Postgres 15 + PostgREST v12.2.3, production baseline + later migrations, fake data) lives in the session scratchpad only. Worth moving into the repo (e.g. `scripts/local-stack/`) if we keep using it.
+- Phase 4 is `db345b7`. Everything is live on Netlify (bundle checked for the new strings).
+- **Local test stack** moved into the repo (`5e687e8`): `node scripts/local-stack/run.mjs`, 76 checks, ~8 s, Docker Desktop must be running. See `scripts/local-stack/README.md` for the fake staff and their expected numbers.
+
+## Where we are (2026-10-26, end of session)
+- [ ] **Waiting on Sham's feedback** on the live changes. When it comes: fix forward, add a check for it in `scripts/local-stack/suites/`, run the stack, then push.
+- [ ] Hazman's 5-minute check by eye: Users → tick "Belum capai 40 jam" → sort by hours; Reports → Ringkasan jam kakitangan PDF; Jejak latihan saya PDF; Pasukan saya as a supervisor.
+- Not decided: branch-first for future rounds (so far everything went straight to `main`).
