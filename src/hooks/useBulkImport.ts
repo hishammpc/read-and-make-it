@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { parseUserCSV, ParsedUser } from '@/lib/csvParser';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -47,28 +48,39 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
     throw new NoValidUsersError();
   }
 
-  // Get existing users by email
-  const emails = users.map((u) => u.email);
-  const { data: existingProfiles, error: fetchError } = await supabase
-    .from('profiles')
-    .select('id, email')
-    .in('email', emails);
+  // The same email twice in one file: keep the first row, report the rest (emails are
+  // unique, so inserting both would fail the whole batch)
+  const firstRowByEmail = new Map<string, number>();
+  const uniqueUsers = users.filter((user) => {
+    const key = user.email.toLowerCase();
+    const firstRow = firstRowByEmail.get(key);
+    if (firstRow === undefined) {
+      firstRowByEmail.set(key, user.rowNumber);
+      return true;
+    }
+    result.errors.push({ row: user.rowNumber, email: user.email, error: `Duplicate email in this file (same as row ${firstRow})` });
+    result.failed++;
+    return false;
+  });
 
-  if (fetchError) {
-    throw new Error(`Failed to check existing users: ${fetchError.message}`);
+  // Existing users, matched case-insensitively: stored emails can be mixed-case, and the
+  // unique index is on lower(email)
+  let existingProfiles: Array<{ id: string; email: string }>;
+  try {
+    existingProfiles = await fetchAllRows((from, to) =>
+      supabase.from('profiles').select('id, email').order('id').range(from, to)
+    );
+  } catch (fetchError) {
+    throw new Error(`Failed to check existing users: ${(fetchError as Error).message}`);
   }
-
-  // Create map of existing emails
-  const existingEmailMap = new Map(
-    existingProfiles?.map((p) => [p.email, p.id]) || []
-  );
+  const existingEmailMap = new Map(existingProfiles.map((p) => [p.email.toLowerCase(), p.id]));
 
   // Separate users into create and update lists
   const usersToCreate: ParsedUser[] = [];
   const usersToUpdate: Array<ParsedUser & { id: string }> = [];
 
-  users.forEach((user) => {
-    const existingId = existingEmailMap.get(user.email);
+  uniqueUsers.forEach((user) => {
+    const existingId = existingEmailMap.get(user.email.toLowerCase());
     if (existingId) {
       usersToUpdate.push({ ...user, id: existingId });
     } else {
@@ -76,9 +88,9 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
     }
   });
 
-  // Create new profiles
+  // Create new profiles: one batch; if it fails, row by row so one bad row doesn't block the rest
   if (usersToCreate.length > 0) {
-    const newProfiles = usersToCreate.map((user) => ({
+    const toProfile = (user: ParsedUser) => ({
       id: crypto.randomUUID(),
       name: user.name,
       email: user.email,
@@ -86,44 +98,43 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
       department: null,
       grade: null,
       status: 'active',
-    }));
+    });
 
-    const { data: createdProfiles, error: createError } = await supabase
-      .from('profiles')
-      .insert(newProfiles)
-      .select();
+    let created: Array<{ id: string; user: ParsedUser }> = [];
+    const batch = usersToCreate.map((user) => ({ user, profile: toProfile(user) }));
+    const { error: batchError } = await supabase.from('profiles').insert(batch.map((b) => b.profile));
 
-    if (createError) {
-      usersToCreate.forEach((user) => {
-        result.errors.push({
-          row: user.rowNumber,
-          email: user.email,
-          error: `Failed to create: ${createError.message}`,
-        });
-        result.failed++;
-      });
-    } else if (createdProfiles) {
-      result.created = createdProfiles.length;
+    if (!batchError) {
+      created = batch.map((b) => ({ id: b.profile.id, user: b.user }));
+    } else {
+      for (const { user, profile } of batch) {
+        const { error: rowError } = await supabase.from('profiles').insert(profile);
+        if (rowError) {
+          result.errors.push({ row: user.rowNumber, email: user.email, error: `Failed to create: ${rowError.message}` });
+          result.failed++;
+        } else {
+          created.push({ id: profile.id, user });
+        }
+      }
+    }
 
-      // Create roles for new users
-      const roles = createdProfiles.map((p) => ({
-        user_id: p.id,
-        role: 'employee' as const,
-      }));
-
-      const { error: roleError } = await supabase.from('user_roles').insert(roles);
+    if (created.length > 0) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert(created.map((c) => ({ user_id: c.id, role: 'employee' as const })));
 
       if (roleError) {
         // Login requires a user_roles row, so these profiles exist but can't sign in.
-        usersToCreate.forEach((user) => {
+        created.forEach(({ user }) => {
           result.errors.push({
             row: user.rowNumber,
             email: user.email,
             error: `Profile created but role not assigned, so this user cannot log in: ${roleError.message}`,
           });
         });
-        result.created = 0;
-        result.failed += usersToCreate.length;
+        result.failed += created.length;
+      } else {
+        result.created = created.length;
       }
     }
   }
@@ -135,7 +146,8 @@ async function bulkImportUsers(input: BulkImportInput): Promise<BulkImportResult
         .from('profiles')
         .update({
           name: user.name,
-          position: user.position || null,
+          // A blank JAWATAN keeps the position already on record
+          ...(user.position?.trim() ? { position: user.position.trim() } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);

@@ -60,6 +60,17 @@ const ms = {
     supervisorPlaceholder: 'Pilih penyelia…',
     noSupervisor: 'Tiada penyelia',
     supervisorAutoSave: 'Perubahan disimpan sebaik sahaja anda memilih penyelia.',
+    searchSupervisor: 'Cari nama atau emel…',
+    statusTitle: 'Status akaun',
+    statusDescription:
+      'Kakitangan tidak aktif tidak boleh log masuk dan tidak dikira dalam sasaran 40 jam, papan pendahulu atau kitaran penilaian tahunan baharu. Rekod latihan mereka disimpan.',
+    activeLabel: 'Akaun aktif',
+    deactivateTitle: 'Nyahaktifkan pengguna ini?',
+    deactivateDescription: (name: string) =>
+      `${name} tidak akan dapat log masuk dan tidak lagi dikira dalam laporan sasaran 40 jam. Anda boleh mengaktifkannya semula pada bila-bila masa.`,
+    deactivateTeamWarning: (count: number) =>
+      `${count} kakitangan masih meletakkan pengguna ini sebagai penyelia. Tetapkan penyelia baharu untuk mereka.`,
+    deactivateConfirm: 'Nyahaktifkan',
   },
   bulkImport: {
     title: 'Import pengguna secara pukal',
@@ -394,6 +405,17 @@ const en: typeof ms = {
     supervisorPlaceholder: 'Choose a supervisor…',
     noSupervisor: 'No supervisor',
     supervisorAutoSave: 'The change is saved as soon as you choose a supervisor.',
+    searchSupervisor: 'Search name or email…',
+    statusTitle: 'Account status',
+    statusDescription:
+      'Inactive staff cannot sign in and are left out of the 40-hour target, leaderboards and new annual evaluation cycles. Their training records are kept.',
+    activeLabel: 'Account active',
+    deactivateTitle: 'Deactivate this user?',
+    deactivateDescription: (name: string) =>
+      `${name} will not be able to sign in and will no longer count in the 40-hour reports. You can reactivate them at any time.`,
+    deactivateTeamWarning: (count: number) =>
+      `${count} staff still have this user as their supervisor. Assign them a new supervisor.`,
+    deactivateConfirm: 'Deactivate',
   },
   bulkImport: {
     title: 'Bulk user import',

@@ -153,6 +153,8 @@ export const en: Dictionary = {
     userUpdated: 'User updated.',
     userRoleUpdated: 'User role updated.',
     userDeactivated: 'User deactivated.',
+    userReactivated: 'User reactivated.',
+    emailExists: 'This email is already used by another user.',
     importComplete: (created: number, updated: number, failed: number) =>
       `Import complete: ${created} created, ${updated} updated${failed > 0 ? `, ${failed} failed` : ''}.`,
     importFailed: (message: string) => `Import failed: ${message}`,

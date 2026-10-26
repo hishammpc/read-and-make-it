@@ -37,6 +37,9 @@ export interface UpdateUserInput {
   status?: string;
 }
 
+/** Postgres unique violation (here: an email already on another profile) */
+const isDuplicateKey = (error: unknown) => (error as { code?: string } | null)?.code === '23505';
+
 export function useUsers() {
   return useQuery({
     queryKey: ['users'],
@@ -241,7 +244,7 @@ export function useCreateUser() {
     onError: (error: Error) => {
       toast({
         title: t.common.errorTitle,
-        description: error.message,
+        description: isDuplicateKey(error) ? t.toasts.emailExists : error.message,
         variant: 'destructive',
       });
     },
@@ -276,23 +279,24 @@ export function useUpdateUser() {
     onError: (error: Error) => {
       toast({
         title: t.common.errorTitle,
-        description: error.message,
+        description: isDuplicateKey(error) ? t.toasts.emailExists : error.message,
         variant: 'destructive',
       });
     },
   });
 }
 
-export function useDeactivateUser() {
+/** Mark a leaver inactive (or bring them back). Inactive staff can't sign in and drop out of the 40-hour figures. */
+export function useSetUserStatus() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, status }: { id: string; status: 'active' | 'inactive' }) => {
       const { data, error } = await supabase
         .from('profiles')
-        .update({ status: 'inactive' })
+        .update({ status })
         .eq('id', id)
         .select()
         .single();
@@ -300,11 +304,14 @@ export function useDeactivateUser() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+    onSuccess: (_, { status }) => {
+      // Status decides who counts for the target, leaderboards, teams and supervisor lists
+      for (const key of ['users', 'enhanced-admin-dashboard', 'leaderboard', 'team-training-hours', 'has-team', 'staff-with-supervisors', 'potential-supervisors']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
       toast({
         title: t.common.success,
-        description: t.toasts.userDeactivated,
+        description: status === 'active' ? t.toasts.userReactivated : t.toasts.userDeactivated,
       });
     },
     onError: (error: Error) => {

@@ -269,8 +269,8 @@ Built as small shared pieces (`useTableSort`, `useUrlFilters`, `YearSelect`, `Re
 - [x] My hours: year picker + list of the programs behind the total.
 
 ## Phase 4 — user admin gaps that block filters
-- [ ] User edit: active/inactive switch (`useDeactivateUser` exists, never wired — today "inactive" can only be set in the DB); searchable supervisor picker (~300 names in a plain list).
-- [ ] ~~Users page links to bulk import~~ (done in Phase 1); bulk import fixes (B7: in-file duplicate fails the whole batch, blank JAWATAN wipes position).
+- [x] User edit: active/inactive switch (`useDeactivateUser` exists, never wired — today "inactive" can only be set in the DB); searchable supervisor picker (~300 names in a plain list).
+- [x] ~~Users page links to bulk import~~ (done in Phase 1); bulk import fixes (B7: in-file duplicate fails the whole batch, blank JAWATAN wipes position).
 
 ## Bugs found on the way (fix inside the phase that touches the file)
 - Staff can evaluate No-Show / unfinished programs and then download a certificate (B10, needs D2).
@@ -314,3 +314,15 @@ Q1 start date · Q2 active non-admin staff · Q3 no department filter for now (n
 - **Fixes:** evaluation form says "Penilaian telah dihantar" instead of a Postgres duplicate-key error; staff dashboard leaderboard + annual history show skeleton / error instead of "empty" while loading or on failure; "Terkini" on Penilaian saya no longer picks 2024 demo data.
 - **Verified:** tsc 0 · lint 137 → 129 · build ✅ · local stack: Phase 1 + 2 checks still pass + 15 staff-side render checks through the real hooks (signed in as a staff member / a supervisor; real EmployeeLayout menu).
 - **Not verified:** clicks/downloads in a real browser; PDF layout by eye.
+
+## Review — Phase 4 (2026-10-26)
+- **User edit:** "Status akaun" card with an Aktif switch (`useSetUserStatus`, replaces the unused `useDeactivateUser`); deactivating asks first, says what changes, and warns when people still report to this user. Login already refuses inactive accounts. Supervisor picker is now the searchable one (was a plain list of ~300) — a deliberate swap, it's this phase's item.
+- **Bulk import (B7):** same email twice in one file → later rows reported, the rest still import (was: whole batch failed); existing users matched case-insensitively (was: a mixed-case stored email hit the unique index and failed the batch); blank JAWATAN keeps the stored position; if the batch insert fails it retries row by row so one bad row is isolated.
+- **Duplicate email** on create/edit shows "Emel ini sudah digunakan oleh pengguna lain." instead of the Postgres message.
+- **Verified:** tsc 0 · lint 129 (unchanged) · build ✅ · local stack: write-path checks (status switch changes the target count and back; duplicate create rejected with 23505; bulk import 2 created / 1 updated / 1 duplicate reported, mixed-case match, position kept) — local data restored after; all earlier checks still pass + a user-edit render check.
+
+## Sweep — where it ended (2026-10-26)
+- Pushed: `1c97463` sort · `f182821` Phase 1 · `d3cd1b8` Phase 2 · `21e58ab` Phase 3 · Phase 4 (this commit).
+- Lint 147 → 129 over the sweep; tsc 0 throughout.
+- **Still open (not in this sweep):** A1–A3 security / D4 auth model; B9/B10 + D2 (evaluating No-Show or unfinished programs, certificate on evaluation alone); B14 atomic cycle creation; certificate delete leaves the file (`useCertificates.ts:148`); department/grade data (Q3); clicking through in a real browser and checking PDFs by eye (Hazman).
+- **Local test stack** (Docker Postgres 15 + PostgREST v12.2.3, production baseline + later migrations, fake data) lives in the session scratchpad only. Worth moving into the repo (e.g. `scripts/local-stack/`) if we keep using it.

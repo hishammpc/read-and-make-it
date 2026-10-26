@@ -159,6 +159,8 @@ export const ms = {
     userUpdated: 'Pengguna telah dikemas kini.',
     userRoleUpdated: 'Peranan pengguna telah dikemas kini.',
     userDeactivated: 'Pengguna telah dinyahaktifkan.',
+    userReactivated: 'Pengguna telah diaktifkan semula.',
+    emailExists: 'Emel ini sudah digunakan oleh pengguna lain.',
     importComplete: (created: number, updated: number, failed: number) =>
       `Import selesai: ${created} dicipta, ${updated} dikemas kini${failed > 0 ? `, ${failed} gagal` : ''}.`,
     importFailed: (message: string) => `Import gagal: ${message}`,
