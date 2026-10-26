@@ -57,8 +57,9 @@ export default function MyAnnualEvaluation() {
     : [];
 
   // Get the selected evaluation
+  // "Latest" follows the same 2025-onward rule as the year list (2024 is demo data)
   const selectedEvaluation = selectedYear === 'latest'
-    ? allEvaluations?.[0]
+    ? allEvaluations?.find((e) => (e.cycle as { year?: number } | null)?.year === availableYears[0])
     : allEvaluations?.find((e: any) => (e.cycle as any)?.year?.toString() === selectedYear);
 
   if (isLoading) {

@@ -263,10 +263,10 @@ Built as small shared pieces (`useTableSort`, `useUrlFilters`, `YearSelect`, `Re
 - Not touched: Attendance + Certificates (URL-only; MPC: no attendance in system, 0 certificate files).
 
 ## Phase 3 — staff and supervisors
-- [ ] New **"Pasukan saya"** for supervisors: team's hours vs 40, who's below (hook `useStaffBySupervisor` already exists, unused).
-- [ ] My trainings: proper transcript PDF (ignores search, full titles, date order, header on every page, name + jawatan) + CSV; sort; error state.
-- [ ] Supervisee evaluations: search, sort, "Lihat" for every status, year kept in URL.
-- [ ] My hours: year picker + list of the programs behind the total.
+- [x] New **"Pasukan saya"** for supervisors: team's hours vs 40, who's below (hook `useStaffBySupervisor` already exists, unused).
+- [x] My trainings: proper transcript PDF (ignores search, full titles, date order, header on every page, name + jawatan) + CSV; sort; error state.
+- [x] Supervisee evaluations: search, sort, "Lihat" for every status, year kept in URL.
+- [x] My hours: year picker + list of the programs behind the total.
 
 ## Phase 4 — user admin gaps that block filters
 - [ ] User edit: active/inactive switch (`useDeactivateUser` exists, never wired — today "inactive" can only be set in the DB); searchable supervisor picker (~300 names in a plain list).
@@ -274,9 +274,9 @@ Built as small shared pieces (`useTableSort`, `useUrlFilters`, `YearSelect`, `Re
 
 ## Bugs found on the way (fix inside the phase that touches the file)
 - Staff can evaluate No-Show / unfinished programs and then download a certificate (B10, needs D2).
-- Re-opening an evaluation by URL hits the unique constraint → raw Postgres error.
+- [x] Re-opening an evaluation by URL hits the unique constraint → raw Postgres error. (Phase 3)
 - Certificate delete never removes the file (`useCertificates.ts:148` drops the `certificates/` folder).
-- Staff dashboard leaderboard / history show "empty" while loading or on error.
+- [x] Staff dashboard leaderboard / history show "empty" while loading or on error. (Phase 3)
 
 ## Decisions (Hazman, 2026-10-26: "go with recs")
 Q1 start date · Q2 active non-admin staff · Q3 no department filter for now (no data source) · Q4 sort pushed now, then one push per phase.
@@ -305,3 +305,12 @@ Q1 start date · Q2 active non-admin staff · Q3 no department filter for now (n
 - **Assign staff:** "Pilih semua yang dipaparkan (N)" + "Kosongkan pilihan". `useUsers()` paged (was capped at 1,000 rows).
 - **Verified:** tsc 0 · lint 145 → 137 · build ✅ · local stack: Phase 1 data checks still pass + 24 render checks that run each page's **real hooks** against the local PostgREST (render → run the queries the page created → render again) covering every filter/sort above.
 - **Not verified:** clicks/downloads in a real browser.
+
+## Review — Phase 3 (2026-10-26)
+- **Pasukan saya** (`/dashboard/my-team`, in the staff menu only for people with active direct reports — `useHasTeam`): team hours vs 40 for a chosen year, tiles (ahli / capai / belum capai / tiada jam) that filter, search, sortable, "Baki ke 40 j", CSV. Same start-date rule as Users. `fetchTeamTrainingHours` batches ids 100 at a time.
+- **Latihan saya:** year + search in the URL, sortable, CSV of the view, error state; **"Rekod latihan (PDF)"** = every program of the year in date order (ignores the search box), full titles wrapped, header on every page, nama + jawatan + jumlah jam vs sasaran 40 j. Count line shows hours.
+- **Jam latihan saya:** year picker; table of the programs behind the total.
+- **Penilaian kakitangan:** year in the URL, search (nama / jawatan), jawatan column, sortable (default: waiting for you → waiting for staff → done, by name), tiles filter by status, "Lihat" also for an evaluation waiting on a closed cycle; back from the form/detail keeps the filters.
+- **Fixes:** evaluation form says "Penilaian telah dihantar" instead of a Postgres duplicate-key error; staff dashboard leaderboard + annual history show skeleton / error instead of "empty" while loading or on failure; "Terkini" on Penilaian saya no longer picks 2024 demo data.
+- **Verified:** tsc 0 · lint 137 → 129 · build ✅ · local stack: Phase 1 + 2 checks still pass + 15 staff-side render checks through the real hooks (signed in as a staff member / a supervisor; real EmployeeLayout menu).
+- **Not verified:** clicks/downloads in a real browser; PDF layout by eye.

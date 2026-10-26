@@ -79,6 +79,23 @@ export default function EvaluationForm() {
     enabled: !!programId,
   });
 
+  // One evaluation per staff member per program (unique in the DB): check first, so
+  // reopening the link shows a message instead of a database error on submit
+  const { data: alreadySubmitted, isLoading: existingLoading } = useQuery({
+    // Under 'evaluations' so a submit (which invalidates ['evaluations']) refreshes it
+    queryKey: ['evaluations', 'exists', user?.userId, programId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('evaluations')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.userId)
+        .eq('program_id', programId!);
+      if (error) throw error;
+      return (count || 0) > 0;
+    },
+    enabled: !!programId && !!user?.userId,
+  });
+
   const submitEvaluation = useSubmitEvaluation();
 
   const form = useForm<EvaluationFormValues>({
@@ -107,7 +124,7 @@ export default function EvaluationForm() {
     navigate('/dashboard/my-evaluations');
   };
 
-  if (programLoading) {
+  if (programLoading || existingLoading) {
     return (
       <EmployeeLayout>
         <PageSkeleton variant="form" />
@@ -135,6 +152,26 @@ export default function EvaluationForm() {
             icon={SearchX}
             title={tf.notFoundTitle}
             description={tf.notFoundDescription}
+            action={
+              <Button variant="outline" onClick={() => navigate('/dashboard/my-evaluations')}>
+                {tf.backToList}
+              </Button>
+            }
+          />
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  if (alreadySubmitted) {
+    return (
+      <EmployeeLayout>
+        <div className="mx-auto max-w-4xl">
+          <PageHeader title={program.title} backTo="/dashboard/my-evaluations" />
+          <EmptyState
+            icon={CheckCircle2}
+            title={tf.alreadySubmittedTitle}
+            description={tf.alreadySubmittedDescription}
             action={
               <Button variant="outline" onClick={() => navigate('/dashboard/my-evaluations')}>
                 {tf.backToList}

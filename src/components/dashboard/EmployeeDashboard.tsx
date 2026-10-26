@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Callout } from '@/components/common/Callout';
 import {
   Select,
@@ -69,11 +70,16 @@ export default function EmployeeDashboard() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const { data: stats, isLoading, error } = useEmployeeDashboardStats(user?.userId || '', selectedYear);
-  const { data: leaderboard } = useLeaderboard(user?.userId || '', selectedYear);
+  const { data: leaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard(
+    user?.userId || '',
+    selectedYear
+  );
   const { data: pendingAnnualEvals } = useMyPendingAnnualEvaluations(user?.userId || '');
   const { data: pendingSuperviseeCount } = usePendingSuperviseeCount(user?.userId || '');
   const { data: supervisor } = useUserSupervisor(user?.userId || '');
-  const { data: allAnnualEvals } = useMyAllAnnualEvaluations(user?.userId || '');
+  const { data: allAnnualEvals, isLoading: historyLoading, error: historyError } = useMyAllAnnualEvaluations(
+    user?.userId || ''
+  );
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const {
     isOpen: proposalPeriodOpen,
@@ -381,8 +387,19 @@ export default function EmployeeDashboard() {
                 </>
               )}
 
-              {(!leaderboard?.topTen || leaderboard.topTen.length === 0) && (
-                <EmptyState compact icon={Trophy} title={td.leaderboard.empty} />
+              {/* "Empty" only once loaded — not while loading or after an error */}
+              {leaderboardLoading ? (
+                <div className="space-y-2 p-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : leaderboardError ? (
+                <ErrorState message={leaderboardError.message} className="m-4" />
+              ) : (
+                (!leaderboard?.topTen || leaderboard.topTen.length === 0) && (
+                  <EmptyState compact icon={Trophy} title={td.leaderboard.empty} />
+                )
               )}
             </div>
           </CardContent>
@@ -428,6 +445,14 @@ export default function EmployeeDashboard() {
                   );
                 })}
               </div>
+            ) : historyLoading ? (
+              <div className="space-y-2 p-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : historyError ? (
+              <ErrorState message={historyError.message} className="m-4" />
             ) : (
               <EmptyState compact icon={ClipboardCheck} title={ts.historyEmpty} />
             )}

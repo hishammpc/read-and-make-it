@@ -193,6 +193,7 @@ export const ms = {
     programEvaluations: 'Penilaian program',
     myEvaluation: 'Penilaian saya',
     staffEvaluation: 'Penilaian kakitangan',
+    myTeam: 'Pasukan saya',
   },
   auth: {
     title: 'Log masuk',

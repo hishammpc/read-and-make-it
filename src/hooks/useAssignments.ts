@@ -29,6 +29,8 @@ export interface AssignmentWithDetails extends ProgramAssignment {
     start_date_time: string;
     end_date_time: string;
     hours: number;
+    status?: string | null;
+    notify_for_evaluation?: boolean | null;
   };
 }
 

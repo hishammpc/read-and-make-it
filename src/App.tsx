@@ -29,6 +29,7 @@ import EvaluationTemplateEdit from "./pages/admin/EvaluationTemplateEdit";
 import Reports from "./pages/admin/Reports";
 import MyTrainings from "./pages/employee/MyTrainings";
 import MyHours from "./pages/employee/MyHours";
+import MyTeam from "./pages/employee/MyTeam";
 import MyEvaluations from "./pages/employee/MyEvaluations";
 import EvaluationForm from "./pages/employee/EvaluationForm";
 import EvaluationPreview from "./pages/preview/EvaluationPreview";
@@ -211,6 +212,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <MyHours />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/my-team"
+              element={
+                <ProtectedRoute>
+                  <MyTeam />
                 </ProtectedRoute>
               }
             />

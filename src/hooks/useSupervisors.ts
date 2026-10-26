@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { fetchAllRows } from '@/lib/fetchAllRows';
+import { getYearBounds } from '@/lib/dateUtils';
+import { hasAdminRole } from '@/lib/trainingTarget';
 
 export interface StaffWithSupervisor {
   id: string;
@@ -193,5 +196,92 @@ export function useUserSupervisor(userId: string) {
       return supervisor;
     },
     enabled: !!userId,
+  });
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  position: string | null;
+  is_admin: boolean;
+  training_hours: number;
+}
+
+/**
+ * A supervisor's active direct reports with their training hours for a year (programs
+ * counted in the year they start — the same rule as the admin Users list).
+ */
+export async function fetchTeamTrainingHours(supervisorId: string, year: number): Promise<TeamMember[]> {
+  const team = await fetchAllRows((from, to) =>
+    supabase
+      .from('profiles')
+      .select('id, name, email, position, user_roles(role)')
+      .eq('supervisor_id', supervisorId)
+      .eq('status', 'active')
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
+  if (team.length === 0) return [];
+
+  const { start, end } = getYearBounds(year);
+  // Ids go in the URL: 100 at a time keeps it short for a large team
+  const ids = team.map((member) => member.id);
+  const batches = Array.from({ length: Math.ceil(ids.length / 100) }, (_, i) => ids.slice(i * 100, i * 100 + 100));
+  const assignments = (
+    await Promise.all(
+      batches.map((batch) =>
+        fetchAllRows((from, to) =>
+          supabase
+            .from('program_assignments')
+            .select('id, user_id, programs!inner(hours, start_date_time)')
+            .in('user_id', batch)
+            .gte('programs.start_date_time', start)
+            .lt('programs.start_date_time', end)
+            .order('id', { ascending: true })
+            .range(from, to)
+        )
+      )
+    )
+  ).flat();
+
+  const hours: Record<string, number> = {};
+  assignments.forEach((assignment) => {
+    hours[assignment.user_id] = (hours[assignment.user_id] || 0) + (assignment.programs?.hours || 0);
+  });
+
+  return team.map((member) => ({
+    id: member.id,
+    name: member.name,
+    email: member.email,
+    position: member.position,
+    is_admin: hasAdminRole(member.user_roles),
+    training_hours: hours[member.id] || 0,
+  }));
+}
+
+export function useTeamTrainingHours(supervisorId: string, year: number) {
+  return useQuery({
+    queryKey: ['team-training-hours', supervisorId, year],
+    queryFn: () => fetchTeamTrainingHours(supervisorId, year),
+    enabled: !!supervisorId,
+  });
+}
+
+/** Whether anyone active reports to this person (shows "Pasukan saya" in the staff menu). */
+export function useHasTeam(supervisorId: string) {
+  return useQuery({
+    queryKey: ['has-team', supervisorId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('supervisor_id', supervisorId)
+        .eq('status', 'active');
+      if (error) throw error;
+      return (count || 0) > 0;
+    },
+    enabled: !!supervisorId,
   });
 }

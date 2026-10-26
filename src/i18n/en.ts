@@ -187,6 +187,7 @@ export const en: Dictionary = {
     programEvaluations: 'Program evaluations',
     myEvaluation: 'My evaluation',
     staffEvaluation: 'Staff evaluation',
+    myTeam: 'My team',
   },
   auth: {
     title: 'Sign in',
