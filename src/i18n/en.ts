@@ -50,6 +50,8 @@ export const en: Dictionary = {
     noResults: 'No matches',
     noResultsHint: 'Try a different search or filter.',
     clearFilters: 'Clear filters',
+    sortAscending: 'Sort ascending',
+    sortDescending: 'Sort descending',
     yes: 'Yes',
     no: 'No',
     hours: 'hours',

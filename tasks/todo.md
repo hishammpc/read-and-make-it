@@ -224,3 +224,62 @@ Writes (attendance, certificate upload, submissions) only on a test program/acco
 - [x] New `--chart-neutral` token for "Tiada perubahan" (validated: adjacent CVD ΔE ≥ 8.8, normal ≥ 24.8, both modes)
 - [x] Verify: 6 unit tests incl. MPC's 40/30 → 80/17/3 example and "only Q2 counts", tsc 0, lint 147 (unchanged), build ✅, dev compile 200 on all 12 changed modules, no component dropped vs HEAD
 - [x] Hazman screenshotted it with a dev-only preview (7 real 2026 programs shown as 2027 with made-up Q2 answers; nothing written; preview removed before commit)
+
+---
+
+# List screens to one standard — 2026-10-26 (from Sham's "sort Users by hours")
+
+**Why:** MPC keeps sending one-off table requests (sort here, filter there). Hazman: do one sweep so every list screen already does what they'd ask for. Read-only audit of all 3 areas (admin training, admin staff, staff/supervisor) done by 3 agents; key claims spot-checked in code. Live DB counts not checked (auto-mode blocks prod reads — need Hazman to allow or run one query, see Q3).
+
+**Done (uncommitted):** `lib/sort.ts` (stable, empty-last, numeric-aware BM collation; unit-tested in scratchpad), `hooks/useTableSort.ts` (sort kept in URL `?sort=-hours`), `common/SortableTableHead.tsx` (aria-sort, arrow, BM/EN tooltip). Users list: every column sortable. tsc 0, eslint clean on changed files.
+
+## The standard every list screen meets
+1. Click any column header to sort (`useTableSort` + `SortableTableHead`).
+2. Search, filters and sort live in the URL → coming back from a detail page keeps them; links can be shared. Back links (`PageHeader backTo`, save redirects) return to the filtered list.
+3. Same "Menunjukkan X daripada Y" line + "Kosongkan penapis" everywhere.
+4. **Export the current view**: CSV of exactly what's on screen (filters + sort applied), BM headers, totals row where there are numbers. PDF stays where an official report exists.
+5. One shared year picker (today: 4 different year lists).
+6. Loading / empty / error states on every page.
+Built as small shared pieces (`useTableSort`, `useUrlFilters`, `YearSelect`, `ResultCount`, `exportTableCsv`), not one big DataTable component — pages stay readable and keep their current look.
+
+## Phase 1 — 40-hour compliance (what Sham actually needs)
+- [ ] Users: quick-filter tiles (Kakitangan aktif / Capai 40 j / Belum capai 40 j / Tiada jam) using the cycle page's StatCard-as-filter pattern; compliance counts only active, non-admin staff; hours cell shows progress against 40 (`getComplianceTone`); "baki" (hours still needed) column.
+- [ ] Users: status filter (aktif / tidak aktif), supervisor filter incl. "Tiada penyelia" (the annual-eval alert already links here for that); role shown.
+- [ ] Users: CSV of the current view (nama, emel, jawatan, penyelia, jam, sasaran, baki, status).
+- [ ] Reports: new **"Ringkasan jam latihan kakitangan"** — one row per active staff member incl. 0 hours: total hours, % of 40, Capai/Belum. CSV + PDF. Replaces the manual work Sham does on the per-training report today.
+- [ ] Admin dashboard: "Belum capai 40 jam" tile → opens Users already filtered.
+- [ ] Fix: hours paging has no `.order()` (C5) → totals can double-count/drop rows past 1,000 assignments (`useUsers.ts:89`, `useAdminDashboard.ts:133`, `useLeaderboard.ts:41`, Reports ×3).
+- [ ] Fix: one date decides which year a program's hours count in (Q1) — Users/Reports/MyTrainings use start date, staff dashboard/leaderboard use end date.
+- [ ] Fix: leaderboards rank inactive staff and admins.
+
+## Phase 2 — the standard on every admin table
+- [ ] Programs: sort (tarikh, tajuk, jam, peserta); search title + description; filters "penilaian diperlukan", tempatan/luar negara, "semua tahun"; CSV.
+- [ ] Program details → peserta: search, sort, "belum menilai" filter, CSV (the follow-up list HR chases).
+- [ ] Training evaluations: sort; response-rate column + "respons rendah" filter; CSV beside the PDF; PDF headers in BM; back link from program details returns here (today goes to Programs).
+- [ ] Annual cycle: sort (nama, penyelia, status, markah); supervisor filter; filters in URL; CSV of results; result page back link keeps filters; stable row order (today all rows share one `created_at`).
+- [ ] Proposed trainings: search, "dipertimbang" filter, sort, count line; **"belum mencadang"** list; CSV follows the view; fix opening on the wrong year when the period isn't the default Dec–Feb.
+- [ ] Reports: BM headers in CSV/PDF (today raw keys / English), totals in exports, PDF header from the generated data not the live filters (B16), "Tidak diperlukan" instead of "Belum" for programs without evaluation.
+- [ ] Program assign: "pilih semua yang ditapis".
+- Not touched: Attendance + Certificates (URL-only; MPC: no attendance in system, 0 certificate files).
+
+## Phase 3 — staff and supervisors
+- [ ] New **"Pasukan saya"** for supervisors: team's hours vs 40, who's below (hook `useStaffBySupervisor` already exists, unused).
+- [ ] My trainings: proper transcript PDF (ignores search, full titles, date order, header on every page, name + jawatan) + CSV; sort; error state.
+- [ ] Supervisee evaluations: search, sort, "Lihat" for every status, year kept in URL.
+- [ ] My hours: year picker + list of the programs behind the total.
+
+## Phase 4 — user admin gaps that block filters
+- [ ] User edit: active/inactive switch (`useDeactivateUser` exists, never wired — today "inactive" can only be set in the DB); searchable supervisor picker (~300 names in a plain list).
+- [ ] Users page links to bulk import (route exists, no link); bulk import fixes (B7: in-file duplicate fails the whole batch, blank JAWATAN wipes position).
+
+## Bugs found on the way (fix inside the phase that touches the file)
+- Staff can evaluate No-Show / unfinished programs and then download a certificate (B10, needs D2).
+- Re-opening an evaluation by URL hits the unique constraint → raw Postgres error.
+- Certificate delete never removes the file (`useCertificates.ts:148` drops the `certificates/` folder).
+- Staff dashboard leaderboard / history show "empty" while loading or on error.
+
+## Questions for Hazman
+- **Q1 Year of a program's hours** — start date or end date? Rec: **start date** (admin Users, Reports, Programs, MyTrainings already use it; only 2 dashboard hooks change).
+- **Q2 Who counts toward the 40 h target** — rec: active staff without the admin role. (Separately: annual cycles currently enrol admins too — intended?)
+- **Q3 Department / grade** — no screen or import sets them, so a department filter is only useful if MPC has the data. Needs one read-only count on prod (blocked for me in auto mode).
+- **Q4 Ship order** — rec: push the Users sort now (Sham gets it today), then one push per phase.

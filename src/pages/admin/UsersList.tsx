@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUsersWithTrainingHours } from '@/hooks/useUsers';
+import { useTableSort } from '@/hooks/useTableSort';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { SortableTableHead } from '@/components/common/SortableTableHead';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -28,9 +30,26 @@ import {
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Search, Pencil, Clock, Users } from 'lucide-react';
+import type { SortAccessors } from '@/lib/sort';
 
 // Extended years from 2023 to 2035
 const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
+
+type UserRow = {
+  name: string;
+  email: string;
+  supervisor_name: string | null;
+  status: string | null;
+  training_hours: number;
+};
+
+const USER_SORT: SortAccessors<UserRow, 'name' | 'email' | 'supervisor' | 'status' | 'hours'> = {
+  name: (user) => user.name,
+  email: (user) => user.email,
+  supervisor: (user) => user.supervisor_name,
+  status: (user) => user.status,
+  hours: (user) => user.training_hours,
+};
 
 export default function UsersList() {
   const navigate = useNavigate();
@@ -43,22 +62,18 @@ export default function UsersList() {
   const { data: users, isLoading, error } = useUsersWithTrainingHours(parseInt(selectedYear), fromMonth, toMonth);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter and sort users
-  const filteredUsers = useMemo(() => {
-    if (!users) return [];
-
-    let filtered = users;
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = users.filter((user) =>
-        user.name.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Copy first: without a search, `filtered` is the React Query cache array itself
-    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  const searchedUsers = useMemo(() => {
+    if (!users || !searchQuery) return users;
+    const searchLower = searchQuery.toLowerCase();
+    return users.filter((user) =>
+      user.name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower)
+    );
   }, [users, searchQuery]);
+  const { sorted: filteredUsers, sort, toggleSort } = useTableSort(searchedUsers, USER_SORT, {
+    key: 'name',
+    direction: 'asc',
+  });
 
   // Calculate total training hours
   const totalTrainingHours = useMemo(() => {
@@ -184,11 +199,21 @@ export default function UsersList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t.common.name}</TableHead>
-                <TableHead>{t.common.email}</TableHead>
-                <TableHead>{t.common.supervisor}</TableHead>
-                <TableHead>{t.common.status}</TableHead>
-                <TableHead className="text-right">{tu.colHours(selectedYear)}</TableHead>
+                <SortableTableHead sortKey="name" sort={sort} onSort={toggleSort}>
+                  {t.common.name}
+                </SortableTableHead>
+                <SortableTableHead sortKey="email" sort={sort} onSort={toggleSort}>
+                  {t.common.email}
+                </SortableTableHead>
+                <SortableTableHead sortKey="supervisor" sort={sort} onSort={toggleSort}>
+                  {t.common.supervisor}
+                </SortableTableHead>
+                <SortableTableHead sortKey="status" sort={sort} onSort={toggleSort}>
+                  {t.common.status}
+                </SortableTableHead>
+                <SortableTableHead sortKey="hours" sort={sort} onSort={toggleSort} align="right">
+                  {tu.colHours(selectedYear)}
+                </SortableTableHead>
                 <TableHead className="text-right">
                   <span className="sr-only">{t.common.actions}</span>
                 </TableHead>

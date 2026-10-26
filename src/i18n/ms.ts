@@ -56,6 +56,8 @@ export const ms = {
     noResults: 'Tiada padanan',
     noResultsHint: 'Cuba ubah carian atau penapis anda.',
     clearFilters: 'Kosongkan penapis',
+    sortAscending: 'Isih menaik',
+    sortDescending: 'Isih menurun',
     yes: 'Ya',
     no: 'Tidak',
     hours: 'jam',
