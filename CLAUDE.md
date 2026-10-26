@@ -238,7 +238,10 @@ getRatingLabel(percentage)       // Cemerlang, Bagus, etc.
 npm run dev      # Start dev server (port 8080)
 npm run build    # Production build
 npm run lint     # ESLint check
+node scripts/local-stack/run.mjs   # Checks against a local Docker copy of the DB with fake staff (never the live DB); see scripts/local-stack/README.md
 ```
+
+`npm run dev` talks to MPC's **live** database. Test writes on the local stack instead.
 
 ## Environment Variables
 
