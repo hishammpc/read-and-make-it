@@ -1,10 +1,15 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProgram, useDeleteProgram } from '@/hooks/usePrograms';
 import { useProgramAssignments, useRemoveAssignment } from '@/hooks/useAssignments';
 import { useProgramEvaluationDetails } from '@/hooks/useEvaluations';
 import { supabase } from '@/integrations/supabase/client';
+import { useTableSort } from '@/hooks/useTableSort';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useToast } from '@/hooks/use-toast';
+import { downloadCSV } from '@/lib/csvUtils';
+import type { SortAccessors } from '@/lib/sort';
 import { formatDateTime } from '@/lib/dateUtils';
 import { getTrainingRatingTone, toneClasses } from '@/lib/status';
 import { cn } from '@/lib/utils';
@@ -15,7 +20,16 @@ import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ToneBadge } from '@/components/common/StatusBadge';
+import { SortableTableHead } from '@/components/common/SortableTableHead';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -51,10 +65,26 @@ import {
   MinusCircle,
   SearchX,
   Tag,
+  Search,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { RadarScoreChart } from '@/components/charts/RadarScoreChart';
 import { ProgramImprovementDetails } from '@/components/evaluations/ProgramImprovementDetails';
 import { getEvaluationFormVersion, getSkillChangeTone, percentOf } from '@/lib/evaluationForms';
+
+const PARTICIPANT_FILTERS = { q: '', eval: 'all' };
+
+type ParticipantKey = 'name' | 'position' | 'email' | 'evaluation';
+/** A row of useProgramAssignments (supabase-js can't type the column-hinted `profiles:user_id` embed) */
+interface Participant {
+  id: string;
+  user_id: string;
+  profiles: { id: string; name: string; email: string; department: string | null; position: string | null } | null;
+}
+
+/** For file names: "Bengkel Pengurusan Projek" -> "bengkel-pengurusan-projek" */
+const slugify = (text: string) =>
+  text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'program';
 
 /** One label/value pair in the program information grid. */
 function InfoItem({
@@ -87,7 +117,8 @@ export default function ProgramDetails() {
   const tp = t.adminTraining.programs;
   const { id } = useParams<{ id: string }>();
   const { data: program, isLoading, error } = useProgram(id!);
-  const { data: assignments, isLoading: assignmentsLoading } = useProgramAssignments(id!);
+  const { data: assignmentRows, isLoading: assignmentsLoading } = useProgramAssignments(id!);
+  const assignments = assignmentRows as unknown as Participant[] | undefined;
   const { data: evaluationDetails, isLoading: evaluationLoading } = useProgramEvaluationDetails(id!);
   const deleteProgram = useDeleteProgram();
   const removeAssignment = useRemoveAssignment();
@@ -108,6 +139,57 @@ export default function ProgramDetails() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [removeAssignmentDialogOpen, setRemoveAssignmentDialogOpen] = useState(false);
   const [assignmentToRemove, setAssignmentToRemove] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Participants table: search / evaluation filter / sort, all kept in the URL
+  const { filters, setFilters, clearFilters } = useUrlFilters(PARTICIPANT_FILTERS);
+  const evaluationRequired = !!program?.notify_for_evaluation;
+  const hasEvaluated = (assignment: Participant) => !!programEvaluations?.has(assignment.profiles?.id);
+  const participantSort = useMemo<SortAccessors<Participant, ParticipantKey>>(
+    () => ({
+      name: (a) => a.profiles?.name,
+      position: (a) => a.profiles?.position,
+      email: (a) => a.profiles?.email,
+      evaluation: (a) => (programEvaluations?.has(a.profiles?.id) ? 1 : 0),
+    }),
+    [programEvaluations]
+  );
+  const visibleAssignments = useMemo(() => {
+    if (!assignments) return assignments;
+    const search = filters.q.trim().toLowerCase();
+    return assignments.filter((a) => {
+      const profile = a.profiles;
+      if (
+        search &&
+        ![profile?.name, profile?.email, profile?.position].some((v) => (v || '').toLowerCase().includes(search))
+      ) {
+        return false;
+      }
+      const evaluated = !!programEvaluations?.has(profile?.id);
+      if (evaluationRequired && filters.eval === 'submitted' && !evaluated) return false;
+      if (evaluationRequired && filters.eval === 'pending' && evaluated) return false;
+      return true;
+    });
+  }, [assignments, filters, evaluationRequired, programEvaluations]);
+  const { sorted: participantRows, sort, toggleSort } = useTableSort(visibleAssignments, participantSort, {
+    key: 'name',
+    direction: 'asc',
+  });
+  const pendingEvaluationCount = evaluationRequired
+    ? (assignments || []).filter((a) => !hasEvaluated(a)).length
+    : 0;
+  const participantsFiltered = filters.q !== '' || filters.eval !== 'all';
+
+  const handleDownloadParticipants = () => {
+    const rows = participantRows.map((a) => ({
+      Nama: a.profiles?.name || '',
+      Jawatan: a.profiles?.position || '',
+      Emel: a.profiles?.email || '',
+      ...(evaluationRequired ? { Penilaian: hasEvaluated(a) ? 'Selesai' : 'Belum' } : {}),
+    }));
+    downloadCSV(rows, `peserta-${slugify(program?.title || '')}.csv`);
+    toast({ title: t.common.success, description: td.participantsDownloaded });
+  };
 
   const handleDelete = () => {
     if (!id) return;
@@ -379,7 +461,10 @@ export default function ProgramDetails() {
                   <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   {ts.assignedStaff}
                 </CardTitle>
-                <CardDescription>{ts.assignedCount(assignments?.length || 0)}</CardDescription>
+                <CardDescription>
+                  {ts.assignedCount(assignments?.length || 0)}
+                  {evaluationRequired && pendingEvaluationCount > 0 && ` · ${td.pendingCount(pendingEvaluationCount)}`}
+                </CardDescription>
               </div>
               <Button onClick={() => navigate(`/dashboard/programs/${id}/assign`)}>
                 <UserPlus className="h-4 w-4" />
@@ -408,20 +493,80 @@ export default function ProgramDetails() {
                 }
               />
             ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder={td.searchParticipants}
+                      aria-label={t.common.search}
+                      value={filters.q}
+                      onChange={(e) => setFilters({ q: e.target.value })}
+                      className="pl-9"
+                    />
+                  </div>
+                  {evaluationRequired && (
+                    <Select value={filters.eval} onValueChange={(value) => setFilters({ eval: value })}>
+                      <SelectTrigger className="w-full sm:w-52" aria-label={td.colEvaluation}>
+                        <SelectValue placeholder={td.colEvaluation} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{td.allEvaluationStatus}</SelectItem>
+                        <SelectItem value="submitted">{td.evaluationSubmitted}</SelectItem>
+                        <SelectItem value="pending">{td.evaluationPending}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <div className="flex items-center gap-2 sm:ml-auto">
+                    {participantsFiltered && (
+                      <Button variant="ghost" onClick={() => clearFilters()} className="text-muted-foreground">
+                        {t.common.clearFilters}
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={handleDownloadParticipants} disabled={participantRows.length === 0}>
+                      <FileSpreadsheet className="h-4 w-4" />
+                      {t.common.downloadCsv}
+                    </Button>
+                  </div>
+                </div>
+
+                {participantRows.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={Search}
+                    title={t.common.noResults}
+                    description={t.common.noResultsHint}
+                    action={
+                      <Button variant="outline" size="sm" onClick={() => clearFilters()}>
+                        {t.common.clearFilters}
+                      </Button>
+                    }
+                  />
+                ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t.common.name}</TableHead>
-                    <TableHead>{t.common.position}</TableHead>
-                    <TableHead>{t.common.email}</TableHead>
-                    {program.notify_for_evaluation && <TableHead>{td.colEvaluation}</TableHead>}
+                    <SortableTableHead sortKey="name" sort={sort} onSort={toggleSort}>
+                      {t.common.name}
+                    </SortableTableHead>
+                    <SortableTableHead sortKey="position" sort={sort} onSort={toggleSort}>
+                      {t.common.position}
+                    </SortableTableHead>
+                    <SortableTableHead sortKey="email" sort={sort} onSort={toggleSort}>
+                      {t.common.email}
+                    </SortableTableHead>
+                    {program.notify_for_evaluation && (
+                      <SortableTableHead sortKey="evaluation" sort={sort} onSort={toggleSort}>
+                        {td.colEvaluation}
+                      </SortableTableHead>
+                    )}
                     <TableHead className="text-right">
                       <span className="sr-only">{t.common.actions}</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {assignments.map((assignment: any) => (
+                  {participantRows.map((assignment) => (
                     <TableRow key={assignment.id}>
                       <TableCell className="font-medium">
                         {assignment.profiles?.name || ts.unknown}
@@ -459,6 +604,14 @@ export default function ProgramDetails() {
                   ))}
                 </TableBody>
               </Table>
+                )}
+
+                {participantsFiltered && participantRows.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {td.participantsShowing(participantRows.length, assignments.length)}
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

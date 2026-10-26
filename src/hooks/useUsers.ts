@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getMonthRangeBounds } from '@/lib/dateUtils';
-import { hasAdminRole } from '@/lib/trainingTarget';
+import { countsTowardTarget, hasAdminRole } from '@/lib/trainingTarget';
 
 export interface Profile {
   id: string;
@@ -40,18 +40,19 @@ export interface UpdateUserInput {
 export function useUsers() {
   return useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          user_roles(role)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      // Paged: PostgREST returns at most 1,000 rows per request
+      fetchAllRows((from, to) =>
+        supabase
+          .from('profiles')
+          .select(`
+            *,
+            user_roles(role)
+          `)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to)
+      ),
   });
 }
 
@@ -136,6 +137,38 @@ export function useUsersWithTrainingHours(
     // Under 'users' so every user mutation's ['users'] invalidation refreshes it
     queryKey: ['users', 'with-training-hours', year, fromMonth, toMonth],
     queryFn: () => fetchUsersWithTrainingHours(year, fromMonth, toMonth),
+  });
+}
+
+export interface TargetStaffMember {
+  id: string;
+  name: string;
+  email: string;
+  position: string | null;
+  department: string | null;
+  supervisor_id: string | null;
+}
+
+/** Active staff without the admin role — the people the 40-hour target and yearly proposals apply to. */
+export function useTargetStaff() {
+  return useQuery({
+    queryKey: ['users', 'target-staff'],
+    queryFn: async (): Promise<TargetStaffMember[]> => {
+      const rows = await fetchAllRows((from, to) =>
+        supabase
+          .from('profiles')
+          .select('id, name, email, position, department, supervisor_id, status, user_roles(role)')
+          .eq('status', 'active')
+          .order('name', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
+      return rows
+        .filter((row) => countsTowardTarget({ status: row.status, is_admin: hasAdminRole(row.user_roles) }))
+        .map(({ id, name, email, position, department, supervisor_id }) => ({
+          id, name, email, position, department, supervisor_id,
+        }));
+    },
   });
 }
 

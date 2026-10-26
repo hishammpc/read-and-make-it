@@ -117,8 +117,8 @@ export default function ProgramAssign() {
       );
     }
 
-    // Sort alphabetically by name
-    return filtered.sort((a, b) => {
+    // Sort alphabetically by name (copy first: `filtered` may be the memoized list itself)
+    return [...filtered].sort((a, b) => {
       const nameA = a.name?.toLowerCase() || '';
       const nameB = b.name?.toLowerCase() || '';
       return nameA.localeCompare(nameB);
@@ -132,6 +132,13 @@ export default function ProgramAssign() {
         : [...prev, userId]
     );
   };
+
+  const allShownSelected =
+    filteredUsers.length > 0 && filteredUsers.every((user: any) => selectedUserIds.includes(user.id));
+
+  // Adds everyone the current search / department filter shows (keeps earlier picks)
+  const selectAllShown = () =>
+    setSelectedUserIds((prev) => [...new Set([...prev, ...filteredUsers.map((user: any) => user.id as string)])]);
 
   const handleAssignUsers = () => {
     if (!id || selectedUserIds.length === 0) return;
@@ -249,6 +256,19 @@ export default function ProgramAssign() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="text-muted-foreground">{ta.shownCount(filteredUsers.length)}</span>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={selectAllShown} disabled={allShownSelected}>
+                  {ta.selectAllShown(filteredUsers.length)}
+                </Button>
+                {selectedUserIds.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedUserIds([])}>
+                    {ta.clearSelection}
+                  </Button>
+                )}
+              </div>
+            </div>
             <Command className="rounded-lg border" shouldFilter={false}>
               <CommandInput
                 placeholder={ta.searchPlaceholder}

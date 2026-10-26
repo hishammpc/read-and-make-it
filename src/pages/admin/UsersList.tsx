@@ -12,6 +12,7 @@ import { StatCard } from '@/components/common/StatCard';
 import { StatusBadge, ToneBadge } from '@/components/common/StatusBadge';
 import { SortableTableHead } from '@/components/common/SortableTableHead';
 import { SearchableSelect } from '@/components/common/SearchableSelect';
+import { PeriodFilter } from '@/components/common/PeriodFilter';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -55,9 +56,6 @@ import {
   matchesTargetBand,
   type TargetBand,
 } from '@/lib/trainingTarget';
-
-// Extended years from 2023 to 2035
-const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
 
 // BM month names for the CSV (exports stay BM regardless of UI language)
 const CSV_MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
@@ -162,7 +160,6 @@ export default function UsersList() {
 
   const hasFromMonth = !!fromMonth && fromMonth !== 'all';
   const hasToMonth = !!toMonth && toMonth !== 'all';
-  const monthOptions = t.common.months.map((label, index) => ({ value: String(index + 1), label }));
   const hoursPeriod =
     hasFromMonth || hasToMonth
       ? tu.monthRange(
@@ -292,50 +289,7 @@ export default function UsersList() {
             />
           </div>
 
-          <Select value={selectedYear} onValueChange={(year) => setFilters({ year })}>
-            <SelectTrigger className="w-full sm:w-28" aria-label={t.common.year}>
-              <SelectValue placeholder={t.common.year} />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center gap-2">
-            <Select value={fromMonth} onValueChange={(from) => setFilters({ from })}>
-              <SelectTrigger className="w-full sm:w-40" aria-label={tu.fromMonth}>
-                <SelectValue placeholder={tu.fromMonth} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tu.allMonths}</SelectItem>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <span className="text-sm text-muted-foreground">{t.common.to.toLowerCase()}</span>
-
-            <Select value={toMonth} onValueChange={(to) => setFilters({ to })}>
-              <SelectTrigger className="w-full sm:w-40" aria-label={tu.toMonth}>
-                <SelectValue placeholder={tu.toMonth} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tu.allMonths}</SelectItem>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <PeriodFilter value={filters} onChange={setFilters} />
 
           <Select value={statusFilter} onValueChange={(status) => setFilters({ status })}>
             <SelectTrigger className="w-full sm:w-40" aria-label={t.common.status}>
@@ -353,12 +307,12 @@ export default function UsersList() {
             onChange={(sup) => setFilters({ sup })}
             options={supervisorOptions}
             pinned={[
-              { value: 'all', label: tu.allSupervisors },
-              { value: 'none', label: tu.noSupervisor },
+              { value: 'all', label: t.common.allSupervisors },
+              { value: 'none', label: t.common.noSupervisor },
             ]}
-            placeholder={tu.supervisorFilter}
-            searchPlaceholder={tu.searchSupervisor}
-            ariaLabel={tu.supervisorFilter}
+            placeholder={t.common.supervisor}
+            searchPlaceholder={t.common.searchSupervisor}
+            ariaLabel={t.common.supervisor}
             className="sm:w-56"
           />
 

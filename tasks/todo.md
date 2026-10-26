@@ -253,13 +253,13 @@ Built as small shared pieces (`useTableSort`, `useUrlFilters`, `YearSelect`, `Re
 - [x] Fix: leaderboards rank inactive staff and admins.
 
 ## Phase 2 — the standard on every admin table
-- [ ] Programs: sort (tarikh, tajuk, jam, peserta); search title + description; filters "penilaian diperlukan", tempatan/luar negara, "semua tahun"; CSV.
-- [ ] Program details → peserta: search, sort, "belum menilai" filter, CSV (the follow-up list HR chases).
-- [ ] Training evaluations: sort; response-rate column + "respons rendah" filter; CSV beside the PDF; PDF headers in BM; back link from program details returns here (today goes to Programs).
-- [ ] Annual cycle: sort (nama, penyelia, status, markah); supervisor filter; filters in URL; CSV of results; result page back link keeps filters; stable row order (today all rows share one `created_at`).
-- [ ] Proposed trainings: search, "dipertimbang" filter, sort, count line; **"belum mencadang"** list; CSV follows the view; fix opening on the wrong year when the period isn't the default Dec–Feb.
+- [x] Programs: sort (tarikh, tajuk, jam, peserta); search title + description; filters "penilaian diperlukan", tempatan/luar negara, "semua tahun"; CSV.
+- [x] Program details → peserta: search, sort, "belum menilai" filter, CSV (the follow-up list HR chases).
+- [x] Training evaluations: sort; response-rate column + "respons rendah" filter; CSV beside the PDF; PDF headers in BM; back link from program details returns here (today goes to Programs).
+- [x] Annual cycle: sort (nama, penyelia, status, markah); supervisor filter; filters in URL; CSV of results; result page back link keeps filters; stable row order (today all rows share one `created_at`).
+- [x] Proposed trainings: search, "dipertimbang" filter, sort, count line; **"belum mencadang"** list; CSV follows the view; fix opening on the wrong year when the period isn't the default Dec–Feb.
 - [x] Reports: BM headers in CSV/PDF (today raw keys / English), totals in exports, PDF header from the generated data not the live filters (B16), "Tidak diperlukan" instead of "Belum" for programs without evaluation.
-- [ ] Program assign: "pilih semua yang ditapis".
+- [x] Program assign: "pilih semua yang ditapis".
 - Not touched: Attendance + Certificates (URL-only; MPC: no attendance in system, 0 certificate files).
 
 ## Phase 3 — staff and supervisors
@@ -294,3 +294,14 @@ Q1 start date · Q2 active non-admin staff · Q3 no department filter for now (n
 - **Dashboards:** admin "Belum capai 40 jam" tile → `/admin/users?year=…&target=below&sort=hours`. Year = program start date everywhere (admin dashboard, staff dashboard, leaderboards); leaderboards only active non-admin staff; staff pending-evaluation count is one query instead of one per program.
 - **Verified:** tsc 0 · lint 147 → 145 · build ✅ · unit tests (sort, target rules) · **local stack** (Docker: Postgres 15 + PostgREST v12.2.3 with the 1,000-row cap, production baseline schema, fake data incl. cross-year / 31 Dec 20:00 / 1 Jan 00:00 MYT programs, a leaver, an admin, 1,100 bulk staff): 23 data checks on the real hook/report functions + 10 server-render checks of Users (URL filters/sort), dashboard tile and Reports tabs — all pass. Harness lives in the session scratchpad (not in the repo).
 - **Not verified:** clicks in a real browser (popover search, CSV/PDF download, tile toggling); numbers on the live DB (prod reads are blocked for me).
+
+## Review — Phase 2 (2026-10-26)
+- **Shared:** `common/PeriodFilter` + `lib/period.ts` (one year list 2023 → next year, "semua tahun" where useful; picking from > to moves the other end, so a range is never silently empty — B16). Supervisor filter strings moved to `t.common`.
+- **Programs:** search title + description; period (incl. all years), jenis latihan, penilaian filters; every column sortable; new Jenis column; CSV (BM) of the view; filters in the URL; detail/edit links return to the filtered list.
+- **Program details → peserta:** search (nama / emel / jawatan), "belum menilai" filter, sortable, CSV, "N belum menilai" in the card header.
+- **Training evaluations:** search, period picker, new "Kadar maklum balas" column (responses ÷ participants, capped at 100, only for programs needing evaluation; under 50% flagged) + "kurang 50%" filter; sortable (result sorts by score / % meningkat); CSV beside PDF; PDF headers in BM, header repeated on every page, rows in on-screen order; program links come back to this page (was: Programs).
+- **Annual cycle:** sortable (default nama — row order was undefined), search also covers jawatan + penyelia, searchable supervisor filter incl. "Tiada penyelia", filters in the URL (kept when opening a result), CSV with self/supervisor scores, %, penarafan and dates, "Menunjukkan X daripada Y".
+- **Proposed trainings:** opens on the year staff are proposing for (period end-date year; was the hard-coded December rule); search, "dipertimbangkan" filter, sortable; new tile + list **"Belum mencadang"** (active non-admin staff without a proposal), CSV follows the view (proposals or missing list).
+- **Assign staff:** "Pilih semua yang dipaparkan (N)" + "Kosongkan pilihan". `useUsers()` paged (was capped at 1,000 rows).
+- **Verified:** tsc 0 · lint 145 → 137 · build ✅ · local stack: Phase 1 data checks still pass + 24 render checks that run each page's **real hooks** against the local PostgREST (render → run the queries the page created → render again) covering every filter/sort above.
+- **Not verified:** clicks/downloads in a real browser.

@@ -1,13 +1,22 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useProgramsWithStats, useDeleteProgram } from '@/hooks/usePrograms';
+import { useTableSort } from '@/hooks/useTableSort';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useReturnState } from '@/hooks/useReturnTo';
+import { useToast } from '@/hooks/use-toast';
 import { formatMalaysianDate } from '@/lib/dateUtils';
+import { downloadCSV } from '@/lib/csvUtils';
+import type { SortAccessors } from '@/lib/sort';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { ToneBadge } from '@/components/common/StatusBadge';
+import { SortableTableHead } from '@/components/common/SortableTableHead';
+import { PeriodFilter } from '@/components/common/PeriodFilter';
+import { periodMonths } from '@/lib/period';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,73 +47,93 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Card } from '@/components/ui/card';
-import { Plus, Eye, Pencil, Trash2, Search, BookOpen } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2, Search, BookOpen, FileSpreadsheet } from 'lucide-react';
 
-const currentYear = new Date().getFullYear();
-// Extended years from 2023 to 2035
-const YEARS = Array.from({ length: 13 }, (_, i) => (2023 + i).toString());
+type ProgramRow = NonNullable<ReturnType<typeof useProgramsWithStats>['data']>[number];
+
+const participantsOf = (program: ProgramRow) =>
+  ((program as { program_assignments?: Array<{ count: number }> }).program_assignments?.[0]?.count) || 0;
+
+const FILTER_DEFAULTS = {
+  q: '',
+  year: String(new Date().getFullYear()),
+  from: '',
+  to: '',
+  type: 'all',
+  eval: 'all',
+};
+
+const NARROWING_FILTERS = ['q', 'from', 'to', 'type', 'eval'] as const;
+
+const PROGRAM_SORT: SortAccessors<ProgramRow, 'title' | 'start' | 'end' | 'hours' | 'assigned' | 'type' | 'evaluation'> = {
+  title: (program) => program.title,
+  start: (program) => Date.parse(program.start_date_time),
+  end: (program) => Date.parse(program.end_date_time),
+  hours: (program) => program.hours,
+  assigned: participantsOf,
+  type: (program) => program.training_type,
+  evaluation: (program) => (program.notify_for_evaluation ? 1 : 0),
+};
+
+// CSV stays BM (official output)
+const TYPE_BM: Record<string, string> = { Local: 'Tempatan', International: 'Antarabangsa' };
 
 export default function ProgramsList() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { t } = useLanguage();
   const tp = t.adminTraining.programs;
+  const typeLabels = t.adminTraining.programForm.trainingTypes;
+  const returnState = useReturnState();
   const { data: programs, isLoading, error } = useProgramsWithStats();
   const deleteProgram = useDeleteProgram();
+  const { filters, setFilters, clearFilters } = useUrlFilters(FILTER_DEFAULTS);
+  const { q: searchQuery, year: selectedYear, type: typeFilter, eval: evaluationFilter } = filters;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [fromMonth, setFromMonth] = useState('');
-  const [toMonth, setToMonth] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [programToDelete, setProgramToDelete] = useState<string | null>(null);
 
-  const filteredPrograms = useMemo(() => {
-    if (!programs) return [];
+  const visiblePrograms = useMemo(() => {
+    if (!programs) return programs;
+    const search = searchQuery.trim().toLowerCase();
+    const { from, to } = periodMonths(filters);
 
     return programs.filter((program) => {
-      // Search filter
-      const matchesSearch = !searchQuery ||
-        program.title.toLowerCase().includes(searchQuery.toLowerCase());
+      if (
+        search &&
+        !program.title.toLowerCase().includes(search) &&
+        !(program.description || '').toLowerCase().includes(search)
+      ) {
+        return false;
+      }
+      if (typeFilter !== 'all' && program.training_type !== typeFilter) return false;
+      if (evaluationFilter === 'required' && !program.notify_for_evaluation) return false;
+      if (evaluationFilter === 'not_required' && program.notify_for_evaluation) return false;
 
-      if (!matchesSearch) return false;
-
+      if (selectedYear === 'all') return true;
       const programDate = new Date(program.start_date_time);
-      const programYear = programDate.getFullYear().toString();
+      if (programDate.getFullYear().toString() !== selectedYear) return false;
       const programMonth = programDate.getMonth() + 1;
-
-      const matchesYear = programYear === selectedYear;
-
-      if (!matchesYear) return false;
-
-      // If no month range selected or "all" selected, show all for the year
-      if ((!fromMonth || fromMonth === 'all') && (!toMonth || toMonth === 'all')) return true;
-
-      const from = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
-      const to = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
-
       return programMonth >= from && programMonth <= to;
     });
-  }, [programs, searchQuery, selectedYear, fromMonth, toMonth]);
+  }, [programs, searchQuery, selectedYear, filters, typeFilter, evaluationFilter]);
 
-  const totalHours = useMemo(() => {
-    return filteredPrograms.reduce((sum, program) => sum + (program.hours || 0), 0);
-  }, [filteredPrograms]);
+  const { sorted: filteredPrograms, sort, toggleSort } = useTableSort(visiblePrograms, PROGRAM_SORT, {
+    key: 'start',
+    direction: 'desc',
+  });
 
-  const totalAssigned = useMemo(() => {
-    return filteredPrograms.reduce((sum, program) => {
-      const count = (program as any).program_assignments?.[0]?.count || 0;
-      return sum + count;
-    }, 0);
-  }, [filteredPrograms]);
+  const totalHours = useMemo(
+    () => filteredPrograms.reduce((sum, program) => sum + (program.hours || 0), 0),
+    [filteredPrograms]
+  );
+  const totalAssigned = useMemo(
+    () => filteredPrograms.reduce((sum, program) => sum + participantsOf(program), 0),
+    [filteredPrograms]
+  );
 
-  const hasActiveFilters =
-    !!searchQuery || (!!fromMonth && fromMonth !== 'all') || (!!toMonth && toMonth !== 'all');
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setFromMonth('');
-    setToMonth('');
-  };
+  const hasActiveFilters = NARROWING_FILTERS.some((key) => filters[key] !== FILTER_DEFAULTS[key] && filters[key] !== 'all');
+  const resetFilters = () => clearFilters([...NARROWING_FILTERS]);
 
   const handleDelete = (id: string) => {
     setProgramToDelete(id);
@@ -117,6 +146,22 @@ export default function ProgramsList() {
       setDeleteDialogOpen(false);
       setProgramToDelete(null);
     }
+  };
+
+  const handleDownloadCSV = () => {
+    const rows = filteredPrograms.map((program) => ({
+      Tajuk: program.title,
+      'Tarikh Mula': formatMalaysianDate(program.start_date_time),
+      'Tarikh Tamat': formatMalaysianDate(program.end_date_time),
+      Jam: program.hours,
+      Peserta: participantsOf(program),
+      Jenis: TYPE_BM[program.training_type || ''] || program.training_type || '',
+      Lokasi: program.location || '',
+      Penilaian: program.notify_for_evaluation ? 'Diperlukan' : 'Tidak diperlukan',
+    }));
+    const period = selectedYear === 'all' ? 'semua-tahun' : selectedYear;
+    downloadCSV(rows, `senarai-program-${period}.csv`);
+    toast({ title: t.common.success, description: tp.csvDownloaded });
   };
 
   const header = (
@@ -141,8 +186,6 @@ export default function ProgramsList() {
     );
   }
 
-  const monthOptions = t.common.months.map((label, index) => ({ value: String(index + 1), label }));
-
   return (
     <AdminLayout>
       {header}
@@ -156,61 +199,46 @@ export default function ProgramsList() {
               placeholder={tp.searchPlaceholder}
               aria-label={t.common.search}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setFilters({ q: e.target.value })}
               className="pl-9"
             />
           </div>
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-full sm:w-28" aria-label={t.common.year}>
-              <SelectValue placeholder={t.common.year} />
+          <PeriodFilter value={filters} onChange={setFilters} allowAllYears />
+
+          <Select value={typeFilter} onValueChange={(type) => setFilters({ type })}>
+            <SelectTrigger className="w-full sm:w-40" aria-label={t.adminTraining.programForm.trainingType}>
+              <SelectValue placeholder={t.adminTraining.programForm.trainingType} />
             </SelectTrigger>
             <SelectContent>
-              {YEARS.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">{tp.allTypes}</SelectItem>
+              <SelectItem value="Local">{typeLabels.Local}</SelectItem>
+              <SelectItem value="International">{typeLabels.International}</SelectItem>
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2">
-            <Select value={fromMonth} onValueChange={setFromMonth}>
-              <SelectTrigger className="w-full sm:w-40" aria-label={tp.fromMonth}>
-                <SelectValue placeholder={tp.fromMonth} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tp.allMonths}</SelectItem>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Select value={evaluationFilter} onValueChange={(value) => setFilters({ eval: value })}>
+            <SelectTrigger className="w-full sm:w-44" aria-label={tp.colEvaluation}>
+              <SelectValue placeholder={tp.colEvaluation} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{tp.allEvaluation}</SelectItem>
+              <SelectItem value="required">{t.common.required}</SelectItem>
+              <SelectItem value="not_required">{t.common.notRequired}</SelectItem>
+            </SelectContent>
+          </Select>
 
-            <span className="text-sm text-muted-foreground">{t.common.to.toLowerCase()}</span>
-
-            <Select value={toMonth} onValueChange={setToMonth}>
-              <SelectTrigger className="w-full sm:w-40" aria-label={tp.toMonth}>
-                <SelectValue placeholder={tp.toMonth} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{tp.allMonths}</SelectItem>
-                {monthOptions.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground sm:ml-auto">
-              {t.common.clearFilters}
+          <div className="flex items-center gap-2 sm:ml-auto">
+            {hasActiveFilters && (
+              <Button variant="ghost" onClick={resetFilters} className="text-muted-foreground">
+                {t.common.clearFilters}
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleDownloadCSV} disabled={isLoading || filteredPrograms.length === 0}>
+              <FileSpreadsheet className="h-4 w-4" />
+              {t.common.downloadCsv}
             </Button>
-          )}
+          </div>
         </div>
 
         {/* Programs Table */}
@@ -229,7 +257,7 @@ export default function ProgramsList() {
                 title={t.common.noResults}
                 description={t.common.noResultsHint}
                 action={
-                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
                     {t.common.clearFilters}
                   </Button>
                 }
@@ -252,12 +280,27 @@ export default function ProgramsList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{tp.colTitle}</TableHead>
-                  <TableHead>{tp.colStart}</TableHead>
-                  <TableHead>{tp.colEnd}</TableHead>
-                  <TableHead className="text-right">{tp.colHours}</TableHead>
-                  <TableHead className="text-right">{tp.colAssigned}</TableHead>
-                  <TableHead>{tp.colEvaluation}</TableHead>
+                  <SortableTableHead sortKey="title" sort={sort} onSort={toggleSort}>
+                    {tp.colTitle}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="start" sort={sort} onSort={toggleSort}>
+                    {tp.colStart}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="end" sort={sort} onSort={toggleSort}>
+                    {tp.colEnd}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="hours" sort={sort} onSort={toggleSort} align="right">
+                    {tp.colHours}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="assigned" sort={sort} onSort={toggleSort} align="right">
+                    {tp.colAssigned}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="type" sort={sort} onSort={toggleSort}>
+                    {tp.colType}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="evaluation" sort={sort} onSort={toggleSort}>
+                    {tp.colEvaluation}
+                  </SortableTableHead>
                   <TableHead className="text-right">
                     <span className="sr-only">{t.common.actions}</span>
                   </TableHead>
@@ -269,6 +312,7 @@ export default function ProgramsList() {
                     <TableCell className="max-w-sm">
                       <Link
                         to={`/dashboard/programs/${program.id}`}
+                        state={returnState}
                         className="font-medium hover:text-primary hover:underline underline-offset-4"
                       >
                         {program.title}
@@ -279,12 +323,15 @@ export default function ProgramsList() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{formatMalaysianDate(program.start_date_time)}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatMalaysianDate(program.end_date_time)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right tabular-nums">
                       {program.hours} {t.common.hoursShort}
                     </TableCell>
-                    <TableCell className="text-right">{(program as any).program_assignments?.[0]?.count || 0}</TableCell>
+                    <TableCell className="text-right tabular-nums">{participantsOf(program)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {typeLabels[program.training_type || ''] || program.training_type || '—'}
+                    </TableCell>
                     <TableCell>
-                      {(program as any).notify_for_evaluation ? (
+                      {program.notify_for_evaluation ? (
                         <ToneBadge tone="info">{t.common.required}</ToneBadge>
                       ) : (
                         <ToneBadge tone="muted">{t.common.notRequired}</ToneBadge>
@@ -296,7 +343,7 @@ export default function ProgramsList() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => navigate(`/dashboard/programs/${program.id}`)}
+                          onClick={() => navigate(`/dashboard/programs/${program.id}`, { state: returnState })}
                           aria-label={tp.viewDetails}
                           title={tp.viewDetails}
                         >
@@ -306,7 +353,7 @@ export default function ProgramsList() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => navigate(`/dashboard/programs/${program.id}/edit`)}
+                          onClick={() => navigate(`/dashboard/programs/${program.id}/edit`, { state: returnState })}
                           aria-label={tp.editProgram}
                           title={tp.editProgram}
                         >
@@ -330,11 +377,11 @@ export default function ProgramsList() {
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={3} className="font-semibold">{t.common.total}</TableCell>
-                  <TableCell className="text-right font-semibold">
+                  <TableCell className="text-right font-semibold tabular-nums">
                     {totalHours} {t.common.hoursShort}
                   </TableCell>
-                  <TableCell className="text-right font-semibold">{totalAssigned}</TableCell>
-                  <TableCell colSpan={2} />
+                  <TableCell className="text-right font-semibold tabular-nums">{totalAssigned}</TableCell>
+                  <TableCell colSpan={3} />
                 </TableRow>
               </TableFooter>
             </Table>

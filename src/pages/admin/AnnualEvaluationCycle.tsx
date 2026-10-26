@@ -5,6 +5,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 import { StatCard } from '@/components/common/StatCard';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { SortableTableHead } from '@/components/common/SortableTableHead';
+import { SearchableSelect } from '@/components/common/SearchableSelect';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -48,6 +50,7 @@ import {
   RotateCcw,
   Search,
   CalendarIcon,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   useAnnualEvaluationCycle,
@@ -61,6 +64,12 @@ import { Callout } from '@/components/common/Callout';
 import { WindowModeControl } from '@/components/common/WindowModeControl';
 import { getCycleState } from '@/lib/annualCycle';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useTableSort } from '@/hooks/useTableSort';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useReturnState } from '@/hooks/useReturnTo';
+import { useToast } from '@/hooks/use-toast';
+import { downloadCSV } from '@/lib/csvUtils';
+import type { SortAccessors } from '@/lib/sort';
 import { formatMalaysianDate } from '@/lib/dateUtils';
 import { toneClasses } from '@/lib/status';
 import { cn } from '@/lib/utils';
@@ -68,11 +77,31 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { format, parseISO } from 'date-fns';
-import { calculateTotalScore, calculatePercentage } from '@/lib/annualEvaluationQuestions';
+import { calculateTotalScore, calculatePercentage, getRatingLabel } from '@/lib/annualEvaluationQuestions';
 
-type StatusFilter = 'all' | 'pending_staff' | 'pending_supervisor' | 'completed';
+const FILTER_DEFAULTS = { q: '', status: 'all', sup: 'all' };
 
-/** Ring shown on the stat card whose status is the active table filter (literal for Tailwind). */
+const supervisorPercent = (evaluation: AnnualEvaluation) =>
+  evaluation.supervisor_answers ? calculatePercentage(evaluation.supervisor_answers) : null;
+
+// Status order follows the workflow
+const STATUS_ORDER: Record<AnnualEvaluation['status'], number> = { pending_staff: 0, pending_supervisor: 1, completed: 2 };
+
+const EVALUATION_SORT: SortAccessors<AnnualEvaluation, 'name' | 'position' | 'supervisor' | 'status' | 'score'> = {
+  name: (evaluation) => evaluation.profiles?.name,
+  position: (evaluation) => evaluation.profiles?.position,
+  supervisor: (evaluation) => evaluation.supervisor?.name,
+  status: (evaluation) => STATUS_ORDER[evaluation.status],
+  score: supervisorPercent,
+};
+
+// CSV stays BM (official content)
+const STATUS_BM: Record<AnnualEvaluation['status'], string> = {
+  pending_staff: 'Menunggu kakitangan',
+  pending_supervisor: 'Menunggu penyelia',
+  completed: 'Selesai',
+};
+
 export default function AnnualEvaluationCycle() {
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -95,20 +124,44 @@ export default function AnnualEvaluationCycle() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<AnnualEvaluation | null>(null);
   const [resetType, setResetType] = useState<'staff' | 'supervisor' | 'full'>('full');
 
-  // Search and filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { toast } = useToast();
+  const returnState = useReturnState();
 
-  // Filter evaluations by search query and status - must be before early returns
-  const filteredEvaluations = useMemo(() => {
-    const evaluations = data?.evaluations || [];
-    return evaluations.filter((e) => {
-      const matchesSearch = !searchQuery.trim() ||
-        ((e.profiles as any)?.name?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
-      return matchesSearch && matchesStatus;
+  // Search, filters and sort live in the URL (kept when opening a result and coming back).
+  // Hooks must run before the early returns below.
+  const { filters, setFilters, clearFilters: clearUrlFilters } = useUrlFilters(FILTER_DEFAULTS);
+  const { q: searchQuery, status: statusFilter, sup: supervisorFilter } = filters;
+  const setStatusFilter = (status: string) => setFilters({ status });
+
+  const supervisorOptions = useMemo(() => {
+    const byId = new Map<string, string>();
+    (data?.evaluations || []).forEach((e) => {
+      if (e.supervisor_id && e.supervisor?.name) byId.set(e.supervisor_id, e.supervisor.name);
     });
-  }, [data?.evaluations, searchQuery, statusFilter]);
+    return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [data?.evaluations]);
+
+  const visibleEvaluations = useMemo(() => {
+    const search = searchQuery.trim().toLowerCase();
+    return (data?.evaluations || []).filter((e) => {
+      if (
+        search &&
+        ![e.profiles?.name, e.profiles?.position, e.supervisor?.name].some((v) => (v || '').toLowerCase().includes(search))
+      ) {
+        return false;
+      }
+      if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+      if (supervisorFilter === 'none' && e.supervisor_id) return false;
+      if (supervisorFilter !== 'all' && supervisorFilter !== 'none' && e.supervisor_id !== supervisorFilter) return false;
+      return true;
+    });
+  }, [data?.evaluations, searchQuery, statusFilter, supervisorFilter]);
+
+  // Rows are inserted together, so created_at doesn't order them; default to name
+  const { sorted: filteredEvaluations, sort, toggleSort } = useTableSort(visibleEvaluations, EVALUATION_SORT, {
+    key: 'name',
+    direction: 'asc',
+  });
 
   const handleResetClick = (evaluation: AnnualEvaluation, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -143,13 +196,10 @@ export default function AnnualEvaluationCycle() {
     }
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-  };
+  const clearFilters = () => clearUrlFilters();
 
   const openResult = (evaluation: AnnualEvaluation) =>
-    navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`);
+    navigate(`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`, { state: returnState });
 
   const fallbackHeader = (
     <PageHeader
@@ -195,7 +245,29 @@ export default function AnnualEvaluationCycle() {
   const staffSubmitted = pendingSupervisor + completed;
   const progressPercentage = totalStaff > 0 ? Math.round((completed / totalStaff) * 100) : 0;
 
-  const hasActiveFilters = !!searchQuery.trim() || statusFilter !== 'all';
+  const hasActiveFilters = !!searchQuery.trim() || statusFilter !== 'all' || supervisorFilter !== 'all';
+
+  const handleDownloadCSV = () => {
+    const rows = filteredEvaluations.map((e) => {
+      const staffScore = e.staff_answers ? calculateTotalScore(e.staff_answers) : null;
+      const percent = supervisorPercent(e);
+      return {
+        Nama: e.profiles?.name || '',
+        Emel: e.profiles?.email || '',
+        Jawatan: e.profiles?.position || '',
+        Penyelia: e.supervisor?.name || '',
+        Status: STATUS_BM[e.status],
+        'Markah Kendiri (/100)': staffScore ?? '',
+        'Markah Penyelia (/100)': e.supervisor_answers ? calculateTotalScore(e.supervisor_answers) : '',
+        'Peratus Penyelia (%)': percent ?? '',
+        Penarafan: percent !== null ? getRatingLabel(percent).label : '',
+        'Tarikh Hantar Kendiri': e.staff_submitted_at ? formatMalaysianDate(e.staff_submitted_at) : '',
+        'Tarikh Nilai Penyelia': e.supervisor_submitted_at ? formatMalaysianDate(e.supervisor_submitted_at) : '',
+      };
+    });
+    downloadCSV(rows, `penilaian-tahunan-${cycle.year}.csv`);
+    toast({ title: t.common.success, description: tc.csvDownloaded });
+  };
 
   // Open/closed: the dates, unless an admin opened or closed it manually; a skipped cycle is never open
   const cycleState = getCycleState(cycle);
@@ -352,26 +424,53 @@ export default function AnnualEvaluationCycle() {
                   <SelectItem value="completed">{statusLabels.completed}</SelectItem>
                 </SelectContent>
               </Select>
+              <SearchableSelect
+                value={supervisorFilter}
+                onChange={(sup) => setFilters({ sup })}
+                options={supervisorOptions}
+                pinned={[
+                  { value: 'all', label: t.common.allSupervisors },
+                  { value: 'none', label: t.common.noSupervisor },
+                ]}
+                placeholder={t.common.supervisor}
+                searchPlaceholder={t.common.searchSupervisor}
+                ariaLabel={t.common.supervisor}
+                className="sm:w-52"
+              />
               <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={tc.searchPlaceholder}
                   aria-label={t.common.search}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setFilters({ q: e.target.value })}
                   className="pl-9"
                 />
               </div>
+              <Button variant="outline" onClick={handleDownloadCSV} disabled={filteredEvaluations.length === 0}>
+                <FileSpreadsheet className="h-4 w-4" />
+                {t.common.downloadCsv}
+              </Button>
             </div>
           </CardHeader>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t.common.name}</TableHead>
-                <TableHead>{t.common.position}</TableHead>
-                <TableHead>{t.common.supervisor}</TableHead>
-                <TableHead>{t.common.status}</TableHead>
-                <TableHead className="text-right">{tc.colScore}</TableHead>
+                <SortableTableHead sortKey="name" sort={sort} onSort={toggleSort}>
+                  {t.common.name}
+                </SortableTableHead>
+                <SortableTableHead sortKey="position" sort={sort} onSort={toggleSort}>
+                  {t.common.position}
+                </SortableTableHead>
+                <SortableTableHead sortKey="supervisor" sort={sort} onSort={toggleSort}>
+                  {t.common.supervisor}
+                </SortableTableHead>
+                <SortableTableHead sortKey="status" sort={sort} onSort={toggleSort}>
+                  {t.common.status}
+                </SortableTableHead>
+                <SortableTableHead sortKey="score" sort={sort} onSort={toggleSort} align="right">
+                  {tc.colScore}
+                </SortableTableHead>
                 <TableHead className="text-right">
                   <span className="sr-only">{t.common.actions}</span>
                 </TableHead>
@@ -407,7 +506,7 @@ export default function AnnualEvaluationCycle() {
                     ? calculatePercentage(evaluation.supervisor_answers as Record<string, number>)
                     : null;
                   const isCompleted = evaluation.status === 'completed';
-                  const staffName: string = (evaluation.profiles as any)?.name || '—';
+                  const staffName: string = evaluation.profiles?.name || '—';
 
                   return (
                     <TableRow
@@ -421,6 +520,7 @@ export default function AnnualEvaluationCycle() {
                         {isCompleted ? (
                           <Link
                             to={`/dashboard/annual-evaluations/${cycleId}/staff/${evaluation.user_id}`}
+                            state={returnState}
                             onClick={(e) => e.stopPropagation()}
                             className="font-medium hover:text-primary hover:underline underline-offset-4"
                           >
@@ -430,8 +530,8 @@ export default function AnnualEvaluationCycle() {
                           <span className="font-medium">{staffName}</span>
                         )}
                       </TableCell>
-                      <TableCell>{(evaluation.profiles as any)?.position || '—'}</TableCell>
-                      <TableCell>{(evaluation.supervisor as any)?.name || '—'}</TableCell>
+                      <TableCell>{evaluation.profiles?.position || '—'}</TableCell>
+                      <TableCell>{evaluation.supervisor?.name || '—'}</TableCell>
                       <TableCell>
                         <StatusBadge kind="annualEvaluation" status={evaluation.status} />
                       </TableCell>
@@ -486,6 +586,10 @@ export default function AnnualEvaluationCycle() {
             </TableBody>
           </Table>
         </Card>
+
+        {filteredEvaluations.length > 0 && (
+          <p className="text-sm text-muted-foreground">{tc.showing(filteredEvaluations.length, totalStaff)}</p>
+        )}
       </div>
 
       {/* Reset Confirmation Dialog */}

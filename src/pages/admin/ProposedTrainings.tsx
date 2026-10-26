@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -7,6 +7,7 @@ import { StatCard } from '@/components/common/StatCard';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Notice } from '@/components/common/Callout';
 import { ToneBadge } from '@/components/common/StatusBadge';
+import { SortableTableHead } from '@/components/common/SortableTableHead';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,13 +27,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Send,
   CheckCircle2,
-  Calendar,
   CalendarIcon,
+  UserX,
+  Search,
   Trash2,
   Save,
   Download,
@@ -47,7 +50,13 @@ import {
   useDeleteProposedTraining,
   getProposalYear,
   isLegacyProposal,
+  type ProposedTraining,
 } from '@/hooks/useProposedTrainings';
+import { useTargetStaff, type TargetStaffMember } from '@/hooks/useUsers';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useTableSort } from '@/hooks/useTableSort';
+import { useToast } from '@/hooks/use-toast';
+import type { SortAccessors } from '@/lib/sort';
 import {
   useProposalPeriod,
   useUpdateSystemSetting,
@@ -71,18 +80,41 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { formatMalaysianDate } from '@/lib/dateUtils';
-import { escapeCSVValue } from '@/lib/csvUtils';
+import { downloadCSV } from '@/lib/csvUtils';
 
 // Generate years for filter
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear + 1 - i);
 
+/** year '' = the year proposals are going to now; view = submitted proposals or staff who haven't proposed */
+const FILTER_DEFAULTS = { year: '', q: '', cons: 'all', view: 'submitted' };
+
+// Old-format rows (up to 2026) are shown by their first proposal and count by its tick.
+const proposalTitle = (p: ProposedTraining) => (isLegacyProposal(p) ? p.proposal_1 : p.training_title) || '';
+const isConsidered = (p: ProposedTraining) => (isLegacyProposal(p) ? !!p.proposal_1_entertained : !!p.is_entertained);
+
+const PROPOSAL_SORT: SortAccessors<ProposedTraining, 'staff' | 'proposal' | 'considered' | 'submitted'> = {
+  staff: (p) => p.profiles?.name,
+  proposal: proposalTitle,
+  considered: (p) => (isConsidered(p) ? 1 : 0),
+  submitted: (p) => Date.parse(p.created_at),
+};
+
+const MISSING_SORT: SortAccessors<TargetStaffMember, 'name' | 'email' | 'position'> = {
+  name: (s) => s.name,
+  email: (s) => s.email,
+  position: (s) => s.position,
+};
+
+const matchesSearch = (search: string, values: Array<string | null | undefined>) =>
+  !search || values.some((v) => (v || '').toLowerCase().includes(search));
+
 export default function ProposedTrainings() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const tp = t.adminStaff.proposals;
-  const [selectedYear, setSelectedYear] = useState(getProposalYear());
-  const { data: proposals, isLoading, error } = useProposedTrainingsList(selectedYear);
+  const { toast } = useToast();
+  const { filters, setFilters, clearFilters } = useUrlFilters(FILTER_DEFAULTS);
   const markAsEntertained = useMarkAsEntertained();
   const deleteProposal = useDeleteProposedTraining();
   const {
@@ -95,6 +127,48 @@ export default function ProposedTrainings() {
     proposalYear: windowYear,
     isLoading: periodLoading,
   } = useProposalPeriod();
+  // Opens on the year staff are proposing for now (the period's end-date year, as staff submit);
+  // the old December rule is only a fallback while the period loads
+  const selectedYear = filters.year ? parseInt(filters.year) : periodLoading ? getProposalYear() : windowYear;
+  const setSelectedYear = (year: number) => setFilters({ year: String(year) });
+  const yearOptions = [...new Set([selectedYear, ...YEARS])].sort((a, b) => b - a);
+  const { data: proposals, isLoading, error } = useProposedTrainingsList(selectedYear);
+  const { data: targetStaff, isLoading: staffLoading } = useTargetStaff();
+  const showMissing = filters.view === 'missing';
+  const search = filters.q.trim().toLowerCase();
+
+  const visibleProposals = useMemo(
+    () =>
+      proposals?.filter((p) => {
+        if (!matchesSearch(search, [p.profiles?.name, p.profiles?.email, proposalTitle(p), p.training_details])) return false;
+        if (filters.cons === 'yes' && !isConsidered(p)) return false;
+        if (filters.cons === 'no' && isConsidered(p)) return false;
+        return true;
+      }),
+    [proposals, search, filters.cons]
+  );
+  const { sorted: proposalRows, sort, toggleSort } = useTableSort(visibleProposals, PROPOSAL_SORT, {
+    key: 'submitted',
+    direction: 'desc',
+  });
+
+  // Active non-admin staff with no proposal for the year
+  const missingStaff = useMemo(() => {
+    if (!targetStaff || !proposals) return undefined;
+    const proposed = new Set(proposals.map((p) => p.user_id));
+    return targetStaff.filter((s) => !proposed.has(s.id));
+  }, [targetStaff, proposals]);
+  const visibleMissing = useMemo(
+    () => missingStaff?.filter((s) => matchesSearch(search, [s.name, s.email, s.position])),
+    [missingStaff, search]
+  );
+  const { sorted: missingRows, sort: missingSort, toggleSort: toggleMissingSort } = useTableSort(
+    visibleMissing,
+    MISSING_SORT,
+    { key: 'name', direction: 'asc' },
+    'sort-missing'
+  );
+
   const updateSetting = useUpdateSystemSetting();
   const [editPeriodStart, setEditPeriodStart] = useState<Date | undefined>();
   const [editPeriodEnd, setEditPeriodEnd] = useState<Date | undefined>();
@@ -184,10 +258,8 @@ export default function ProposedTrainings() {
   };
 
   const totalProposals = proposals?.length || 0;
-  // Old-format rows (up to 2026) are shown by their first proposal, so they count by its tick.
-  const isConsidered = (p: NonNullable<typeof proposals>[number]) =>
-    isLegacyProposal(p) ? !!p.proposal_1_entertained : !!p.is_entertained;
   const entertainedCount = proposals?.filter(isConsidered).length || 0;
+  const isNarrowed = !!search || (!showMissing && filters.cons !== 'all');
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) =>
@@ -230,36 +302,31 @@ export default function ProposedTrainings() {
   );
 
   // CSV export is official output: headers and values stay in BM regardless of UI language.
+  // It follows the view on screen (filters and sort).
   const handleDownloadCSV = () => {
-    if (!proposals || proposals.length === 0) return;
-
-    const headers = ['Nama', 'Emel', 'Jawatan', 'Jabatan', 'Cadangan Latihan', 'Butiran', 'Catatan', 'Dipertimbangkan', 'Tarikh Hantar'];
-    const rows = proposals.map((p) => {
-      const profile = p.profiles as any;
-      return [
-        profile?.name || '',
-        profile?.email || '',
-        profile?.position || '',
-        profile?.department || '',
-        (isLegacyProposal(p) ? p.proposal_1 : p.training_title) || '',
-        p.training_details || '',
-        p.notes || '',
-        isConsidered(p) ? 'Ya' : 'Tidak',
-        p.created_at ? format(new Date(p.created_at), 'dd/MM/yyyy') : '',
-      ];
-    });
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map(escapeCSVValue).join(','))
-      .join('\n');
-
-    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Cadangan_Latihan_${selectedYear}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (showMissing) {
+      const rows = missingRows.map((s) => ({
+        Nama: s.name,
+        Emel: s.email,
+        Jawatan: s.position || '',
+        Jabatan: s.department || '',
+      }));
+      downloadCSV(rows, `belum-mencadang-${selectedYear}.csv`);
+    } else {
+      const rows = proposalRows.map((p) => ({
+        Nama: p.profiles?.name || '',
+        Emel: p.profiles?.email || '',
+        Jawatan: p.profiles?.position || '',
+        Jabatan: p.profiles?.department || '',
+        'Cadangan Latihan': proposalTitle(p),
+        Butiran: p.training_details || '',
+        Catatan: p.notes || '',
+        Dipertimbangkan: isConsidered(p) ? 'Ya' : 'Tidak',
+        'Tarikh Hantar': p.created_at ? format(new Date(p.created_at), 'dd/MM/yyyy') : '',
+      }));
+      downloadCSV(rows, `cadangan-latihan-${selectedYear}.csv`);
+    }
+    toast({ title: t.common.success, description: tp.csvDownloaded });
   };
 
   const header = (
@@ -271,7 +338,7 @@ export default function ProposedTrainings() {
           <Button
             variant="outline"
             onClick={handleDownloadCSV}
-            disabled={!proposals || proposals.length === 0}
+            disabled={showMissing ? missingRows.length === 0 : proposalRows.length === 0}
           >
             <Download className="h-4 w-4" />
             {t.common.downloadCsv}
@@ -284,7 +351,7 @@ export default function ProposedTrainings() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {YEARS.map((year) => (
+              {yearOptions.map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
                 </SelectItem>
@@ -451,23 +518,113 @@ export default function ProposedTrainings() {
             value={isLoading ? <Skeleton className="h-8 w-12" /> : totalProposals}
             icon={Send}
             tone="primary"
+            hint={String(selectedYear)}
+            onClick={() => setFilters({ view: 'submitted', cons: 'all' })}
+            active={!showMissing && filters.cons === 'all'}
           />
           <StatCard
             label={tp.statConsidered}
             value={isLoading ? <Skeleton className="h-8 w-12" /> : entertainedCount}
             icon={CheckCircle2}
             tone="success"
+            onClick={() => setFilters({ view: 'submitted', cons: filters.cons === 'yes' && !showMissing ? 'all' : 'yes' })}
+            active={!showMissing && filters.cons === 'yes'}
           />
-          <StatCard label={t.common.year} value={selectedYear} icon={Calendar} tone="muted" />
+          <StatCard
+            label={tp.statMissing}
+            value={isLoading || staffLoading ? <Skeleton className="h-8 w-12" /> : missingStaff?.length ?? 0}
+            icon={UserX}
+            tone="warning"
+            hint={targetStaff ? tp.ofActiveStaff(targetStaff.length) : undefined}
+            onClick={() => setFilters({ view: showMissing ? 'submitted' : 'missing', cons: 'all' })}
+            active={showMissing}
+          />
         </div>
 
-        {/* Proposals Table */}
+        {/* Proposals Table (or staff who haven't proposed) */}
         <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle>{tp.listTitle}</CardTitle>
-            <CardDescription>{tp.listDescription}</CardDescription>
+          <CardHeader className="gap-4 space-y-0 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1.5">
+              <CardTitle>{showMissing ? tp.missingTitle : tp.listTitle}</CardTitle>
+              <CardDescription>{showMissing ? tp.missingDescription(selectedYear) : tp.listDescription}</CardDescription>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              {!showMissing && (
+                <Select value={filters.cons} onValueChange={(cons) => setFilters({ cons })}>
+                  <SelectTrigger className="w-full sm:w-52" aria-label={tp.colConsidered}>
+                    <SelectValue placeholder={tp.allConsidered} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tp.allConsidered}</SelectItem>
+                    <SelectItem value="yes">{tp.consideredYes}</SelectItem>
+                    <SelectItem value="no">{tp.consideredNo}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder={tp.searchPlaceholder}
+                  aria-label={t.common.search}
+                  value={filters.q}
+                  onChange={(e) => setFilters({ q: e.target.value })}
+                  className="pl-9"
+                />
+              </div>
+              {isNarrowed && (
+                <Button variant="ghost" onClick={() => clearFilters(['q', 'cons'])} className="text-muted-foreground">
+                  {t.common.clearFilters}
+                </Button>
+              )}
+              {showMissing && (
+                <Button variant="outline" onClick={() => setFilters({ view: 'submitted' })}>
+                  {tp.backToSubmitted}
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          {isLoading ? (
+          {showMissing ? (
+            staffLoading || isLoading ? (
+              <div className="space-y-2 px-6 pb-6">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-11 w-full" />
+                ))}
+              </div>
+            ) : missingRows.length === 0 ? (
+              <EmptyState
+                compact
+                icon={search ? Search : CheckCircle2}
+                title={search ? t.common.noResults : tp.missingEmptyTitle}
+                description={search ? t.common.noResultsHint : undefined}
+                className="border-t"
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableTableHead sortKey="name" sort={missingSort} onSort={toggleMissingSort}>
+                      {t.common.name}
+                    </SortableTableHead>
+                    <SortableTableHead sortKey="email" sort={missingSort} onSort={toggleMissingSort}>
+                      {t.common.email}
+                    </SortableTableHead>
+                    <SortableTableHead sortKey="position" sort={missingSort} onSort={toggleMissingSort}>
+                      {t.common.position}
+                    </SortableTableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {missingRows.map((staff) => (
+                    <TableRow key={staff.id}>
+                      <TableCell className="font-medium">{staff.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{staff.email}</TableCell>
+                      <TableCell>{staff.position || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )
+          ) : isLoading ? (
             <div className="space-y-2 px-6 pb-6">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-11 w-full" />
@@ -481,23 +638,44 @@ export default function ProposedTrainings() {
               description={tp.emptyDescription}
               className="border-t"
             />
+          ) : proposalRows.length === 0 ? (
+            <EmptyState
+              compact
+              icon={Search}
+              title={t.common.noResults}
+              description={t.common.noResultsHint}
+              action={
+                <Button variant="outline" size="sm" onClick={() => clearFilters(['q', 'cons'])}>
+                  {t.common.clearFilters}
+                </Button>
+              }
+              className="border-t"
+            />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{tp.colEmployee}</TableHead>
-                  <TableHead className="w-[42%]">{tp.colProposal}</TableHead>
+                  <SortableTableHead sortKey="staff" sort={sort} onSort={toggleSort}>
+                    {tp.colEmployee}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="proposal" sort={sort} onSort={toggleSort} className="w-[42%]">
+                    {tp.colProposal}
+                  </SortableTableHead>
                   <TableHead>{tp.colNotes}</TableHead>
-                  <TableHead className="w-28 text-center">{tp.colConsidered}</TableHead>
-                  <TableHead>{tp.colSubmitted}</TableHead>
+                  <SortableTableHead sortKey="considered" sort={sort} onSort={toggleSort} className="w-28 text-center">
+                    {tp.colConsidered}
+                  </SortableTableHead>
+                  <SortableTableHead sortKey="submitted" sort={sort} onSort={toggleSort}>
+                    {tp.colSubmitted}
+                  </SortableTableHead>
                   <TableHead className="w-10 text-right">
                     <span className="sr-only">{t.common.actions}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {proposals?.map((proposal) => {
-                  const profile = proposal.profiles as any;
+                {proposalRows.map((proposal) => {
+                  const profile = proposal.profiles;
                   const staffName: string = profile?.name || '—';
                   const legacy = isLegacyProposal(proposal);
                   // Old-format rows (up to 2026) show their first proposal; the second is kept in the DB only.
@@ -551,6 +729,14 @@ export default function ProposedTrainings() {
             </Table>
           )}
         </Card>
+
+        {!isLoading && (showMissing ? missingRows.length > 0 : proposalRows.length > 0) && (
+          <p className="text-sm text-muted-foreground">
+            {showMissing
+              ? tp.showingStaff(missingRows.length, missingStaff?.length || 0)
+              : tp.showing(proposalRows.length, totalProposals)}
+          </p>
+        )}
       </div>
     </AdminLayout>
   );
