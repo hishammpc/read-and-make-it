@@ -264,7 +264,7 @@ export default function EmployeeDashboard() {
                 hasPending
                   ? ts.pendingFrom(
                       [...new Set(stats?.pendingEvaluations?.map((p: any) =>
-                        new Date(p.programs?.end_date_time).getFullYear()
+                        new Date(p.programs?.start_date_time).getFullYear()
                       ))].sort((a, b) => b - a).join(', ')
                     )
                   : ts.noPending

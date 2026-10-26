@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { getMonthRangeBounds } from '@/lib/dateUtils';
+import { hasAdminRole } from '@/lib/trainingTarget';
 
 export interface Profile {
   id: string;
@@ -54,65 +55,87 @@ export function useUsers() {
   });
 }
 
+export interface UserWithTrainingHours extends Profile {
+  supervisor_id: string | null;
+  training_hours: number;
+  supervisor_name: string | null;
+  is_admin: boolean;
+}
+
+/**
+ * Every profile with its training hours for a year (or a month range in it) and its
+ * supervisor's name. Shared by the Users list and the hours summary report so both
+ * always show the same numbers. Hours count every assignment (D1) in the year the
+ * program starts.
+ */
+export async function fetchUsersWithTrainingHours(
+  year: number,
+  fromMonth?: string,
+  toMonth?: string
+): Promise<UserWithTrainingHours[]> {
+  // Paged reads need a unique tiebreaker in the order, or rows can repeat or go
+  // missing between pages
+  const users = await fetchAllRows((from, to) =>
+    supabase
+      .from('profiles')
+      .select(`
+        *,
+        user_roles(role)
+      `)
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
+
+  const userMap: Record<string, string> = {};
+  users.forEach((user: any) => {
+    userMap[user.id] = user.name;
+  });
+
+  const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
+  const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
+  const { start: startDate, end: endDate } = getMonthRangeBounds(year, startMonth, year, endMonth);
+
+  // `!inner` makes the date filter drop assignments outside the period instead of
+  // returning them with an empty program
+  const assignments = await fetchAllRows((from, to) =>
+    supabase
+      .from('program_assignments')
+      .select(`
+        id,
+        user_id,
+        programs!inner(hours, start_date_time)
+      `)
+      .gte('programs.start_date_time', startDate)
+      .lt('programs.start_date_time', endDate)
+      .order('id', { ascending: true })
+      .range(from, to)
+  );
+
+  const hoursMap: Record<string, number> = {};
+  assignments.forEach((assignment: any) => {
+    if (assignment.programs?.hours) {
+      hoursMap[assignment.user_id] = (hoursMap[assignment.user_id] || 0) + assignment.programs.hours;
+    }
+  });
+
+  return users.map((user: any) => ({
+    ...user,
+    training_hours: hoursMap[user.id] || 0,
+    supervisor_name: user.supervisor_id ? userMap[user.supervisor_id] || null : null,
+    is_admin: hasAdminRole(user.user_roles),
+  }));
+}
+
 export function useUsersWithTrainingHours(
   year: number = new Date().getFullYear(),
   fromMonth?: string,
   toMonth?: string
 ) {
   return useQuery({
-    queryKey: ['users-with-training-hours', year, fromMonth, toMonth],
-    queryFn: async () => {
-      // Fetch all users (paginated to bypass the 1000-row cap)
-      const users = await fetchAllRows((from, to) =>
-        supabase
-          .from('profiles')
-          .select(`
-            *,
-            user_roles(role)
-          `)
-          .order('name', { ascending: true })
-          .range(from, to)
-      );
-
-      // Create a map of user IDs to names for supervisor lookup
-      const userMap: Record<string, string> = {};
-      users.forEach((user: any) => {
-        userMap[user.id] = user.name;
-      });
-
-      // Determine date range based on year and month filters
-      const startMonth = (fromMonth && fromMonth !== 'all') ? parseInt(fromMonth) : 1;
-      const endMonth = (toMonth && toMonth !== 'all') ? parseInt(toMonth) : 12;
-
-      const { start: startDate, end: endDate } = getMonthRangeBounds(year, startMonth, year, endMonth);
-
-      const assignments = await fetchAllRows((from, to) =>
-        supabase
-          .from('program_assignments')
-          .select(`
-            user_id,
-            programs:program_id(hours, start_date_time)
-          `)
-          .gte('programs.start_date_time', startDate)
-          .lt('programs.start_date_time', endDate)
-          .range(from, to)
-      );
-
-      // Calculate total hours per user
-      const hoursMap: Record<string, number> = {};
-      assignments?.forEach((assignment: any) => {
-        if (assignment.programs?.hours) {
-          hoursMap[assignment.user_id] = (hoursMap[assignment.user_id] || 0) + assignment.programs.hours;
-        }
-      });
-
-      // Merge hours and supervisor name into users
-      return users.map((user: any) => ({
-        ...user,
-        training_hours: hoursMap[user.id] || 0,
-        supervisor_name: user.supervisor_id ? userMap[user.supervisor_id] || null : null,
-      }));
-    },
+    // Under 'users' so every user mutation's ['users'] invalidation refreshes it
+    queryKey: ['users', 'with-training-hours', year, fromMonth, toMonth],
+    queryFn: () => fetchUsersWithTrainingHours(year, fromMonth, toMonth),
   });
 }
 

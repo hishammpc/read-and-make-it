@@ -4,10 +4,12 @@
 // dropping the most recent months. This helper pages through the full result set.
 //
 // Usage: pass a factory that builds a FRESH query for the given inclusive [from, to]
-// window. `.range()` must be the last call in the chain.
+// window. `.range()` must be the last call in the chain, and the query must be ordered
+// by something unique (end with `.order('id')`): without a stable order Postgres may
+// return a row on two pages, or on none, and totals drift.
 //
 //   const rows = await fetchAllRows((from, to) =>
-//     supabase.from('program_assignments').select('...').gte(...).range(from, to)
+//     supabase.from('program_assignments').select('...').gte(...).order('id').range(from, to)
 //   );
 
 const PAGE_SIZE = 1000;

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUser, useUpdateUser } from '@/hooks/useUsers';
 import { usePotentialSupervisors, useUpdateSupervisor } from '@/hooks/useSupervisors';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useReturnTo } from '@/hooks/useReturnTo';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
@@ -25,6 +26,8 @@ export default function UserEdit() {
   const { t } = useLanguage();
   const tf = t.adminStaff.userForm;
   const { id } = useParams<{ id: string }>();
+  // Back to the Users list as the admin left it (filters, sort)
+  const usersListPath = useReturnTo('/admin/users');
   const { data: user, isLoading, error } = useUser(id || '');
   const { data: potentialSupervisors } = usePotentialSupervisors(id);
   const updateUser = useUpdateUser();
@@ -61,7 +64,7 @@ export default function UserEdit() {
         },
       });
 
-      navigate('/admin/users');
+      navigate(usersListPath);
     } catch (error) {
       // Error is handled by the mutation's onError callback
       console.error('Failed to update user:', error);

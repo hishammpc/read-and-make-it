@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useReturnTo } from '@/hooks/useReturnTo';
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
@@ -9,7 +10,8 @@ interface PageHeaderProps {
   description?: ReactNode;
   /** Buttons / controls on the right; wraps under the title on small screens. */
   actions?: ReactNode;
-  /** Renders a back link above the title. */
+  /** Renders a back link above the title. Goes back to the list the user came from
+   *  (with its filters) when the link that opened this page passed `useReturnState()`. */
   backTo?: string;
   backLabel?: string;
   className?: string;
@@ -18,12 +20,13 @@ interface PageHeaderProps {
 /** The one page title pattern: optional back link, h1, description, actions. */
 export function PageHeader({ title, description, actions, backTo, backLabel, className }: PageHeaderProps) {
   const { t } = useLanguage();
+  const backHref = useReturnTo(backTo ?? '');
 
   return (
     <div className={cn('mb-6 space-y-3', className)}>
       {backTo && (
         <Link
-          to={backTo}
+          to={backHref}
           className="inline-flex items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ArrowLeft className="h-4 w-4" />

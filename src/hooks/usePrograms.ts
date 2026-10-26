@@ -184,6 +184,7 @@ export function useProgramsWithStats() {
             program_assignments(count)
           `)
           .order('start_date_time', { ascending: false })
+          .order('id')
           .range(from, to)
       );
     },

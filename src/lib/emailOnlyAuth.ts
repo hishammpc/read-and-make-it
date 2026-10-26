@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { hasAdminRole } from '@/lib/trainingTarget';
 
 /**
  * Custom email-only authentication for internal network use
@@ -38,8 +39,7 @@ function emailMatchPattern(email: string): string {
 
 /** Highest role across a user's user_roles rows (an admin may also hold 'employee'). */
 function resolveRole(roleRows: unknown): 'admin' | 'employee' {
-  const rows = (Array.isArray(roleRows) ? roleRows : [roleRows]) as Array<{ role?: string } | null>;
-  return rows.some((r) => r?.role === 'admin') ? 'admin' : 'employee';
+  return hasAdminRole(roleRows) ? 'admin' : 'employee';
 }
 
 /**

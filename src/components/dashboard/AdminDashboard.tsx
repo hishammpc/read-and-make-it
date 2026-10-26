@@ -26,6 +26,7 @@ import {
   Trophy,
   TrendingUp,
   Star,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   LineChart,
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
       {stats && (
         <div className="space-y-6">
           {/* KPI cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label={td.admin.totalPrograms}
               value={stats.totalPrograms}
@@ -126,6 +127,14 @@ export default function AdminDashboard() {
               value={stats.totalHours}
               icon={ClipboardCheck}
               hint={td.admin.hoursDelivered}
+            />
+            <StatCard
+              label={td.admin.belowTarget}
+              value={stats.belowTargetCount}
+              icon={AlertTriangle}
+              tone="warning"
+              hint={td.admin.belowTargetHint(stats.targetStaffCount)}
+              onClick={() => navigate(`/admin/users?year=${selectedYear}&target=below&sort=hours`)}
             />
           </div>
 
